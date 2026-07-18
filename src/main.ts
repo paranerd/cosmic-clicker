@@ -33,7 +33,8 @@ let lastFrame = performance.now();
 let lastUiUpdate = 0;
 let lastStage = state.stage;
 let lastLogSignature = '';
-let lastUnreadSignature = '';
+let lastOpportunitySignature = '';
+let notificationsInitialized = false;
 let toast = loaded.offlineSeconds >= 60
   ? `Während deiner Abwesenheit liefen ${formatDuration(loaded.offlineSeconds)} Simulation.`
   : '';
@@ -95,9 +96,16 @@ function levelPips(level: number, max: number): string {
   return Array.from({ length: max }, (_, index) => `<i class="level-pip ${index < level ? 'is-filled' : ''}"></i>`).join('');
 }
 
-function currentOpportunities(): Record<'upgrades' | 'automation', string[]> {
+function currentOpportunities(): Record<Panel, string[]> {
+  const reactions: string[] = [];
   const upgrades: string[] = [];
   const automation: string[] = [];
+  if (!state.completed && state.temperature >= THRESHOLDS.deuteriumTemperature && state.star.deuterium >= 2) {
+    reactions.push('reaction:deuterium');
+  }
+  if (!state.completed && state.temperature >= THRESHOLDS.hydrogenTemperature && state.star.hydrogen >= 200) {
+    reactions.push('reaction:hydrogen');
+  }
   if (state.upgrades.gravity < LIMITS.gravity && state.energy >= gravityCost(state.upgrades.gravity)) {
     upgrades.push(`gravity:${state.upgrades.gravity}`);
   }
@@ -107,7 +115,7 @@ function currentOpportunities(): Record<'upgrades' | 'automation', string[]> {
   if (state.automation.fusion < LIMITS.fusion && state.manualFusions >= 5 && state.energy >= fusionCost(state.automation.fusion)) {
     automation.push(`fusion:${state.automation.fusion}`);
   }
-  return { upgrades, automation };
+  return { reactions, upgrades, automation };
 }
 
 function renderReactionPanel(): string {
@@ -187,20 +195,23 @@ const tutorialSteps = [
   { title: 'Entwicklung nachverfolgen', text: 'Öffne die Chronik. Sie zeigt Meilensteine und erklärt, was im Kern deines Sterns geschieht.', selector: '.chronicle-dock', trigger: 'open-chronicle' },
 ] as const;
 
-function statsGridMarkup(): string {
+function statsEntries(): [string, string, string][] {
   const stats = state.stats;
-  const entries = [
-    ['Manuelle Klicks', formatNumber(stats.manualClicks)],
-    ['Akkretiert', `${formatCompact(stats.matterAccreted)} ME`],
-    ['Davon automatisch', `${formatCompact(stats.automaticMatterAccreted)} ME`],
-    ['Deuterium-Zündungen', formatNumber(stats.deuteriumBurns)],
-    ['Manuelle Fusionen', formatNumber(stats.manualFusionActions)],
-    ['Wasserstoff fusioniert', `${formatCompact(stats.hydrogenFused)} H`],
-    ['Energie erzeugt', formatCompact(stats.energyGenerated)],
-    ['Käufe', formatNumber(stats.upgradesPurchased + stats.automationsPurchased)],
-    ['Offline-Simulation', formatDuration(stats.offlineSeconds)],
+  return [
+    ['clicks', 'Manuelle Klicks', formatNumber(stats.manualClicks)],
+    ['matter', 'Akkretiert', `${formatCompact(stats.matterAccreted)} ME`],
+    ['automatic-matter', 'Davon automatisch', `${formatCompact(stats.automaticMatterAccreted)} ME`],
+    ['deuterium', 'Deuterium-Zündungen', formatNumber(stats.deuteriumBurns)],
+    ['fusion', 'Manuelle Fusionen', formatNumber(stats.manualFusionActions)],
+    ['hydrogen', 'Wasserstoff fusioniert', `${formatCompact(stats.hydrogenFused)} H`],
+    ['energy', 'Energie erzeugt', formatCompact(stats.energyGenerated)],
+    ['purchases', 'Käufe', formatNumber(stats.upgradesPurchased + stats.automationsPurchased)],
+    ['offline', 'Offline-Simulation', formatDuration(stats.offlineSeconds)],
   ];
-  return entries.map(([label, value]) => `<div><span>${label}</span><b>${value}</b></div>`).join('');
+}
+
+function statsGridMarkup(live = false): string {
+  return statsEntries().map(([key, label, value]) => `<div><span>${label}</span><b${live ? ` data-live-stat="${key}"` : ''}>${value}</b></div>`).join('');
 }
 
 function historyMarkup(): string {
@@ -231,13 +242,14 @@ function renderShell(): void {
 
         <section class="star-chamber">
           <div class="stage-label"><span data-ui="stage"></span><b data-ui="stage-detail"></b></div><div class="orbit orbit-outer"><span></span><span></span></div><div class="orbit orbit-inner"><span></span></div>
+          <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i>${index % 5 === 4 ? 'He' : 'H'}</i>`).join('')}</div>
           <button class="star-button" data-action="accrete" aria-label="Materie akkretieren"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
           <div class="click-callout"><span data-ui="click-yield"></span><small data-ui="click-detail"></small></div><div class="phase-dots">${Array.from({length:5},(_, index)=>`<i data-phase="${index}"></i>`).join('')}</div>
         </section>
 
         <aside class="action-sidepanel">
           <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div><div class="sidepanel-tools"><button data-action="replay-tutorial" aria-label="Tutorial starten">${icons.help}</button><button data-action="open-stats" aria-label="Statistik öffnen">${icons.stats}</button></div></div>
-          <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${([['reactions','Reaktionen'],['upgrades','Upgrades'],['automation','Automationen']] as [Panel,string][]).map(([panel,label])=>`<button data-panel="${panel}" role="tab"><span>${label}</span><b class="tab-count" data-tab-count="${panel}"></b><i class="notice-dot" data-notice="${panel}"></i></button>`).join('')}</div>
+          <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${([['reactions','Reaktionen'],['upgrades','Upgrades'],['automation','Automationen']] as [Panel,string][]).map(([panel,label])=>`<button data-panel="${panel}" role="tab"><span>${label}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</div>
           <div class="side-content" data-ui="deck-content"></div>
         </aside>
       </section>
@@ -307,31 +319,63 @@ function syncChronicleDock(): void {
   lastLogSignature = signature;
 }
 
+function markOpportunitiesSeen(panel: Panel, opportunities: Record<Panel, string[]>): void {
+  let changed = false;
+  opportunities[panel].forEach((key) => {
+    if (state.seenOpportunities.includes(key)) return;
+    state.seenOpportunities.push(key);
+    changed = true;
+  });
+  if (changed) saveGame(state);
+}
+
+function flashUnlockedTab(panel: Panel): void {
+  const button = app.querySelector<HTMLButtonElement>(`[data-panel="${panel}"]`);
+  if (!button) return;
+  button.classList.remove('unlock-flash');
+  void button.offsetWidth;
+  button.classList.add('unlock-flash');
+  button.addEventListener('animationend', () => button.classList.remove('unlock-flash'), { once: true });
+}
+
 function syncNotifications(): void {
   const opportunities = currentOpportunities();
-  if (activePanel === 'upgrades') opportunities.upgrades.forEach((key) => { if (!state.seenOpportunities.includes(key)) state.seenOpportunities.push(key); });
-  if (activePanel === 'automation') opportunities.automation.forEach((key) => { if (!state.seenOpportunities.includes(key)) state.seenOpportunities.push(key); });
-  const unread = {
-    upgrades: opportunities.upgrades.filter((key) => !state.seenOpportunities.includes(key)),
-    automation: opportunities.automation.filter((key) => !state.seenOpportunities.includes(key)),
-  };
-  (['upgrades', 'automation'] as const).forEach((panel) => {
+  const previous = new Set(lastOpportunitySignature ? lastOpportunitySignature.split('|') : []);
+  const unseenBeforeOpening = (Object.keys(opportunities) as Panel[]).reduce<Record<Panel, string[]>>((result, panel) => {
+    result[panel] = opportunities[panel].filter((key) => !state.seenOpportunities.includes(key));
+    return result;
+  }, { reactions: [], upgrades: [], automation: [] });
+  const newlyUnlocked = notificationsInitialized
+    ? (Object.keys(opportunities) as Panel[]).filter((panel) => unseenBeforeOpening[panel].some((key) => !previous.has(key)))
+    : [];
+
+  markOpportunitiesSeen(activePanel, opportunities);
+  (Object.keys(opportunities) as Panel[]).forEach((panel) => {
     const button = app.querySelector<HTMLButtonElement>(`[data-panel="${panel}"]`);
-    const dot = app.querySelector<HTMLElement>(`[data-notice="${panel}"]`);
-    button?.classList.toggle('has-notice', unread[panel].length > 0);
-    if (dot) dot.textContent = unread[panel].length ? String(unread[panel].length) : '';
+    const count = app.querySelector<HTMLElement>(`[data-tab-count="${panel}"]`);
+    const unreadCount = panel === activePanel ? 0 : opportunities[panel].filter((key) => !state.seenOpportunities.includes(key)).length;
+    button?.classList.toggle('has-notice', unreadCount > 0);
+    if (count) {
+      count.textContent = unreadCount ? String(unreadCount) : '';
+      count.hidden = unreadCount === 0;
+    }
   });
-  const signature = [...unread.upgrades.map((key) => `u:${key}`), ...unread.automation.map((key) => `a:${key}`)].join('|');
-  if (signature && signature !== lastUnreadSignature) {
-    const changedPanel = signature.includes('u:') ? 'upgrades' : 'automation';
-    app.querySelector<HTMLElement>(`[data-panel="${changedPanel}"]`)?.animate(
-      [{ transform: 'translateY(0)', filter: 'brightness(1)' }, { transform: 'translateY(-3px)', filter: 'brightness(1.8)' }, { transform: 'translateY(0)', filter: 'brightness(1)' }],
-      { duration: 900, easing: 'ease-out' },
-    );
+
+  if (newlyUnlocked.length) {
+    newlyUnlocked.forEach(flashUnlockedTab);
     playSound('unlock', state.soundEnabled, state.volume);
-    showToast(changedPanel === 'upgrades' ? 'Neues Upgrade verfügbar.' : 'Neue Automation verfügbar.');
+    const messages: Record<Panel, string> = { reactions: 'Neue Reaktion verfügbar.', upgrades: 'Neues Upgrade verfügbar.', automation: 'Neue Automation verfügbar.' };
+    showToast(newlyUnlocked.length === 1 ? messages[newlyUnlocked[0]] : 'Neue Sternsysteme verfügbar.');
   }
-  lastUnreadSignature = signature;
+  lastOpportunitySignature = (Object.keys(opportunities) as Panel[]).flatMap((panel) => opportunities[panel]).join('|');
+  notificationsInitialized = true;
+}
+
+function syncLiveStats(root: HTMLElement): void {
+  statsEntries().forEach(([key, , value]) => {
+    const element = root.querySelector<HTMLElement>(`[data-live-stat="${key}"]`);
+    if (element && element.textContent !== value) element.textContent = value;
+  });
 }
 
 function syncOverlay(): void {
@@ -346,10 +390,12 @@ function syncOverlay(): void {
     return;
   }
   if (statsOpen && !state.summaryOpen) {
-    const statsSignature = `stats:${state.run}:${Math.floor(state.elapsed)}:${JSON.stringify(state.stats)}:${state.history.length}`;
-    if (statsSignature === overlaySignature) return;
-    overlaySignature = statsSignature;
-    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="stats" role="presentation"><section class="stats-modal" role="dialog" aria-modal="true" aria-labelledby="stats-title"><div class="chronicle-modal-heading"><div><small>RUNDENANALYSE</small><h2 id="stats-title">Statistik · Zyklus ${state.run.toString().padStart(2, '0')}</h2></div><button data-action="close-stats" aria-label="Statistik schließen">×</button></div><div class="stats-modal-body"><div class="run-stat-grid">${statsGridMarkup()}</div><div class="round-history"><div class="section-label"><span>Vergangene Runden</span><small>${state.history.length} ARCHIVIERT</small></div>${historyMarkup()}</div></div></section></div>`;
+    const statsSignature = `stats:${state.run}:${state.history.length}`;
+    if (statsSignature !== overlaySignature) {
+      overlaySignature = statsSignature;
+      root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="stats" role="presentation"><section class="stats-modal" role="dialog" aria-modal="true" aria-labelledby="stats-title"><div class="chronicle-modal-heading"><div><small>RUNDENANALYSE</small><h2 id="stats-title">Statistik · Zyklus ${state.run.toString().padStart(2, '0')}</h2></div><button data-action="close-stats" aria-label="Statistik schließen">×</button></div><div class="stats-modal-body"><div class="run-stat-grid">${statsGridMarkup(true)}</div><div class="round-history"><div class="section-label"><span>Vergangene Runden</span><small>${state.history.length} ARCHIVIERT</small></div>${historyMarkup()}</div></div></section></div>`;
+    }
+    syncLiveStats(root);
     return;
   }
   const signature = `summary:${state.stardust}:${state.perks.largerCloud}:${state.perks.permanentGravity}`;
@@ -457,15 +503,14 @@ function updateUI(forcePanel = false): void {
   if (star) { star.className = `star-button stage-${state.stage}`; star.disabled = state.completed || remaining <= 0; }
   const chamber = app.querySelector<HTMLElement>('.star-chamber');
   chamber?.style.setProperty('--star-scale', String(Math.min(1, Math.max(.1, mass / 36_000)))); chamber?.style.setProperty('--temp-scale', String(Math.min(1, state.temperature / THRESHOLDS.hydrogenTemperature)));
+  chamber?.style.setProperty('--auto-accretion-duration', `${Math.max(1.45, 3.2 - state.automation.accretion * .2)}s`);
+  chamber?.classList.toggle('has-auto-accretion', state.automation.accretion > 0 && !state.completed && remaining > 0);
   setText('click-yield', state.completed ? 'STERN STABIL' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Hauptreihe erreicht' : 'Klicken zum Akkretieren');
   app.querySelectorAll<HTMLElement>('[data-phase]').forEach((dot) => dot.classList.toggle('active', Number(dot.dataset.phase) <= stageIndex));
   const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatCompact(remaining)} ME`); setText('cloud-initial', `von ${formatCompact(initialCloud)} ME`); app.querySelector<HTMLElement>('.gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
   const soundButton = app.querySelector<HTMLButtonElement>('[data-action="toggle-sound-menu"]'); if (soundButton) { soundButton.innerHTML = state.soundEnabled ? icons.sound : icons.soundOff; soundButton.ariaLabel = 'Audioeinstellungen öffnen'; }
   const volumeInput = app.querySelector<HTMLInputElement>('[data-action="set-volume"]'); if (volumeInput && Number(volumeInput.value) !== Math.round(state.volume * 100)) volumeInput.value = String(Math.round(state.volume * 100));
   setText('volume-label', `${Math.round(state.volume * 100)}%`); setText('mute-label', state.soundEnabled ? 'Ton stummschalten' : 'Ton einschalten');
-  setText('reactions-count', state.temperature >= THRESHOLDS.deuteriumTemperature ? '2' : '0');
-  const counts: Record<Panel, string> = { reactions: state.temperature >= THRESHOLDS.deuteriumTemperature ? '2' : '0', upgrades: String(state.upgrades.gravity), automation: String(state.automation.accretion + state.automation.fusion) };
-  (Object.keys(counts) as Panel[]).forEach((panel) => { const element = app.querySelector<HTMLElement>(`[data-tab-count="${panel}"]`); if (element) element.textContent = counts[panel]; });
   syncNotifications(); syncActivePanel(); syncChronicleDock(); syncOverlay(); syncTutorial(); syncToast();
   if (import.meta.hot) syncDebug();
   if (forcePanel || state.stage !== lastStage) lastStage = state.stage;
@@ -473,13 +518,11 @@ function updateUI(forcePanel = false): void {
 
 function switchPanel(panel: Panel, markSeen = true): void {
   activePanel = panel;
-  if (markSeen && (panel === 'upgrades' || panel === 'automation')) {
-    currentOpportunities()[panel].forEach((key) => { if (!state.seenOpportunities.includes(key)) state.seenOpportunities.push(key); });
-    saveGame(state);
-  }
   app.querySelectorAll<HTMLButtonElement>('[data-panel]').forEach((button) => { const active = button.dataset.panel === panel; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
   const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(panel);
-  syncActivePanel(); syncNotifications();
+  syncActivePanel();
+  if (markSeen) markOpportunitiesSeen(panel, currentOpportunities());
+  syncNotifications();
 }
 
 function dispatch(action: GameAction): void {

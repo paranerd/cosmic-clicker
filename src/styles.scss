@@ -217,11 +217,12 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .sidepanel-tools button:hover { color: $text; border-color: rgba($cyan,.45); background: rgba($cyan,.07); }
 .sidepanel-tools svg { width: 14px; height: 14px; }
 .side-tabs { height: 44px; display: grid; grid-template-columns: repeat(3,1fr); padding: 0 14px; border-top: 1px solid $line; border-bottom: 1px solid $line; }
-.side-tabs button { min-width: 0; position: relative; display: flex; gap: 4px; align-items: center; justify-content: center; border: 0; border-bottom: 2px solid transparent; background: transparent; color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; }
+.side-tabs button { min-width: 0; position: relative; display: flex; gap: 4px; align-items: center; justify-content: center; border: 0; border-bottom: 2px solid transparent; background: transparent; color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; transition: color .18s ease, border-color .18s ease, background-color .18s ease; }
 .side-tabs button.active { color: $text; border-bottom-color: $cyan; }
-.side-tabs .tab-count { min-width: 12px; height: 12px; display: grid; place-items: center; border: 1px solid $line; color: #627086; font-family: ui-monospace,monospace; font-size: 6px; font-weight: 400; }
-.side-tabs button.active .tab-count { color: $cyan; }
-.side-tabs .notice-dot { right: 3px; top: 3px; }
+.side-tabs button:hover:not(.active) { color: rgba($text,.78); border-bottom-color: rgba($cyan,.3); background: rgba($cyan,.035); }
+.side-tabs .tab-count { min-width: 13px; height: 13px; display: grid; place-items: center; border: 1px solid rgba($amber,.5); color: #1b1006; background: rgba($amber,.9); font-family: ui-monospace,monospace; font-size: 6px; font-weight: 700; box-shadow: 0 0 9px rgba($amber,.2); }
+.side-tabs .tab-count[hidden] { display: none; }
+.side-tabs button.unlock-flash { animation: tabUnlockFlash 1.25s ease-out; }
 .side-content { min-height: 0; padding: 14px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba($cyan,.25) transparent; }
 .action-sidepanel .reaction-grid, .action-sidepanel .upgrade-grid { grid-template-columns: 1fr; }
 .action-sidepanel .action-card { min-height: 0; grid-template-columns: 38px minmax(0,1fr); gap: 10px; padding: 13px; }
@@ -408,6 +409,17 @@ footer button:hover { color: $cyan; }
 .action-feedback.heat { color: #b8a9f3; }
 .action-feedback.fusion { color: $amber; }
 .matter-particle { position: absolute; z-index: 10; width: 18px; height: 18px; display: grid; place-items: center; border: 1px solid rgba($cyan,.55); border-radius: 50%; background: rgba(8,20,29,.88); color: $cyan; font-family: Georgia,serif; font-size: 7px; pointer-events: none; animation: accreteIn .68s var(--particle-delay,0ms) cubic-bezier(.2,.75,.28,1) both; }
+.automation-particles { position: absolute; inset: 0; z-index: 2; display: none; pointer-events: none; }
+.star-chamber.has-auto-accretion .automation-particles { display: block; }
+.automation-particles i { position: absolute; left: 50%; top: 50%; width: 15px; height: 15px; display: grid; place-items: center; border: 1px solid rgba($cyan,.4); border-radius: 50%; background: rgba(8,20,29,.58); color: rgba($cyan,.82); font-family: Georgia,serif; font-size: 6px; font-style: normal; opacity: 0; animation: accreteIn var(--auto-accretion-duration,3.2s) linear infinite; }
+.automation-particles i:nth-child(1) { --from-x: max(-260px,-40vw); --from-y: max(-180px,-25vh); animation-delay: -2.8s; }
+.automation-particles i:nth-child(2) { --from-x: min(270px,42vw); --from-y: max(-120px,-18vh); animation-delay: -2.35s; }
+.automation-particles i:nth-child(3) { --from-x: max(-280px,-43vw); --from-y: min(90px,14vh); animation-delay: -1.95s; }
+.automation-particles i:nth-child(4) { --from-x: min(250px,39vw); --from-y: min(190px,28vh); animation-delay: -1.55s; }
+.automation-particles i:nth-child(5) { --from-x: max(-160px,-25vw); --from-y: max(-260px,-36vh); animation-delay: -1.15s; }
+.automation-particles i:nth-child(6) { --from-x: min(130px,21vw); --from-y: min(270px,38vh); animation-delay: -.75s; }
+.automation-particles i:nth-child(7) { --from-x: max(-250px,-38vw); --from-y: min(220px,32vh); animation-delay: -.35s; }
+.automation-particles i:nth-child(8) { --from-x: min(260px,40vw); --from-y: max(-230px,-32vh); animation-delay: -.05s; }
 .accretion-gain { position: absolute; z-index: 12; color: $amber; font-family: ui-monospace,monospace; font-size: 11px; font-weight: 700; -webkit-text-stroke: .7px rgba(2,5,9,.96); paint-order: stroke fill; text-shadow: -1px -1px 0 rgba(2,5,9,.9), 1px -1px 0 rgba(2,5,9,.9), -1px 1px 0 rgba(2,5,9,.9), 1px 1px 0 rgba(2,5,9,.9), 0 0 11px rgba($amber,.72); pointer-events: none; animation: gainRise .82s var(--gain-delay,0ms) ease-out both; }
 .tutorial-card { width: min(330px,calc(100vw - 32px)); position: fixed; z-index: 45; left: 24px; bottom: 24px; padding: 17px 18px; border: 1px solid rgba($cyan,.42); background: radial-gradient(circle at 100% 0, rgba($cyan,.1), transparent 42%), rgba(8,13,22,.98); box-shadow: 0 20px 55px rgba(0,0,0,.5); }
 .tutorial-card > div { display: flex; align-items: center; justify-content: space-between; }
@@ -438,6 +450,7 @@ footer button:hover { color: $cyan; }
 @keyframes feedbackRise { from { opacity: 0; transform: translate(-50%, 8px) scale(.9); } 18% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -42px) scale(1.05); } }
 @keyframes accreteIn { from { opacity: 0; transform: translate(calc(var(--from-x) - 50%), calc(var(--from-y) - 50%)) scale(.55); } 18% { opacity: 1; } to { opacity: 0; transform: translate(-50%,-50%) scale(.18); } }
 @keyframes gainRise { from { opacity: 0; transform: translate(-50%,0) scale(.75); } 24% { opacity: 1; transform: translate(-50%,-8px) scale(1.06); } to { opacity: 0; transform: translate(-50%,-48px) scale(1); } }
+@keyframes tabUnlockFlash { 0%,100% { color: inherit; text-shadow: none; } 28%,62% { color: $amber; border-bottom-color: $amber; background: rgba($amber,.07); text-shadow: 0 0 12px rgba($amber,.58); } }
 @keyframes starDriftA { to { background-position: 290px -240px; } }
 @keyframes starDriftB { to { background-position: -410px 330px; } }
 @keyframes nebulaPulse { from { opacity: .55; } to { opacity: 1; } }
