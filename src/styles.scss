@@ -46,11 +46,10 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .brand > span:last-child { display: flex; gap: 5px; letter-spacing: .15em; font-size: 14px; }
 .brand b { font-weight: 750; }
 .brand em { color: $cyan; font-style: normal; font-weight: 350; }
-.run-status { display: flex; align-items: center; gap: 12px; font-size: 9px; letter-spacing: .18em; color: $muted; }
-.run-status i { width: 6px; height: 6px; border-radius: 50%; background: #75c69a; box-shadow: 0 0 10px #75c69a; animation: pulse 2s ease-in-out infinite; }
-.run-status b { border-left: 1px solid $line; padding-left: 12px; color: #aab6c5; font-weight: 600; }
+.run-status { display: flex; align-items: center; font-size: 9px; letter-spacing: .18em; color: $muted; }
+.run-status b { color: #aab6c5; font-weight: 600; }
 .header-actions { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
-.resource-chip { height: 42px; display: flex; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid $line; background: rgba(255,255,255,.025); }
+.resource-chip { height: 42px; display: flex; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid $line; background: rgba(255,255,255,.025); transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .resource-chip { color: $text; cursor: pointer; }
 .resource-chip > span { color: $amber; font-size: 16px; }
 .resource-chip b { font-size: 13px; line-height: 1; }
@@ -64,7 +63,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .perk-popover i { color: $amber; font-style: normal; }
 .perk-popover p { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid $line; color: $muted; font-size: 8px; }
 .icon-button { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid $line; background: transparent; color: $muted; cursor: pointer; transition: .2s ease; }
-.icon-button:hover { color: $text; border-color: rgba($cyan, .4); background: rgba($cyan, .05); }
+.icon-button:hover, .resource-chip:hover, .chronicle-modal-heading button:hover { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 .icon-button svg { width: 17px; }
 .reset-control { width: 40px; height: 40px; position: relative; transition: width .22s ease; }
 .reset-choices { display: none; height: 40px; gap: 5px; }
@@ -127,8 +126,9 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .cloud-summary span { color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .08em; }
 .cloud-summary b { margin-top: 2px; font-family: ui-monospace,monospace; font-size: 15px; font-weight: 400; }
 .cloud-summary small { color: #536176; font-size: 7px; }
-.cloud-mini-gauge { width: 35px; height: 35px; }
-.cloud-mini-gauge .gauge-ring { display: block; width: 35px; height: 35px; padding: 0; background: conic-gradient($cyan var(--remaining), rgba(255,255,255,.06) 0); -webkit-mask: radial-gradient(circle, transparent 52%, #000 55%); mask: radial-gradient(circle, transparent 52%, #000 55%); }
+.cloud-mini-gauge { width: 35px; height: 35px; position: relative; display: grid; place-items: center; }
+.cloud-mini-gauge .gauge-ring { position: absolute; inset: 0; display: block; width: 35px; height: 35px; padding: 0; background: conic-gradient($cyan var(--remaining), rgba(255,255,255,.06) 0); -webkit-mask: radial-gradient(circle, transparent 52%, #000 55%); mask: radial-gradient(circle, transparent 52%, #000 55%); }
+.cloud-mini-gauge b { position: relative; z-index: 1; color: #b7dfe2; font-family: ui-monospace,monospace; font-size: 6px; font-weight: 500; }
 .cloud-elements { margin-top: 9px; display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
 .cloud-elements > div { min-width: 0; display: grid; grid-template-columns: 23px 1fr; gap: 5px; align-items: center; }
 .cloud-elements .element { width: 22px; height: 22px; font-size: 8px; }
@@ -268,10 +268,10 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .upgrade-card { border: 1px solid $line; padding: 18px; background: rgba(255,255,255,.018); }
 .upgrade-heading { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 10px; align-items: center; }
 .upgrade-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid rgba($cyan,.35); border-radius: 50%; color: $cyan; font-family: Georgia,serif; }
-.tag { color: $muted; font-size: 7px; letter-spacing: .1em; text-transform: uppercase; }
 .upgrade-card h3 { margin: 0; font-family: Georgia,serif; font-size: 17px; font-weight: 400; }
 .upgrade-card h3 b { margin-left: 5px; color: $cyan; font-family: ui-monospace,monospace; font-size: 10px; font-weight: 400; white-space: nowrap; }
 .upgrade-card p { min-height: 42px; margin: 10px 0 0; color: $muted; font-size: 9px; line-height: 1.5; }
+.upgrade-card p strong { display: block; margin-top: 4px; color: #91cdd1; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 400; }
 .level-row { display: flex; gap: 5px; margin: 15px 0; }
 .level-pip { height: 3px; flex: 1; background: rgba(255,255,255,.08); }
 .level-pip.is-filled { background: $cyan; box-shadow: 0 0 6px rgba($cyan,.5); }
@@ -378,8 +378,7 @@ footer button:hover { color: $cyan; }
 .chronicle-modal-heading { padding: 22px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid $line; }
 .chronicle-modal-heading small { color: $cyan; font-size: 7px; letter-spacing: .18em; }
 .chronicle-modal-heading h2 { margin: 5px 0 0; font-family: Georgia,serif; font-size: 24px; font-weight: 400; }
-.chronicle-modal-heading button { width: 34px; height: 34px; border: 1px solid $line; background: transparent; color: $muted; font-size: 19px; cursor: pointer; transition: color .18s ease, border-color .18s ease, background .18s ease, transform .18s ease; }
-.chronicle-modal-heading button:hover { color: #071016; border-color: $cyan; background: $cyan; transform: rotate(4deg); }
+.chronicle-modal-heading button { width: 34px; height: 34px; border: 1px solid $line; background: transparent; color: $muted; font-size: 19px; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .chronicle-modal .chronicle-layout { margin: 0; }
 .chronicle-modal .timeline-card, .chronicle-modal .log-card { min-height: 360px; }
 .text-action { margin-top: 13px; border: 0; background: none; color: $muted; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; cursor: pointer; }
@@ -390,7 +389,7 @@ footer button:hover { color: $cyan; }
 .action-feedback.heat { color: #b8a9f3; }
 .action-feedback.fusion { color: $amber; }
 .matter-particle { position: absolute; z-index: 10; width: 18px; height: 18px; display: grid; place-items: center; border: 1px solid rgba($cyan,.55); border-radius: 50%; background: rgba(8,20,29,.88); color: $cyan; font-family: Georgia,serif; font-size: 7px; pointer-events: none; animation: accreteIn .68s var(--particle-delay,0ms) cubic-bezier(.2,.75,.28,1) both; }
-.accretion-gain { position: absolute; z-index: 12; color: $amber; font-family: ui-monospace,monospace; font-size: 11px; font-weight: 600; text-shadow: 0 0 12px rgba($amber,.8); pointer-events: none; animation: gainRise .82s var(--gain-delay,0ms) ease-out both; }
+.accretion-gain { position: absolute; z-index: 12; color: $amber; font-family: ui-monospace,monospace; font-size: 11px; font-weight: 700; -webkit-text-stroke: .7px rgba(2,5,9,.96); paint-order: stroke fill; text-shadow: -1px -1px 0 rgba(2,5,9,.9), 1px -1px 0 rgba(2,5,9,.9), -1px 1px 0 rgba(2,5,9,.9), 1px 1px 0 rgba(2,5,9,.9), 0 0 11px rgba($amber,.72); pointer-events: none; animation: gainRise .82s var(--gain-delay,0ms) ease-out both; }
 
 @keyframes rotate { to { transform: rotate(360deg); } }
 @keyframes breathe { 50% { transform: scale(1.12); opacity: .75; } }

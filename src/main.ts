@@ -139,10 +139,16 @@ function automationCard(kind: 'accretion' | 'fusion'): string {
   const unlocked = isAccretion ? starMass(state) >= THRESHOLDS.protostarMass : state.manualFusions >= 5;
   const isMax = level >= max;
   const label = isMax ? 'Maximum' : !unlocked ? (isAccretion ? 'Noch instabil' : `${state.manualFusions}/5 Reaktionen`) : 'Ausbauen';
+  const rateAt = (targetLevel: number) => isAccretion
+    ? targetLevel * 42 * (accretionPerClick(state) / 120)
+    : targetLevel * 64 * (1 + targetLevel * .08);
+  const currentRate = rateAt(level);
+  const nextGain = rateAt(Math.min(max, level + 1)) - currentRate;
+  const unit = isAccretion ? 'ME/s' : 'H/s';
   return `
     <article class="upgrade-card" data-automation-card="${kind}">
-      <div class="upgrade-heading"><span class="upgrade-icon">${isAccretion ? 'A' : 'H'}</span><h3>${isAccretion ? 'Akkretionsstrom' : 'Stabiler pp-Zyklus'}</h3><span class="tag">Automation</span></div>
-      <p>${isAccretion ? 'Zieht kontinuierlich Materie aus der Wolke. Benötigt einen ausgebildeten Protostern.' : 'Fusioniert Wasserstoff automatisch. Wird nach fünf manuellen Reaktionen verfügbar.'}</p>
+      <div class="upgrade-heading"><span class="upgrade-icon">${isAccretion ? 'A' : 'H'}</span><h3>${isAccretion ? 'Akkretionsstrom' : 'Stabiler pp-Zyklus'} <b>${formatCompact(currentRate)} ${unit}</b></h3></div>
+      <p>${isAccretion ? 'Zieht kontinuierlich Materie aus der Wolke. Benötigt einen ausgebildeten Protostern.' : 'Fusioniert Wasserstoff automatisch. Wird nach fünf manuellen Reaktionen verfügbar.'}<strong>${isMax ? 'Maximum erreicht' : `Nächste Stufe: +${formatCompact(nextGain)} ${unit}`}</strong></p>
       <div class="level-row">${levelPips(level, max)}</div>
       <button class="progress-button" data-action="${isAccretion ? 'buy-accretion' : 'buy-fusion'}" style="--button-progress:${progress(state.energy, price, unlocked)}%" ${disabled(state.energy < price || !unlocked || isMax)}><i></i><span data-button-label>${label}</span><b data-button-cost>${isMax ? '—' : `${price} E`}</b></button>
     </article>`;
@@ -171,7 +177,7 @@ function renderShell(): void {
     <div class="cosmos" aria-hidden="true"><div class="stars stars-a"></div><div class="stars stars-b"></div><div class="nebula-glow"></div></div>
     <header class="topbar">
       <a class="brand" href="#" aria-label="Cosmic Clicker Startseite"><span class="brand-mark">${icons.spark}</span><span><b>COSMIC</b><em>CLICKER</em></span></a>
-      <div class="run-status"><i></i><span>SIMULATION AKTIV</span><b data-ui="run">ZYKLUS 01</b></div>
+      <div class="run-status"><b data-ui="run">ZYKLUS 01</b></div>
       <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>Reichere Urwolke</b><small>Stufe <i data-ui="cloud-perk-level">0</i></small></div><div><b>Gravitatives Gedächtnis</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><p>Neue Stufen werden am Zyklusende gekauft.</p></div></div><button class="icon-button" data-action="toggle-sound" aria-label="Ton ausschalten">${icons.sound}</button><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
     </header>
 
@@ -184,7 +190,7 @@ function renderShell(): void {
           <div class="primary-reading"><span>Kerntemperatur</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>2.700 K</span><span data-ui="temperature-max"></span></small></div>
           <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric"><span>Energie</span><b data-ui="energy"></b><small>verfügbar</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
           <div class="composition"><div class="section-label"><span>Kernzusammensetzung</span><small data-ui="core-total"></small></div>${['hydrogen','helium','deuterium'].map((key) => `<div class="composition-row"><span class="element ${key === 'hydrogen' ? 'h' : key === 'helium' ? 'he' : 'd'}">${key === 'hydrogen' ? 'H' : key === 'helium' ? 'He' : 'D'}</span><div><b>${key === 'hydrogen' ? 'Wasserstoff' : key === 'helium' ? 'Helium' : 'Deuterium'}</b><div class="mini-track"><i data-ui="${key}-bar"></i></div></div><strong data-ui="${key}-value"></strong></div>`).join('')}</div>
-          <div class="cloud-stats"><div class="section-label"><span>Urwolke</span><small data-ui="cloud-percent"></small></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i></div></div><div class="cloud-elements">${['hydrogen','helium','deuterium'].map((key) => `<div><span class="element ${key === 'hydrogen' ? 'h' : key === 'helium' ? 'he' : 'd'}">${key === 'hydrogen' ? 'H' : key === 'helium' ? 'He' : 'D'}</span><p><b>${key === 'hydrogen' ? 'Wasserstoff' : key === 'helium' ? 'Helium' : 'Deuterium'}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
+          <div class="cloud-stats"><div class="section-label"><span>Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="cloud-elements">${['hydrogen','helium','deuterium'].map((key) => `<div><span class="element ${key === 'hydrogen' ? 'h' : key === 'helium' ? 'he' : 'd'}">${key === 'hydrogen' ? 'H' : key === 'helium' ? 'He' : 'D'}</span><p><b>${key === 'hydrogen' ? 'Wasserstoff' : key === 'helium' ? 'Helium' : 'Deuterium'}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
         </aside>
 
         <section class="star-chamber">

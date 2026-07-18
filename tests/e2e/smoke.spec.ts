@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Locator } from '@playwright/test';
 
 test('player can accrete matter and see the stellar data update', async ({ page }) => {
   await page.goto('/');
@@ -15,6 +16,7 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   await expect(gain).toHaveText('+120 ME');
   const gainTop = await gain.evaluate((element) => Number.parseFloat((element as HTMLElement).style.top));
   expect(gainTop).toBeLessThan((starBox!.y + starBox!.height / 2) - chamberBox!.y);
+  await expect(gain).not.toHaveCSS('text-shadow', 'none');
   await expect(page.locator('[data-ui="click-yield"]')).toHaveText('+120 ME');
   await expect(page.getByText('120', { exact: true }).first()).toBeVisible();
 });
@@ -30,7 +32,9 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByRole('tab', { name: /Vermächtnis/ })).toHaveCount(0);
   await expect(page.locator('.action-sidepanel')).toContainText('Kontrollzentrum');
   await expect(page.locator('.left-panel .cloud-stats')).toContainText('Urwolke');
+  await expect(page.locator('.cloud-mini-gauge [data-ui="cloud-percent"]')).toHaveText('100%');
   await expect(page.locator('.chronicle-dock')).toBeVisible();
+  await expect(page.getByText('SIMULATION AKTIV', { exact: true })).toHaveCount(0);
   await expect(page.locator('[data-ui="temperature-max"]')).toHaveText('1 Mio. K');
   await expect(page.locator('[data-ui="elapsed"]')).toHaveText(/^\d{2}:\d{2}:\d{2}$/);
 
@@ -60,6 +64,7 @@ test('chronicle expands from the persistent bottom dock', async ({ page }) => {
   const restingBackground = await closeButton.evaluate((element) => getComputedStyle(element).backgroundColor);
   await closeButton.hover();
   await expect.poll(() => closeButton.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(restingBackground);
+  await expect(closeButton).toHaveCSS('transform', 'none');
   await page.locator('.modal-backdrop').click({ position: { x: 5, y: 5 } });
   await expect(chronicle).toHaveCount(0);
 });
@@ -91,7 +96,31 @@ test('upgrade and automation cards use compact heading rows', async ({ page }) =
 
   await page.getByRole('tab', { name: 'Automationen 0' }).click();
   await expect(page.locator('.upgrade-heading')).toHaveCount(2);
-  await expect(page.locator('.upgrade-heading').first()).toContainText('Akkretionsstrom');
+  await expect(page.locator('.upgrade-heading').first()).toContainText('Akkretionsstrom 0 ME/s');
+  await expect(page.locator('[data-automation-card="accretion"]')).toContainText('Nächste Stufe: +42 ME/s');
+  await expect(page.locator('[data-automation-card="fusion"]')).toContainText('Stabiler pp-Zyklus 0 H/s');
+  await expect(page.locator('[data-automation-card="fusion"]')).toContainText('Nächste Stufe: +69 H/s');
+  await expect(page.getByText('Automation', { exact: true })).toHaveCount(0);
+});
+
+test('header and chronicle utility buttons share the same translucent hover treatment', async ({ page }) => {
+  await page.goto('/');
+  const hoverStyle = async (locator: Locator) => {
+    await locator.hover();
+    await expect(locator).toHaveCSS('background-color', 'rgba(120, 215, 223, 0.075)');
+    await expect(locator).toHaveCSS('border-color', 'rgba(120, 215, 223, 0.5)');
+    return locator.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, border: style.borderColor };
+    });
+  };
+
+  const downloadStyle = await hoverStyle(page.getByRole('button', { name: 'Spielstand exportieren' }));
+  expect(await hoverStyle(page.getByRole('button', { name: 'Neustartoptionen öffnen' }))).toEqual(downloadStyle);
+  expect(await hoverStyle(page.getByRole('button', { name: 'Aktive Vermächtnis-Perks anzeigen' }))).toEqual(downloadStyle);
+
+  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
+  expect(await hoverStyle(page.getByRole('button', { name: 'Chronik schließen' }))).toEqual(downloadStyle);
 });
 
 test('mobile cockpit stacks star, actions, stats and chronicle without horizontal overflow', async ({ page }) => {
