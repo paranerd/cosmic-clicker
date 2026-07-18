@@ -124,9 +124,8 @@ function upgradeCard(): string {
   const isMax = state.upgrades.gravity >= LIMITS.gravity;
   return `
     <article class="upgrade-card featured">
-      <div class="upgrade-top"><span class="upgrade-icon">G</span><span class="tag">Upgrade</span></div>
-      <h3>Gravitative Verdichtung</h3><p>Mehr Materie pro Impuls und pro Sekunde. Jede Stufe erhöht die aktive und automatische Akkretion um 55 %.</p>
-      <div class="upgrade-effect"><span>Aktueller Multiplikator</span><b data-ui="gravity-multiplier">×1,00</b></div>
+      <div class="upgrade-heading"><span class="upgrade-icon">G</span><h3>Gravitative Verdichtung <b data-ui="gravity-multiplier">×1,00</b></h3></div>
+      <p>Mehr Materie pro Impuls und pro Sekunde. Jede Stufe erhöht die aktive und automatische Akkretion um 55 %.</p>
       <div class="level-row" data-levels="gravity">${levelPips(state.upgrades.gravity, LIMITS.gravity)}</div>
       <button class="progress-button" data-action="buy-gravity" style="--button-progress:${progress(state.energy, price)}%" ${disabled(state.energy < price || isMax)}><i></i><span data-button-label>${isMax ? 'Maximum' : 'Verdichten'}</span><b data-button-cost>${isMax ? '—' : `${price} E`}</b></button>
     </article>`;
@@ -142,8 +141,7 @@ function automationCard(kind: 'accretion' | 'fusion'): string {
   const label = isMax ? 'Maximum' : !unlocked ? (isAccretion ? 'Noch instabil' : `${state.manualFusions}/5 Reaktionen`) : 'Ausbauen';
   return `
     <article class="upgrade-card" data-automation-card="${kind}">
-      <div class="upgrade-top"><span class="upgrade-icon">${isAccretion ? 'A' : 'H'}</span><span class="tag">Automation</span></div>
-      <h3>${isAccretion ? 'Akkretionsstrom' : 'Stabiler pp-Zyklus'}</h3>
+      <div class="upgrade-heading"><span class="upgrade-icon">${isAccretion ? 'A' : 'H'}</span><h3>${isAccretion ? 'Akkretionsstrom' : 'Stabiler pp-Zyklus'}</h3><span class="tag">Automation</span></div>
       <p>${isAccretion ? 'Zieht kontinuierlich Materie aus der Wolke. Benötigt einen ausgebildeten Protostern.' : 'Fusioniert Wasserstoff automatisch. Wird nach fünf manuellen Reaktionen verfügbar.'}</p>
       <div class="level-row">${levelPips(level, max)}</div>
       <button class="progress-button" data-action="${isAccretion ? 'buy-accretion' : 'buy-fusion'}" style="--button-progress:${progress(state.energy, price, unlocked)}%" ${disabled(state.energy < price || !unlocked || isMax)}><i></i><span data-button-label>${label}</span><b data-button-cost>${isMax ? '—' : `${price} E`}</b></button>
@@ -174,7 +172,7 @@ function renderShell(): void {
     <header class="topbar">
       <a class="brand" href="#" aria-label="Cosmic Clicker Startseite"><span class="brand-mark">${icons.spark}</span><span><b>COSMIC</b><em>CLICKER</em></span></a>
       <div class="run-status"><i></i><span>SIMULATION AKTIV</span><b data-ui="run">ZYKLUS 01</b></div>
-      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Aktive Vermächtnis-Perks anzeigen"><span>✦</span><div><small>Sternenstaub</small><b data-ui="stardust">0</b></div></button><div class="perk-popover"><span>Aktive Perks</span><div><b>Reichere Urwolke</b><small>Stufe <i data-ui="cloud-perk-level">0</i></small></div><div><b>Gravitatives Gedächtnis</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><p>Neue Stufen werden am Zyklusende gekauft.</p></div></div><button class="icon-button" data-action="toggle-sound" aria-label="Ton ausschalten">${icons.sound}</button><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
+      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>Reichere Urwolke</b><small>Stufe <i data-ui="cloud-perk-level">0</i></small></div><div><b>Gravitatives Gedächtnis</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><p>Neue Stufen werden am Zyklusende gekauft.</p></div></div><button class="icon-button" data-action="toggle-sound" aria-label="Ton ausschalten">${icons.sound}</button><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
     </header>
 
     <main>
@@ -301,7 +299,7 @@ function syncOverlay(): void {
     const chronicleSignature = `chronicle:${state.stage}:${state.log.map((entry) => entry.id).join(',')}`;
     if (chronicleSignature === overlaySignature) return;
     overlaySignature = chronicleSignature;
-    root.innerHTML = `<div class="modal-backdrop" role="presentation"><section class="chronicle-modal" role="dialog" aria-modal="true" aria-labelledby="chronicle-title"><div class="chronicle-modal-heading"><div><small>KOSMISCHE CHRONIK</small><h2 id="chronicle-title">Entstehung eines Sterns</h2></div><button data-action="close-chronicle" aria-label="Chronik schließen">×</button></div><div class="chronicle-layout"><div class="timeline-card"><div class="section-label"><span>Stellare Entwicklung</span><small>VERTICAL SLICE 01</small></div><div class="timeline">${timelineMarkup()}</div><div class="future-strip"><span>C</span><i></i><span>O</span><i></i><span>Ne</span><i></i><span>Si</span><i></i><span>Fe</span><p>Spätere Entwicklungsphasen</p></div></div><div class="log-card"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list">${logMarkup(8)}</div></div></div></section></div>`;
+    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="chronicle" role="presentation"><section class="chronicle-modal" role="dialog" aria-modal="true" aria-labelledby="chronicle-title"><div class="chronicle-modal-heading"><div><small>KOSMISCHE CHRONIK</small><h2 id="chronicle-title">Entstehung eines Sterns</h2></div><button data-action="close-chronicle" aria-label="Chronik schließen">×</button></div><div class="chronicle-layout"><div class="timeline-card"><div class="section-label"><span>Stellare Entwicklung</span><small>VERTICAL SLICE 01</small></div><div class="timeline">${timelineMarkup()}</div><div class="future-strip"><span>C</span><i></i><span>O</span><i></i><span>Ne</span><i></i><span>Si</span><i></i><span>Fe</span><p>Spätere Entwicklungsphasen</p></div></div><div class="log-card"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list">${logMarkup(8)}</div></div></div></section></div>`;
     return;
   }
   const signature = `summary:${state.stardust}:${state.perks.largerCloud}:${state.perks.permanentGravity}`;
@@ -425,7 +423,8 @@ function playAccretionFeedback(event: MouseEvent): void {
     particle.style.left = `${targetX}px`; particle.style.top = `${targetY}px`; particle.style.setProperty('--from-x', `${Math.cos(angle) * radius}px`); particle.style.setProperty('--from-y', `${Math.sin(angle) * radius}px`); particle.style.setProperty('--particle-delay', `${index * 28}ms`);
     chamber.append(particle); particle.addEventListener('animationend', () => particle.remove(), { once: true });
   }
-  const gain = document.createElement('span'); gain.className = 'accretion-gain'; gain.textContent = `+${formatNumber(accretionPerClick(state))} ME`; gain.style.left = `${targetX}px`; gain.style.top = `${targetY}px`; gain.style.setProperty('--gain-delay', `${count * 28 + 120}ms`); chamber.append(gain); gain.addEventListener('animationend', () => gain.remove(), { once: true });
+  const gainX = targetX + (Math.random() - .5) * 36; const gainY = targetY - 20 - Math.random() * 22;
+  const gain = document.createElement('span'); gain.className = 'accretion-gain'; gain.textContent = `+${formatNumber(accretionPerClick(state))} ME`; gain.style.left = `${gainX}px`; gain.style.top = `${gainY}px`; gain.style.setProperty('--gain-delay', `${count * 28 + 120}ms`); chamber.append(gain); gain.addEventListener('animationend', () => gain.remove(), { once: true });
   star.animate([{ transform: 'scale(1)' }, { transform: 'scale(.965)' }, { transform: 'scale(1.035)' }, { transform: 'scale(1)' }], { duration: 260, easing: 'ease-out' });
 }
 
@@ -442,15 +441,24 @@ function playActionFeedback(action: string, event: MouseEvent): void {
   }
 }
 
+function setPerksOpen(open: boolean): void {
+  perksOpen = open;
+  app.querySelector('.resource-menu')?.classList.toggle('is-open', open);
+  app.querySelector('[data-action="toggle-perks"]')?.setAttribute('aria-expanded', String(open));
+}
+
 app.addEventListener('click', (event) => {
   const target = event.target as HTMLElement;
+  const insidePerkMenu = target.closest('.resource-menu');
+  if (perksOpen && !insidePerkMenu) setPerksOpen(false);
+  if (target.dataset.overlayDismiss === 'chronicle') { chronicleOpen = false; overlaySignature = ''; syncOverlay(); return; }
   const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); return; }
   const button = target.closest<HTMLButtonElement>('[data-action]'); if (!button || button.disabled) return;
   const action = button.dataset.action; if (!action) return;
   if (action === 'reset-menu') { toggleResetMenu(); return; }
   if (action === 'reset-run') { performReset('run'); return; }
   if (action === 'reset-full') { if (fullResetArmed) performReset('full'); else armFullReset(); return; }
-  if (action === 'toggle-perks') { perksOpen = !perksOpen; app.querySelector('.resource-menu')?.classList.toggle('is-open', perksOpen); return; }
+  if (action === 'toggle-perks') { setPerksOpen(!perksOpen); return; }
   if (action === 'open-chronicle') { chronicleOpen = true; overlaySignature = ''; syncOverlay(); return; }
   if (action === 'close-chronicle') { chronicleOpen = false; overlaySignature = ''; syncOverlay(); return; }
   const actions: Record<string, GameAction> = {

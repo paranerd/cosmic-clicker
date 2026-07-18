@@ -5,11 +5,16 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   await expect(page.getByRole('heading', { name: 'Stellarer Kern' })).toBeVisible();
   await expect(page.getByText('Urwolke', { exact: true }).first()).toBeVisible();
   const star = page.getByRole('button', { name: 'Materie akkretieren' });
+  const starBox = await star.boundingBox();
+  const chamberBox = await page.locator('.star-chamber').boundingBox();
   await star.click();
   const particleCount = await page.locator('.matter-particle').count();
   expect(particleCount).toBeGreaterThanOrEqual(5);
   expect(particleCount).toBeLessThanOrEqual(7);
-  await expect(page.locator('.accretion-gain')).toHaveText('+120 ME');
+  const gain = page.locator('.accretion-gain');
+  await expect(gain).toHaveText('+120 ME');
+  const gainTop = await gain.evaluate((element) => Number.parseFloat((element as HTMLElement).style.top));
+  expect(gainTop).toBeLessThan((starBox!.y + starBox!.height / 2) - chamberBox!.y);
   await expect(page.locator('[data-ui="click-yield"]')).toHaveText('+120 ME');
   await expect(page.getByText('120', { exact: true }).first()).toBeVisible();
 });
@@ -37,6 +42,12 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   }));
   expect(dimensions.documentHeight).toBeLessThanOrEqual(dimensions.viewportHeight);
   expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+
+  const widths = await page.evaluate(() => ({
+    sidepanel: document.querySelector('.action-sidepanel')?.getBoundingClientRect().width ?? 0,
+    log: document.querySelector('.dock-log')?.getBoundingClientRect().width ?? 0,
+  }));
+  expect(Math.abs(widths.sidepanel - widths.log)).toBeLessThanOrEqual(1);
 });
 
 test('chronicle expands from the persistent bottom dock', async ({ page }) => {
@@ -45,8 +56,42 @@ test('chronicle expands from the persistent bottom dock', async ({ page }) => {
   const chronicle = page.getByRole('dialog', { name: 'Entstehung eines Sterns' });
   await expect(chronicle).toBeVisible();
   await expect(chronicle.locator('.timeline-node')).toHaveCount(5);
-  await page.getByRole('button', { name: 'Chronik schließen' }).click();
+  const closeButton = page.getByRole('button', { name: 'Chronik schließen' });
+  const restingBackground = await closeButton.evaluate((element) => getComputedStyle(element).backgroundColor);
+  await closeButton.hover();
+  await expect.poll(() => closeButton.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(restingBackground);
+  await page.locator('.modal-backdrop').click({ position: { x: 5, y: 5 } });
   await expect(chronicle).toHaveCount(0);
+});
+
+test('perk popover opens only on click and closes outside', async ({ page }) => {
+  await page.goto('/');
+  const perkButton = page.getByRole('button', { name: 'Aktive Vermächtnis-Perks anzeigen' });
+  const popover = page.locator('.perk-popover');
+
+  await expect(perkButton).not.toContainText('Sternenstaub');
+  await perkButton.hover();
+  await expect(popover).toBeHidden();
+  await perkButton.click();
+  await expect(popover).toBeVisible();
+  await expect(perkButton).toHaveAttribute('aria-expanded', 'true');
+  await page.locator('.mission-strip').click();
+  await expect(popover).toBeHidden();
+  await expect(perkButton).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('upgrade and automation cards use compact heading rows', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Upgrades 0' }).click();
+  const upgradeHeading = page.locator('.upgrade-heading');
+  await expect(upgradeHeading).toContainText('Gravitative Verdichtung ×1');
+  await expect(page.getByText('Aktueller Multiplikator', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Upgrade', { exact: true })).toHaveCount(0);
+  await expect(upgradeHeading.locator('.upgrade-icon')).toHaveCount(1);
+
+  await page.getByRole('tab', { name: 'Automationen 0' }).click();
+  await expect(page.locator('.upgrade-heading')).toHaveCount(2);
+  await expect(page.locator('.upgrade-heading').first()).toContainText('Akkretionsstrom');
 });
 
 test('mobile cockpit stacks star, actions, stats and chronicle without horizontal overflow', async ({ page }) => {
