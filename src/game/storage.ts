@@ -10,6 +10,7 @@ export const loadGame = (): { state: GameState; offlineSeconds: number } => {
     if (!raw) return { state: createInitialState(), offlineSeconds: 0 };
     const parsed = JSON.parse(raw) as GameState;
     if (parsed.version !== 1) return { state: createInitialState(), offlineSeconds: 0 };
+    parsed.seenOpportunities ??= [];
     const offlineSeconds = Math.min(LIMITS.offlineSeconds, Math.max(0, (Date.now() - parsed.lastTick) / 1_000));
     return { state: tick(parsed, offlineSeconds), offlineSeconds };
   } catch {

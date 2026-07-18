@@ -48,6 +48,7 @@ export interface GameState {
   completed: boolean;
   summaryOpen: boolean;
   soundEnabled: boolean;
+  seenOpportunities: string[];
   log: LogEntry[];
 }
 

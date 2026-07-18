@@ -129,6 +129,7 @@ export const createInitialState = (
     completed: false,
     summaryOpen: false,
     soundEnabled: true,
+    seenOpportunities: [],
     log: [{ id: now, text: 'Eine kalte Urwolke wartet auf ihren Impuls.', kind: 'info' }],
   };
 };
