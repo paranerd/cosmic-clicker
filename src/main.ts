@@ -1,4 +1,5 @@
 import './styles.scss';
+import { playSound, type SoundEffect } from './audio';
 import { LIMITS, STAGE_LABELS, THRESHOLDS } from './game/config';
 import {
   accretionCost,
@@ -16,8 +17,8 @@ import {
   starMass,
   tick,
 } from './game/engine';
-import { clearSave, loadGame, saveGame } from './game/storage';
-import type { GameAction, GameState } from './game/types';
+import { clearSave, loadGame, normalizeGameState, saveGame } from './game/storage';
+import type { GameAction } from './game/types';
 
 type Panel = 'reactions' | 'upgrades' | 'automation';
 type ResetMode = 'run' | 'full';
@@ -43,14 +44,20 @@ let resetTimer = 0;
 let overlaySignature = '';
 let chronicleOpen = false;
 let perksOpen = false;
+let soundMenuOpen = false;
+let statsOpen = false;
+let debugOpen = false;
+let tutorialSignature = '';
+let debugSignature = '';
 
 const icons = {
   spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></svg>',
-  atom: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1.5"/><ellipse cx="12" cy="12" rx="10" ry="4.2"/><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(120 12 12)"/></svg>',
   sound: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"/></svg>',
   soundOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m16 10 5 5m0-5-5 5"/></svg>',
   download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 19h16"/></svg>',
   reset: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7v5h5"/><path d="M5.4 16a8 8 0 1 0 .5-9L4 9"/></svg>',
+  stats: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/></svg>',
+  help: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.4 2.4 0 1 1 3.6 2.1c-.9.5-1.4 1-1.4 2.2M12 17h.01"/></svg>',
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
 };
 
@@ -172,13 +179,42 @@ function panelMarkup(panel: Panel): string {
   return `<div class="upgrade-grid automation-grid">${automationCard('accretion')}${automationCard('fusion')}</div>`;
 }
 
+const tutorialSteps = [
+  { title: 'Willkommen im Protostern', text: 'In dieser kurzen Tour formst du aus einer kalten Urwolke einen stabilen Hauptreihenstern.', selector: '.mission-strip', trigger: 'next' },
+  { title: 'Materie akkretieren', text: 'Klicke auf den Stern. Ein Teil der Urwolke fällt ins Zentrum und erhöht Masse, Druck und Temperatur.', selector: '.star-button', trigger: 'accrete' },
+  { title: 'Den Kern beobachten', text: 'Links siehst du Temperatur, Druck, Energie und Zusammensetzung. Diese Werte bestimmen, welche Reaktionen möglich sind.', selector: '.left-panel', trigger: 'next' },
+  { title: 'Sternsysteme steuern', text: 'Öffne einen der drei Tabs. Reaktionen treiben den Stern an, Upgrades verstärken ihn und Automationen übernehmen wiederkehrende Arbeit.', selector: '.side-tabs', trigger: 'panel' },
+  { title: 'Entwicklung nachverfolgen', text: 'Öffne die Chronik. Sie zeigt Meilensteine und erklärt, was im Kern deines Sterns geschieht.', selector: '.chronicle-dock', trigger: 'open-chronicle' },
+] as const;
+
+function statsGridMarkup(): string {
+  const stats = state.stats;
+  const entries = [
+    ['Manuelle Klicks', formatNumber(stats.manualClicks)],
+    ['Akkretiert', `${formatCompact(stats.matterAccreted)} ME`],
+    ['Davon automatisch', `${formatCompact(stats.automaticMatterAccreted)} ME`],
+    ['Deuterium-Zündungen', formatNumber(stats.deuteriumBurns)],
+    ['Manuelle Fusionen', formatNumber(stats.manualFusionActions)],
+    ['Wasserstoff fusioniert', `${formatCompact(stats.hydrogenFused)} H`],
+    ['Energie erzeugt', formatCompact(stats.energyGenerated)],
+    ['Käufe', formatNumber(stats.upgradesPurchased + stats.automationsPurchased)],
+    ['Offline-Simulation', formatDuration(stats.offlineSeconds)],
+  ];
+  return entries.map(([label, value]) => `<div><span>${label}</span><b>${value}</b></div>`).join('');
+}
+
+function historyMarkup(): string {
+  if (!state.history.length) return '<p class="empty-history">Noch keine abgeschlossene Runde archiviert.</p>';
+  return state.history.slice(0, 5).map((record) => `<article><span>ZYKLUS ${record.run.toString().padStart(2, '0')}</span><b>${formatCompact(record.finalMass)} ME</b><small>${formatDuration(record.duration)} · ${formatNumber(record.manualClicks)} Klicks · +${record.stardustEarned} ✦</small></article>`).join('');
+}
+
 function renderShell(): void {
   app.innerHTML = `
     <div class="cosmos" aria-hidden="true"><div class="stars stars-a"></div><div class="stars stars-b"></div><div class="nebula-glow"></div></div>
     <header class="topbar">
       <a class="brand" href="#" aria-label="Cosmic Clicker Startseite"><span class="brand-mark">${icons.spark}</span><span><b>COSMIC</b><em>CLICKER</em></span></a>
       <div class="run-status"><b data-ui="run">ZYKLUS 01</b></div>
-      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>Reichere Urwolke</b><small>Stufe <i data-ui="cloud-perk-level">0</i></small></div><div><b>Gravitatives Gedächtnis</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><p>Neue Stufen werden am Zyklusende gekauft.</p></div></div><button class="icon-button" data-action="toggle-sound" aria-label="Ton ausschalten">${icons.sound}</button><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
+      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>Reichere Urwolke</b><small>Stufe <i data-ui="cloud-perk-level">0</i></small></div><div><b>Gravitatives Gedächtnis</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><p>Neue Stufen werden am Zyklusende gekauft.</p></div></div><div class="sound-menu"><button class="icon-button" data-action="toggle-sound-menu" aria-label="Audioeinstellungen öffnen" aria-expanded="false">${state.soundEnabled ? icons.sound : icons.soundOff}</button><div class="sound-popover"><div><span>Effektlautstärke</span><b data-ui="volume-label">35%</b></div><input data-action="set-volume" aria-label="Effektlautstärke" type="range" min="0" max="100" step="1" value="35"><button data-action="toggle-sound" data-ui="mute-label">Ton stummschalten</button></div></div><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
     </header>
 
     <main>
@@ -200,10 +236,9 @@ function renderShell(): void {
         </section>
 
         <aside class="action-sidepanel">
-          <div class="sidepanel-heading"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div>
+          <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div><div class="sidepanel-tools"><button data-action="replay-tutorial" aria-label="Tutorial starten">${icons.help}</button><button data-action="open-stats" aria-label="Statistik öffnen">${icons.stats}</button></div></div>
           <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${([['reactions','Reaktionen'],['upgrades','Upgrades'],['automation','Automationen']] as [Panel,string][]).map(([panel,label])=>`<button data-panel="${panel}" role="tab"><span>${label}</span><b class="tab-count" data-tab-count="${panel}"></b><i class="notice-dot" data-notice="${panel}"></i></button>`).join('')}</div>
           <div class="side-content" data-ui="deck-content"></div>
-          <div class="side-rate"><span>${icons.atom}</span><div><small>Automatische Akkretion</small><b data-ui="auto-accretion"></b></div><i data-ui="auto-status"></i></div>
         </aside>
       </section>
 
@@ -211,7 +246,7 @@ function renderShell(): void {
     </main>
 
     <footer><span>COSMIC CLICKER · PROTOTYP 0.2</span><p>Wissenschaftlich plausibel · spielerisch komprimiert</p><button data-action="import">Spielstand importieren</button><input id="save-import" type="file" accept="application/json" hidden /></footer>
-    <div data-ui="overlay-root"></div><div data-ui="toast-root"></div>`;
+    <div data-ui="overlay-root"></div><div data-ui="tutorial-root"></div><div data-ui="debug-root"></div><div data-ui="toast-root"></div>`;
 
   switchPanel(activePanel, false);
   updateUI(true);
@@ -293,6 +328,8 @@ function syncNotifications(): void {
       [{ transform: 'translateY(0)', filter: 'brightness(1)' }, { transform: 'translateY(-3px)', filter: 'brightness(1.8)' }, { transform: 'translateY(0)', filter: 'brightness(1)' }],
       { duration: 900, easing: 'ease-out' },
     );
+    playSound('unlock', state.soundEnabled, state.volume);
+    showToast(changedPanel === 'upgrades' ? 'Neues Upgrade verfügbar.' : 'Neue Automation verfügbar.');
   }
   lastUnreadSignature = signature;
 }
@@ -300,7 +337,7 @@ function syncNotifications(): void {
 function syncOverlay(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="overlay-root"]');
   if (!root) return;
-  if (!state.summaryOpen && !chronicleOpen) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
+  if (!state.summaryOpen && !chronicleOpen && !statsOpen) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
   if (chronicleOpen && !state.summaryOpen) {
     const chronicleSignature = `chronicle:${state.stage}:${state.log.map((entry) => entry.id).join(',')}`;
     if (chronicleSignature === overlaySignature) return;
@@ -308,17 +345,97 @@ function syncOverlay(): void {
     root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="chronicle" role="presentation"><section class="chronicle-modal" role="dialog" aria-modal="true" aria-labelledby="chronicle-title"><div class="chronicle-modal-heading"><div><small>KOSMISCHE CHRONIK</small><h2 id="chronicle-title">Entstehung eines Sterns</h2></div><button data-action="close-chronicle" aria-label="Chronik schließen">×</button></div><div class="chronicle-layout"><div class="timeline-card"><div class="section-label"><span>Stellare Entwicklung</span><small>VERTICAL SLICE 01</small></div><div class="timeline">${timelineMarkup()}</div><div class="future-strip"><span>C</span><i></i><span>O</span><i></i><span>Ne</span><i></i><span>Si</span><i></i><span>Fe</span><p>Spätere Entwicklungsphasen</p></div></div><div class="log-card"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list">${logMarkup(8)}</div></div></div></section></div>`;
     return;
   }
+  if (statsOpen && !state.summaryOpen) {
+    const statsSignature = `stats:${state.run}:${Math.floor(state.elapsed)}:${JSON.stringify(state.stats)}:${state.history.length}`;
+    if (statsSignature === overlaySignature) return;
+    overlaySignature = statsSignature;
+    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="stats" role="presentation"><section class="stats-modal" role="dialog" aria-modal="true" aria-labelledby="stats-title"><div class="chronicle-modal-heading"><div><small>RUNDENANALYSE</small><h2 id="stats-title">Statistik · Zyklus ${state.run.toString().padStart(2, '0')}</h2></div><button data-action="close-stats" aria-label="Statistik schließen">×</button></div><div class="stats-modal-body"><div class="run-stat-grid">${statsGridMarkup()}</div><div class="round-history"><div class="section-label"><span>Vergangene Runden</span><small>${state.history.length} ARCHIVIERT</small></div>${historyMarkup()}</div></div></section></div>`;
+    return;
+  }
   const signature = `summary:${state.stardust}:${state.perks.largerCloud}:${state.perks.permanentGravity}`;
   if (signature === overlaySignature) return;
   overlaySignature = signature;
   const cloudCost = 2 + state.perks.largerCloud * 2;
   const gravityPerkCost = 2 + state.perks.permanentGravity * 2;
-  root.innerHTML = `<div class="modal-backdrop" role="presentation"><section class="summary-modal" role="dialog" aria-modal="true" aria-labelledby="summary-title"><div class="summary-heading"><span class="modal-star">${icons.spark}</span><div><small>ZYKLUS ${state.run.toString().padStart(2, '0')} VOLLENDET</small><h2 id="summary-title">Ein Stern erwacht.</h2><p>Gravitationsdruck und Strahlungsdruck befinden sich im Gleichgewicht.</p></div></div><div class="summary-stats"><div><span>Endmasse</span><b>${formatCompact(starMass(state))} ME</b></div><div><span>Fusionsdauer</span><b>${formatDuration(state.elapsed)}</b></div><div><span>Sternenstaub</span><b>✦ ${state.stardust}</b></div></div><div class="summary-legacy"><div class="summary-section-title"><span>Vermächtnis wählen</span><small>Wirkt ab dem nächsten Zyklus</small></div><div class="summary-perk-grid"><article><span class="perk-orbit">01</span><div><h3>Reichere Urwolke</h3><p>+25 % Ausgangsmaterie pro Stufe</p><strong>Stufe ${state.perks.largerCloud}</strong></div><button data-action="buy-perk-cloud" ${disabled(state.stardust < cloudCost)}>+${cloudCost} ✦</button></article><article><span class="perk-orbit">02</span><div><h3>Gravitatives Gedächtnis</h3><p>+12 % Akkretionsrate pro Stufe</p><strong>Stufe ${state.perks.permanentGravity}</strong></div><button data-action="buy-perk-gravity" ${disabled(state.stardust < gravityPerkCost)}>+${gravityPerkCost} ✦</button></article></div></div><div class="summary-actions"><button class="primary-action" data-action="prestige">Nächsten Zyklus beginnen</button><button class="text-action" data-action="close-summary">Später entscheiden</button></div></section></div>`;
+  root.innerHTML = `<div class="modal-backdrop" role="presentation"><section class="summary-modal" role="dialog" aria-modal="true" aria-labelledby="summary-title"><div class="summary-heading"><span class="modal-star">${icons.spark}</span><div><small>ZYKLUS ${state.run.toString().padStart(2, '0')} VOLLENDET</small><h2 id="summary-title">Ein Stern erwacht.</h2><p>Gravitationsdruck und Strahlungsdruck befinden sich im Gleichgewicht.</p></div></div><div class="summary-stats"><div><span>Endmasse</span><b>${formatCompact(starMass(state))} ME</b></div><div><span>Rundendauer</span><b>${formatDuration(state.elapsed)}</b></div><div><span>Sternenstaub erhalten</span><b>+${state.stats.stardustEarned} ✦</b></div></div><div class="summary-detail"><div class="summary-section-title"><span>Rundenauswertung</span><small>ZYKLUS ${state.run.toString().padStart(2, '0')}</small></div><div class="run-stat-grid compact">${statsGridMarkup()}</div></div><div class="summary-legacy"><div class="summary-section-title"><span>Vermächtnis wählen</span><small>Wirkt ab dem nächsten Zyklus</small></div><div class="summary-perk-grid"><article><span class="perk-orbit">01</span><div><h3>Reichere Urwolke</h3><p>+25 % Ausgangsmaterie pro Stufe</p><strong>Stufe ${state.perks.largerCloud}</strong></div><button data-action="buy-perk-cloud" ${disabled(state.stardust < cloudCost)}>+${cloudCost} ✦</button></article><article><span class="perk-orbit">02</span><div><h3>Gravitatives Gedächtnis</h3><p>+12 % Akkretionsrate pro Stufe</p><strong>Stufe ${state.perks.permanentGravity}</strong></div><button data-action="buy-perk-gravity" ${disabled(state.stardust < gravityPerkCost)}>+${gravityPerkCost} ✦</button></article></div></div><div class="summary-actions"><button class="primary-action" data-action="prestige">Nächsten Zyklus beginnen</button><button class="text-action" data-action="close-summary">Später entscheiden</button></div></section></div>`;
 }
 
 function syncToast(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="toast-root"]');
   if (root) root.innerHTML = toast ? `<div class="toast" role="status">${toast}</div>` : '';
+}
+
+function setTutorial(step: number, completed = false): void {
+  state.tutorial = { step: Math.max(0, Math.min(tutorialSteps.length - 1, step)), completed };
+  saveGame(state);
+  syncTutorial();
+}
+
+function syncTutorial(): void {
+  const root = app.querySelector<HTMLElement>('[data-ui="tutorial-root"]');
+  if (!root) return;
+  app.querySelectorAll('.tutorial-focus').forEach((element) => element.classList.remove('tutorial-focus'));
+  if (state.tutorial.completed) {
+    if (root.innerHTML) root.innerHTML = '';
+    tutorialSignature = 'completed';
+    return;
+  }
+  const step = tutorialSteps[state.tutorial.step] ?? tutorialSteps[0];
+  app.querySelector(step.selector)?.classList.add('tutorial-focus');
+  const signature = `step:${state.tutorial.step}`;
+  if (signature === tutorialSignature) return;
+  tutorialSignature = signature;
+  const interactionHint = step.trigger === 'accrete' ? 'Klicke auf den markierten Stern.'
+    : step.trigger === 'panel' ? 'Öffne einen markierten Tab.'
+      : step.trigger === 'open-chronicle' ? 'Öffne die markierte Chronik.' : '';
+  root.innerHTML = `<aside class="tutorial-card" aria-label="Tutorial"><div><span>TUTORIAL · ${state.tutorial.step + 1}/${tutorialSteps.length}</span><button data-action="skip-tutorial">Überspringen</button></div><h2>${step.title}</h2><p>${step.text}</p>${interactionHint ? `<small>${interactionHint}</small>` : `<button class="tutorial-next" data-action="tutorial-next">${state.tutorial.step === 0 ? 'Tour starten' : 'Weiter'}</button>`}</aside>`;
+}
+
+function advanceTutorial(trigger: string): void {
+  if (state.tutorial.completed || tutorialSteps[state.tutorial.step]?.trigger !== trigger) return;
+  if (state.tutorial.step >= tutorialSteps.length - 1) setTutorial(state.tutorial.step, true);
+  else setTutorial(state.tutorial.step + 1);
+}
+
+function moveDebugMatter(targetMass: number): void {
+  const current = starMass(state);
+  const available = cloudMass(state);
+  const amount = Math.min(Math.max(0, targetMass - current), available);
+  if (amount <= 0) return;
+  const ratio = amount / available;
+  (['hydrogen', 'helium', 'deuterium'] as const).forEach((key) => {
+    const moved = state.cloud[key] * ratio;
+    state.cloud[key] -= moved;
+    state.star[key] += moved;
+  });
+  state.stats.matterAccreted += amount;
+  state = tick(state, 0);
+}
+
+function runDebugAction(action: string): void {
+  if (!import.meta.hot) return;
+  if (action === 'close') { debugOpen = false; syncDebug(); return; }
+  if (action === 'energy') state.energy += 2_000;
+  if (action === 'protostar') moveDebugMatter(2_000);
+  if (action === 'deuterium') moveDebugMatter(8_000);
+  if (action === 'hydrogen') { moveDebugMatter(34_000); state.energy = Math.max(state.energy, 1_000); state = tick(state, 0); }
+  if (action === 'fusion-ready') { moveDebugMatter(34_000); state.manualFusions = Math.max(5, state.manualFusions); state.energy = Math.max(state.energy, 2_000); state = tick(state, 0); }
+  if (action === 'complete') { moveDebugMatter(36_000); state.fusedHydrogen = THRESHOLDS.stableFusedHydrogen; state = tick(state, 0); }
+  if (action === 'fresh') state = createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: { completed: true, step: 0 }, history: state.history });
+  saveGame(state);
+  updateUI(true);
+  syncDebug();
+}
+
+function syncDebug(): void {
+  if (!import.meta.hot) return;
+  const root = app.querySelector<HTMLElement>('[data-ui="debug-root"]');
+  if (!root) return;
+  if (!debugOpen) { if (root.innerHTML) root.innerHTML = ''; debugSignature = 'closed'; return; }
+  const signature = `${state.stage}:${Math.round(starMass(state))}:${Math.round(state.temperature)}:${Math.round(state.energy)}:${state.stats.manualClicks + state.stats.manualFusionActions + state.stats.deuteriumBurns}`;
+  if (signature === debugSignature) return;
+  debugSignature = signature;
+  root.innerHTML = `<aside class="debug-panel" aria-label="Debug- und Balance-Modus"><div><span>DEV · BALANCE</span><button data-debug="close" aria-label="Debug-Modus schließen">×</button></div><dl><div><dt>Stufe</dt><dd>${STAGE_LABELS[state.stage]}</dd></div><div><dt>Masse</dt><dd>${formatCompact(starMass(state))} ME</dd></div><div><dt>Temperatur</dt><dd>${formatTemperature(state.temperature)}</dd></div><div><dt>Energie</dt><dd>${formatCompact(state.energy)}</dd></div><div><dt>Aktionen</dt><dd>${formatNumber(state.stats.manualClicks + state.stats.manualFusionActions + state.stats.deuteriumBurns)}</dd></div></dl><div class="debug-actions"><button data-debug="energy">+2.000 Energie</button><button data-debug="protostar">Protostern</button><button data-debug="deuterium">D-Brennen</button><button data-debug="hydrogen">pp-Kette</button><button data-debug="fusion-ready">Automationen frei</button><button data-debug="complete">Runde abschließen</button><button data-debug="fresh">Runde zurücksetzen</button></div><p>Zielbalance: erste aktive Runde in 10–15 Minuten.</p></aside>`;
 }
 
 function updateUI(forcePanel = false): void {
@@ -343,12 +460,14 @@ function updateUI(forcePanel = false): void {
   setText('click-yield', state.completed ? 'STERN STABIL' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Hauptreihe erreicht' : 'Klicken zum Akkretieren');
   app.querySelectorAll<HTMLElement>('[data-phase]').forEach((dot) => dot.classList.toggle('active', Number(dot.dataset.phase) <= stageIndex));
   const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatCompact(remaining)} ME`); setText('cloud-initial', `von ${formatCompact(initialCloud)} ME`); app.querySelector<HTMLElement>('.gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
-  setText('auto-accretion', state.automation.accretion > 0 ? `${formatCompact(accretionPerSecond(state))} ME / s` : 'Noch inaktiv'); app.querySelector('[data-ui="auto-status"]')?.classList.toggle('online', state.automation.accretion > 0);
-  const soundButton = app.querySelector<HTMLButtonElement>('[data-action="toggle-sound"]'); if (soundButton) { soundButton.innerHTML = state.soundEnabled ? icons.sound : icons.soundOff; soundButton.ariaLabel = `Ton ${state.soundEnabled ? 'ausschalten' : 'einschalten'}`; }
+  const soundButton = app.querySelector<HTMLButtonElement>('[data-action="toggle-sound-menu"]'); if (soundButton) { soundButton.innerHTML = state.soundEnabled ? icons.sound : icons.soundOff; soundButton.ariaLabel = 'Audioeinstellungen öffnen'; }
+  const volumeInput = app.querySelector<HTMLInputElement>('[data-action="set-volume"]'); if (volumeInput && Number(volumeInput.value) !== Math.round(state.volume * 100)) volumeInput.value = String(Math.round(state.volume * 100));
+  setText('volume-label', `${Math.round(state.volume * 100)}%`); setText('mute-label', state.soundEnabled ? 'Ton stummschalten' : 'Ton einschalten');
   setText('reactions-count', state.temperature >= THRESHOLDS.deuteriumTemperature ? '2' : '0');
   const counts: Record<Panel, string> = { reactions: state.temperature >= THRESHOLDS.deuteriumTemperature ? '2' : '0', upgrades: String(state.upgrades.gravity), automation: String(state.automation.accretion + state.automation.fusion) };
   (Object.keys(counts) as Panel[]).forEach((panel) => { const element = app.querySelector<HTMLElement>(`[data-tab-count="${panel}"]`); if (element) element.textContent = counts[panel]; });
-  syncNotifications(); syncActivePanel(); syncChronicleDock(); syncOverlay(); syncToast();
+  syncNotifications(); syncActivePanel(); syncChronicleDock(); syncOverlay(); syncTutorial(); syncToast();
+  if (import.meta.hot) syncDebug();
   if (forcePanel || state.stage !== lastStage) lastStage = state.stage;
 }
 
@@ -364,10 +483,12 @@ function switchPanel(panel: Panel, markSeen = true): void {
 }
 
 function dispatch(action: GameAction): void {
+  const wasCompleted = state.completed;
   state = reduceGame(state, action);
   saveGame(state);
   if (['BUY_GRAVITY', 'BUY_ACCRETION', 'BUY_FUSION', 'BUY_PERK'].includes(action.type)) switchPanel(activePanel, false);
   updateUI(true);
+  if (!wasCompleted && state.completed) playSound('complete', state.soundEnabled, state.volume);
 }
 
 function showToast(message: string): void {
@@ -404,10 +525,9 @@ function armFullReset(): void {
 
 function performReset(mode: ResetMode): void {
   closeResetMenu();
-  const sound = state.soundEnabled;
   if (mode === 'full') { clearSave(); state = createInitialState(); }
-  else state = createInitialState(state.perks, state.stardust, state.run);
-  state.soundEnabled = sound; activePanel = 'reactions'; switchPanel('reactions', false); saveGame(state); updateUI(true); showToast(mode === 'full' ? 'Ein neuer Kosmos beginnt.' : 'Der aktuelle Zyklus wurde neu gestartet.');
+  else state = createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: state.tutorial, history: state.history });
+  activePanel = 'reactions'; switchPanel('reactions', false); saveGame(state); updateUI(true); showToast(mode === 'full' ? 'Ein neuer Kosmos beginnt.' : 'Der aktuelle Zyklus wurde neu gestartet.');
 }
 
 function createActionFeedback(container: HTMLElement, text: string, kind: string): void {
@@ -435,6 +555,8 @@ function playAccretionFeedback(event: MouseEvent): void {
 }
 
 function playActionFeedback(action: string, event: MouseEvent): void {
+  const sounds: Partial<Record<string, SoundEffect>> = { accrete: 'accrete', 'burn-deuterium': 'deuterium', 'fuse-hydrogen': 'fusion', 'buy-gravity': 'purchase', 'buy-accretion': 'purchase', 'buy-fusion': 'purchase', 'buy-perk-cloud': 'purchase', 'buy-perk-gravity': 'purchase' };
+  if (sounds[action]) playSound(sounds[action], state.soundEnabled, state.volume);
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (action === 'accrete') playAccretionFeedback(event);
   if (action === 'burn-deuterium' || action === 'fuse-hydrogen') {
@@ -453,32 +575,60 @@ function setPerksOpen(open: boolean): void {
   app.querySelector('[data-action="toggle-perks"]')?.setAttribute('aria-expanded', String(open));
 }
 
+function setSoundMenuOpen(open: boolean): void {
+  soundMenuOpen = open;
+  app.querySelector('.sound-menu')?.classList.toggle('is-open', open);
+  app.querySelector('[data-action="toggle-sound-menu"]')?.setAttribute('aria-expanded', String(open));
+}
+
 app.addEventListener('click', (event) => {
   const target = event.target as HTMLElement;
+  const debugButton = target.closest<HTMLButtonElement>('[data-debug]'); if (debugButton?.dataset.debug) { runDebugAction(debugButton.dataset.debug); return; }
   const insidePerkMenu = target.closest('.resource-menu');
   if (perksOpen && !insidePerkMenu) setPerksOpen(false);
+  const insideSoundMenu = target.closest('.sound-menu');
+  if (soundMenuOpen && !insideSoundMenu) setSoundMenuOpen(false);
   if (target.dataset.overlayDismiss === 'chronicle') { chronicleOpen = false; overlaySignature = ''; syncOverlay(); return; }
-  const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); return; }
+  if (target.dataset.overlayDismiss === 'stats') { statsOpen = false; overlaySignature = ''; syncOverlay(); return; }
+  const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); advanceTutorial('panel'); return; }
   const button = target.closest<HTMLButtonElement>('[data-action]'); if (!button || button.disabled) return;
   const action = button.dataset.action; if (!action) return;
+  if (action === 'tutorial-next') { advanceTutorial('next'); return; }
+  if (action === 'skip-tutorial') { setTutorial(state.tutorial.step, true); showToast('Tutorial übersprungen. Über ? kannst du es erneut starten.'); return; }
+  if (action === 'replay-tutorial') { setTutorial(0, false); showToast('Tutorial neu gestartet.'); return; }
   if (action === 'reset-menu') { toggleResetMenu(); return; }
   if (action === 'reset-run') { performReset('run'); return; }
   if (action === 'reset-full') { if (fullResetArmed) performReset('full'); else armFullReset(); return; }
   if (action === 'toggle-perks') { setPerksOpen(!perksOpen); return; }
-  if (action === 'open-chronicle') { chronicleOpen = true; overlaySignature = ''; syncOverlay(); return; }
+  if (action === 'toggle-sound-menu') { setSoundMenuOpen(!soundMenuOpen); return; }
+  if (action === 'open-stats') { statsOpen = true; chronicleOpen = false; overlaySignature = ''; syncOverlay(); return; }
+  if (action === 'close-stats') { statsOpen = false; overlaySignature = ''; syncOverlay(); return; }
+  if (action === 'open-chronicle') { chronicleOpen = true; statsOpen = false; overlaySignature = ''; syncOverlay(); advanceTutorial('open-chronicle'); return; }
   if (action === 'close-chronicle') { chronicleOpen = false; overlaySignature = ''; syncOverlay(); return; }
   const actions: Record<string, GameAction> = {
     accrete: { type: 'ACCRETE' }, 'burn-deuterium': { type: 'BURN_DEUTERIUM' }, 'fuse-hydrogen': { type: 'FUSE_HYDROGEN' }, 'buy-gravity': { type: 'BUY_GRAVITY' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-fusion': { type: 'BUY_FUSION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, prestige: { type: 'PRESTIGE' }, 'close-summary': { type: 'CLOSE_SUMMARY' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
   };
-  if (actions[action]) { dispatch(actions[action]); playActionFeedback(action, event as MouseEvent); }
+  if (actions[action]) { dispatch(actions[action]); playActionFeedback(action, event as MouseEvent); if (action === 'accrete') advanceTutorial('accrete'); }
   if (action === 'prestige') switchPanel('reactions', false);
   if (action === 'export') exportSave();
   if (action === 'import') document.querySelector<HTMLInputElement>('#save-import')?.click();
 });
 
+app.addEventListener('input', (event) => {
+  const input = event.target as HTMLInputElement;
+  if (input.dataset.action !== 'set-volume') return;
+  dispatch({ type: 'SET_VOLUME', volume: Number(input.value) / 100 });
+});
+
 app.addEventListener('change', async (event) => {
-  const input = event.target as HTMLInputElement; if (input.id !== 'save-import' || !input.files?.[0]) return;
-  try { const imported = JSON.parse(await input.files[0].text()) as GameState; if (imported.version !== 1 || !imported.cloud || !imported.star) throw new Error('Invalid save'); imported.seenOpportunities ??= []; state = { ...imported, lastTick: Date.now() }; saveGame(state); updateUI(true); showToast('Spielstand erfolgreich importiert.'); } catch { showToast('Diese Datei ist kein gültiger Spielstand.'); }
+  const input = event.target as HTMLInputElement;
+  if (input.dataset.action === 'set-volume') { playSound('unlock', state.soundEnabled, state.volume); return; }
+  if (input.id !== 'save-import' || !input.files?.[0]) return;
+  try {
+    const imported = normalizeGameState(JSON.parse(await input.files[0].text()));
+    if (!imported) throw new Error('Invalid save');
+    state = { ...imported, lastTick: Date.now() }; saveGame(state); updateUI(true); showToast('Spielstand erfolgreich importiert.');
+  } catch { showToast('Diese Datei ist kein gültiger Spielstand.'); }
 });
 
 if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -489,11 +639,25 @@ if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
 }
 
 function frame(now: number): void {
-  const delta = Math.min(1, (now - lastFrame) / 1_000); lastFrame = now; state = tick(state, delta);
-  if (now - lastUiUpdate > 100) { updateUI(); lastUiUpdate = now; }
+  if (now - lastUiUpdate > 100) {
+    const delta = Math.min(1, (now - lastFrame) / 1_000);
+    lastFrame = now;
+    state = tick(state, delta);
+    updateUI();
+    lastUiUpdate = now;
+  }
   requestAnimationFrame(frame);
 }
 
 window.setInterval(() => saveGame(state), 5_000); window.addEventListener('beforeunload', () => saveGame(state));
 renderShell(); requestAnimationFrame(frame);
-if (import.meta.env.DEV) Object.assign(window, { __cosmicState: () => state, __temperature: () => calculateTemperature(state), __fusionRate: () => fusionPerSecond(state) });
+if (import.meta.hot) Object.assign(window, {
+  cosmicDebug: () => {
+    debugOpen = !debugOpen;
+    syncDebug();
+    return debugOpen ? 'Cosmic Debug geöffnet.' : 'Cosmic Debug geschlossen.';
+  },
+  __cosmicState: () => state,
+  __temperature: () => calculateTemperature(state),
+  __fusionRate: () => fusionPerSecond(state),
+});

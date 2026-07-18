@@ -26,8 +26,34 @@ export interface LogEntry {
   kind: 'info' | 'discovery' | 'fusion';
 }
 
+export interface RunStatistics {
+  manualClicks: number;
+  deuteriumBurns: number;
+  manualFusionActions: number;
+  matterAccreted: number;
+  automaticMatterAccreted: number;
+  hydrogenFused: number;
+  automaticHydrogenFused: number;
+  energyGenerated: number;
+  upgradesPurchased: number;
+  automationsPurchased: number;
+  offlineSeconds: number;
+  stardustEarned: number;
+}
+
+export interface RoundRecord extends RunStatistics {
+  run: number;
+  duration: number;
+  finalMass: number;
+}
+
+export interface TutorialState {
+  completed: boolean;
+  step: number;
+}
+
 export interface GameState {
-  version: 1;
+  version: 2;
   run: number;
   startedAt: number;
   lastTick: number;
@@ -48,6 +74,10 @@ export interface GameState {
   completed: boolean;
   summaryOpen: boolean;
   soundEnabled: boolean;
+  volume: number;
+  tutorial: TutorialState;
+  stats: RunStatistics;
+  history: RoundRecord[];
   seenOpportunities: string[];
   log: LogEntry[];
 }
@@ -62,4 +92,5 @@ export type GameAction =
   | { type: 'BUY_PERK'; perk: keyof PerkState }
   | { type: 'PRESTIGE' }
   | { type: 'CLOSE_SUMMARY' }
-  | { type: 'TOGGLE_SOUND' };
+  | { type: 'TOGGLE_SOUND' }
+  | { type: 'SET_VOLUME'; volume: number };

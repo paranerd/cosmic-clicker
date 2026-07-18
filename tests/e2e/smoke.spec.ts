@@ -14,9 +14,12 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   expect(particleCount).toBeLessThanOrEqual(7);
   const gain = page.locator('.accretion-gain');
   await expect(gain).toHaveText('+120 ME');
-  const gainTop = await gain.evaluate((element) => Number.parseFloat((element as HTMLElement).style.top));
-  expect(gainTop).toBeLessThan((starBox!.y + starBox!.height / 2) - chamberBox!.y);
-  await expect(gain).not.toHaveCSS('text-shadow', 'none');
+  const gainStyle = await gain.evaluate((element) => ({
+    top: Number.parseFloat((element as HTMLElement).style.top),
+    textShadow: getComputedStyle(element).textShadow,
+  }));
+  expect(gainStyle.top).toBeLessThan((starBox!.y + starBox!.height / 2) - chamberBox!.y);
+  expect(gainStyle.textShadow).not.toBe('none');
   await expect(page.locator('[data-ui="click-yield"]')).toHaveText('+120 ME');
   await expect(page.getByText('120', { exact: true }).first()).toBeVisible();
 });
@@ -31,6 +34,7 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByRole('tab')).toHaveCount(3);
   await expect(page.getByRole('tab', { name: /Vermächtnis/ })).toHaveCount(0);
   await expect(page.locator('.action-sidepanel')).toContainText('Kontrollzentrum');
+  await expect(page.getByText('Automatische Akkretion', { exact: true })).toHaveCount(0);
   await expect(page.locator('.left-panel .cloud-stats')).toContainText('Urwolke');
   await expect(page.locator('.cloud-mini-gauge [data-ui="cloud-percent"]')).toHaveText('100%');
   await expect(page.locator('.chronicle-dock')).toBeVisible();
@@ -83,6 +87,49 @@ test('perk popover opens only on click and closes outside', async ({ page }) => 
   await page.locator('.mission-strip').click();
   await expect(popover).toBeHidden();
   await expect(perkButton).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('new players can complete and replay the interactive tutorial', async ({ page }) => {
+  await page.goto('/');
+  const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(tutorial).toContainText('Willkommen im Protostern');
+  await tutorial.getByRole('button', { name: 'Tour starten' }).click();
+  await expect(tutorial).toContainText('Materie akkretieren');
+  await page.getByRole('button', { name: 'Materie akkretieren' }).click();
+  await expect(tutorial).toContainText('Den Kern beobachten');
+  await tutorial.getByRole('button', { name: 'Weiter' }).click();
+  await page.getByRole('tab', { name: 'Upgrades 0' }).click();
+  await expect(tutorial).toContainText('Entwicklung nachverfolgen');
+  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
+  await expect(tutorial).toHaveCount(0);
+  await page.getByRole('button', { name: 'Chronik schließen' }).click();
+  await page.getByRole('button', { name: 'Tutorial starten' }).click();
+  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Willkommen im Protostern');
+});
+
+test('audio settings persist volume and mute state', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Audioeinstellungen öffnen' }).click();
+  const slider = page.getByRole('slider', { name: 'Effektlautstärke' });
+  await expect(slider).toHaveValue('35');
+  await slider.fill('60');
+  await expect(page.getByText('60%', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Ton stummschalten' }).click();
+  await expect(page.getByRole('button', { name: 'Ton einschalten' })).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Audioeinstellungen öffnen' }).click();
+  await expect(page.getByRole('slider', { name: 'Effektlautstärke' })).toHaveValue('60');
+  await expect(page.getByRole('button', { name: 'Ton einschalten' })).toBeVisible();
+});
+
+test('round statistics reflect gameplay and production exposes no debug function', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Materie akkretieren' }).click();
+  await page.getByRole('button', { name: 'Statistik öffnen' }).click();
+  const stats = page.getByRole('dialog', { name: /Statistik/ });
+  await expect(stats).toContainText('Manuelle Klicks');
+  await expect(stats).toContainText('120 ME');
+  expect(await page.evaluate(() => typeof (window as unknown as Record<string, unknown>).cosmicDebug)).toBe('undefined');
 });
 
 test('upgrade and automation cards use compact heading rows', async ({ page }) => {

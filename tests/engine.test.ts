@@ -51,5 +51,42 @@ describe('stellar engine', () => {
     expect(state.stage).toBe('stable');
     expect(state.summaryOpen).toBe(true);
     expect(state.stardust).toBeGreaterThanOrEqual(2);
+    expect(state.stats.manualClicks).toBeGreaterThan(0);
+    expect(state.stats.manualFusionActions).toBeGreaterThan(0);
+  });
+
+  it('targets a ten to fifteen minute active first run at a deliberate cadence', () => {
+    let state = createInitialState();
+    let actions = 0;
+    while (!state.completed && actions < 2_000) {
+      state = state.temperature < THRESHOLDS.hydrogenTemperature
+        ? reduceGame(state, { type: 'ACCRETE' })
+        : reduceGame(state, { type: 'FUSE_HYDROGEN' });
+      actions += 1;
+    }
+    const projectedSeconds = actions * 2;
+    expect(projectedSeconds).toBeGreaterThanOrEqual(10 * 60);
+    expect(projectedSeconds).toBeLessThanOrEqual(15 * 60);
+  });
+
+  it('archives round statistics and persistent settings during prestige', () => {
+    const state = createInitialState();
+    state.completed = true;
+    state.stardust = 3;
+    state.elapsed = 720;
+    state.stats.manualClicks = 280;
+    state.stats.stardustEarned = 3;
+    state.volume = .62;
+    state.soundEnabled = false;
+    state.tutorial.completed = true;
+    state.star.hydrogen = 30_000;
+
+    const next = reduceGame(state, { type: 'PRESTIGE' });
+    expect(next.run).toBe(2);
+    expect(next.history).toHaveLength(1);
+    expect(next.history[0]).toMatchObject({ run: 1, duration: 720, manualClicks: 280, stardustEarned: 3 });
+    expect(next.volume).toBe(.62);
+    expect(next.soundEnabled).toBe(false);
+    expect(next.tutorial.completed).toBe(true);
   });
 });

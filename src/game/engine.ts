@@ -1,5 +1,5 @@
 import { CLOUD_BASE, LIMITS, THRESHOLDS } from './config';
-import type { GameAction, GameState, Matter, Stage } from './types';
+import type { GameAction, GameState, Matter, RoundRecord, RunStatistics, Stage, TutorialState } from './types';
 
 const totalMatter = (matter: Matter) => matter.hydrogen + matter.helium + matter.deuterium;
 
@@ -39,6 +39,21 @@ const log = (state: GameState, text: string, kind: GameState['log'][number]['kin
   state.log.unshift({ id: Date.now() + Math.random(), text, kind });
   state.log = state.log.slice(0, 8);
 };
+
+export const createRunStatistics = (): RunStatistics => ({
+  manualClicks: 0,
+  deuteriumBurns: 0,
+  manualFusionActions: 0,
+  matterAccreted: 0,
+  automaticMatterAccreted: 0,
+  hydrogenFused: 0,
+  automaticHydrogenFused: 0,
+  energyGenerated: 0,
+  upgradesPurchased: 0,
+  automationsPurchased: 0,
+  offlineSeconds: 0,
+  stardustEarned: 0,
+});
 
 const transferMatter = (state: GameState, requested: number): number => {
   const available = cloudMass(state);
@@ -93,18 +108,27 @@ const completeRun = (state: GameState) => {
   state.stage = 'stable';
   const award = Math.max(2, Math.min(5, 2 + Math.floor(starMass(state) / 30_000)));
   state.stardust += award;
+  state.stats.stardustEarned += award;
   log(state, `Hydrostatisches Gleichgewicht erreicht. +${award} Sternenstaub`, 'discovery');
 };
+
+interface PersistentRunOptions {
+  soundEnabled?: boolean;
+  volume?: number;
+  tutorial?: TutorialState;
+  history?: RoundRecord[];
+}
 
 export const createInitialState = (
   perks: GameState['perks'] = { largerCloud: 0, permanentGravity: 0 },
   stardust = 0,
   run = 1,
+  persistent: PersistentRunOptions = {},
 ): GameState => {
   const cloudMultiplier = 1 + perks.largerCloud * 0.25;
   const now = Date.now();
   return {
-    version: 1,
+    version: 2,
     run,
     startedAt: now,
     lastTick: now,
@@ -128,7 +152,11 @@ export const createInitialState = (
     perks,
     completed: false,
     summaryOpen: false,
-    soundEnabled: true,
+    soundEnabled: persistent.soundEnabled ?? true,
+    volume: Math.max(0, Math.min(1, persistent.volume ?? .35)),
+    tutorial: persistent.tutorial ? { ...persistent.tutorial } : { completed: false, step: 0 },
+    stats: createRunStatistics(),
+    history: persistent.history ? structuredClone(persistent.history).slice(0, 20) : [],
     seenOpportunities: [],
     log: [{ id: now, text: 'Eine kalte Urwolke wartet auf ihren Impuls.', kind: 'info' }],
   };
@@ -141,9 +169,15 @@ export const tick = (state: GameState, seconds: number): GameState => {
   next.lastTick = Date.now();
 
   if (!next.completed) {
-    transferMatter(next, accretionPerSecond(next) * dt);
+    const accreted = transferMatter(next, accretionPerSecond(next) * dt);
+    next.stats.matterAccreted += accreted;
+    next.stats.automaticMatterAccreted += accreted;
+    next.stats.energyGenerated += accreted * .018;
     next.temperature = calculateTemperature(next);
-    fuseHydrogen(next, fusionPerSecond(next) * dt);
+    const fused = fuseHydrogen(next, fusionPerSecond(next) * dt);
+    next.stats.hydrogenFused += fused;
+    next.stats.automaticHydrogenFused += fused;
+    next.stats.energyGenerated += fused * .34;
     next.heatBonus = Math.max(0, next.heatBonus - dt * 180);
     updateStage(next);
     completeRun(next);
@@ -154,12 +188,23 @@ export const tick = (state: GameState, seconds: number): GameState => {
 export const reduceGame = (state: GameState, action: GameAction): GameState => {
   if (action.type === 'PRESTIGE') {
     if (!state.completed) return state;
-    return createInitialState(state.perks, state.stardust, state.run + 1);
+    const record: RoundRecord = { ...state.stats, run: state.run, duration: state.elapsed, finalMass: starMass(state) };
+    return createInitialState(state.perks, state.stardust, state.run + 1, {
+      soundEnabled: state.soundEnabled,
+      volume: state.volume,
+      tutorial: state.tutorial,
+      history: [record, ...state.history],
+    });
   }
 
   const next = structuredClone(state);
   if (action.type === 'TOGGLE_SOUND') {
     next.soundEnabled = !next.soundEnabled;
+    return next;
+  }
+  if (action.type === 'SET_VOLUME') {
+    next.volume = Math.max(0, Math.min(1, action.volume));
+    if (next.volume > 0) next.soundEnabled = true;
     return next;
   }
   if (action.type === 'CLOSE_SUMMARY') {
@@ -180,6 +225,9 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
   switch (action.type) {
     case 'ACCRETE': {
       const moved = transferMatter(next, accretionPerClick(next));
+      next.stats.manualClicks += 1;
+      next.stats.matterAccreted += moved;
+      next.stats.energyGenerated += moved * .018;
       if (moved > 0 && starMass(next) < 600) log(next, 'Materie fällt ins Gravitationszentrum.', 'info');
       break;
     }
@@ -190,6 +238,8 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
         next.radiatedMass += 0.014;
         next.heatBonus += 170_000;
         next.energy += 36;
+        next.stats.deuteriumBurns += 1;
+        next.stats.energyGenerated += 36;
         log(next, 'Deuterium zündet und stabilisiert den Protostern kurzzeitig.', 'fusion');
       }
       break;
@@ -198,6 +248,9 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
       const fused = fuseHydrogen(next, 200);
       if (fused > 0) {
         next.manualFusions += 1;
+        next.stats.manualFusionActions += 1;
+        next.stats.hydrogenFused += fused;
+        next.stats.energyGenerated += fused * .34;
         if (next.manualFusions === 1) log(next, 'Erste pp-Kette: Wasserstoff wird zu Helium.', 'fusion');
       }
       break;
@@ -207,6 +260,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
       if (starMass(next) >= THRESHOLDS.protostarMass && next.energy >= cost && next.automation.accretion < LIMITS.accretion) {
         next.energy -= cost;
         next.automation.accretion += 1;
+        next.stats.automationsPurchased += 1;
         log(next, 'Akkretionsstrom verstärkt.', 'info');
       }
       break;
@@ -216,6 +270,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
       if (next.manualFusions >= 5 && next.energy >= cost && next.automation.fusion < LIMITS.fusion) {
         next.energy -= cost;
         next.automation.fusion += 1;
+        next.stats.automationsPurchased += 1;
         log(next, 'Ein stabiler pp-Zyklus läuft automatisch.', 'fusion');
       }
       break;
@@ -225,6 +280,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
       if (next.energy >= cost && next.upgrades.gravity < LIMITS.gravity) {
         next.energy -= cost;
         next.upgrades.gravity += 1;
+        next.stats.upgradesPurchased += 1;
         log(next, 'Dichtere Materie erhöht die Akkretionsrate.', 'info');
       }
       break;

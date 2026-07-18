@@ -54,3 +54,37 @@ Beispiele:
 
 - Größere Ausgangswolke
 - Dauerhaft höhere Gravitation
+
+## Roadmap
+
+### Meilenstein v0.2 – bestehende Sternentstehung vertiefen
+
+Nach einem Playtest wird der bestehende Vertical Slice von der Urwolke bis zum Hauptreihenstern ausgebaut und besser testbar gemacht:
+
+- Balancing anhand des Playtest-Feedbacks
+- Kurzes interaktives Tutorial
+- Bessere Rückmeldungen beim Klicken, Fusionieren und Freischalten
+- Soundeffekte mit Lautstärkeregler
+- Statistik- und Rundenauswertung
+- Debug-/Balance-Modus zum schnellen Testen kompletter Runden
+- Zusätzliche Tests für Prestige, Speicherstände und Offline-Fortschritt
+
+Festgelegte Ausprägung für den Prototyp:
+
+- Die erste aktive Runde zielt auf eine Spielzeit von 10 bis 15 Minuten.
+- Das Tutorial ist überspringbar und kann über die Hilfe erneut gestartet werden.
+- Die Soundeffekte werden ohne externe Audiodateien über die Web Audio API erzeugt; Lautstärke (Standard: 35 %) und Stummschaltung werden gespeichert.
+- Die Rundenauswertung erfasst Klicks, Reaktionen, akkretierte Materie, erzeugte Energie, Offline-Zeit, Käufe, Rundendauer und erhaltenen Sternenstaub.
+- Der Debug-/Balance-Modus wird ausschließlich vom Vite-Dev-Server als `cosmicDebug()` in der Browser-Konsole angeboten und darf im produktiven Build nicht enthalten sein.
+
+### Meilenstein v0.3 – echte Sternentwicklung
+
+Erst nach v0.2 beginnt der große Ausbau über den Hauptreihenstern hinaus:
+
+- Verschiedene Wolkengrößen
+- Brauner Zwerg als alternativer Ausgang
+- Heliumbrennen und Triple-Alpha-Prozess
+- Kohlenstoff und Sauerstoff
+- Masseabhängige Entwicklungszweige
+- Weißer Zwerg, Supernova, Neutronenstern und Schwarzes Loch
+- Umfangreicherer Prestige-Baum

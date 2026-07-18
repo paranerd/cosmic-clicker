@@ -1,7 +1,7 @@
 {
   "name": "cosmic-clicker",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:dev-e2e": "playwright test --config playwright.dev.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.1",
