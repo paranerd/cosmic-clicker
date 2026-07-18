@@ -6,7 +6,10 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   await expect(page.getByText('Urwolke', { exact: true }).first()).toBeVisible();
   const star = page.getByRole('button', { name: 'Materie akkretieren' });
   await star.click();
-  await expect(page.locator('.action-feedback.matter')).toBeVisible();
+  const particleCount = await page.locator('.matter-particle').count();
+  expect(particleCount).toBeGreaterThanOrEqual(5);
+  expect(particleCount).toBeLessThanOrEqual(7);
+  await expect(page.locator('.accretion-gain')).toHaveText('+120 ME');
   await expect(page.locator('[data-ui="click-yield"]')).toHaveText('+120 ME');
   await expect(page.getByText('120', { exact: true }).first()).toBeVisible();
 });
@@ -18,10 +21,51 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByRole('tab', { name: 'Reaktionen 0' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Upgrades 0' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Automationen 0' })).toBeVisible();
+  await expect(page.getByRole('tab')).toHaveCount(3);
+  await expect(page.getByRole('tab', { name: /Vermächtnis/ })).toHaveCount(0);
+  await expect(page.locator('.action-sidepanel')).toContainText('Kontrollzentrum');
+  await expect(page.locator('.left-panel .cloud-stats')).toContainText('Urwolke');
+  await expect(page.locator('.chronicle-dock')).toBeVisible();
   await expect(page.locator('[data-ui="temperature-max"]')).toHaveText('1 Mio. K');
+  await expect(page.locator('[data-ui="elapsed"]')).toHaveText(/^\d{2}:\d{2}:\d{2}$/);
 
-  const dimensions = await page.evaluate(() => ({ documentHeight: document.body.scrollHeight, viewportHeight: window.innerHeight }));
+  const dimensions = await page.evaluate(() => ({
+    documentHeight: document.body.scrollHeight,
+    documentWidth: document.documentElement.scrollWidth,
+    viewportHeight: window.innerHeight,
+    viewportWidth: window.innerWidth,
+  }));
   expect(dimensions.documentHeight).toBeLessThanOrEqual(dimensions.viewportHeight);
+  expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+});
+
+test('chronicle expands from the persistent bottom dock', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
+  const chronicle = page.getByRole('dialog', { name: 'Entstehung eines Sterns' });
+  await expect(chronicle).toBeVisible();
+  await expect(chronicle.locator('.timeline-node')).toHaveCount(5);
+  await page.getByRole('button', { name: 'Chronik schließen' }).click();
+  await expect(chronicle).toHaveCount(0);
+});
+
+test('mobile cockpit stacks star, actions, stats and chronicle without horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  const positions = await page.evaluate(() => ({
+    star: document.querySelector('.star-chamber')?.getBoundingClientRect().top ?? 0,
+    actions: document.querySelector('.action-sidepanel')?.getBoundingClientRect().top ?? 0,
+    stats: document.querySelector('.left-panel')?.getBoundingClientRect().top ?? 0,
+    chronicle: document.querySelector('.chronicle-dock')?.getBoundingClientRect().top ?? 0,
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: window.innerWidth,
+  }));
+
+  expect(positions.star).toBeLessThan(positions.actions);
+  expect(positions.actions).toBeLessThan(positions.stats);
+  expect(positions.stats).toBeLessThan(positions.chronicle);
+  expect(positions.documentWidth).toBeLessThanOrEqual(positions.viewportWidth);
 });
 
 test('restart uses an inline confirmation instead of a browser dialog', async ({ page }) => {
