@@ -161,6 +161,8 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   const starBox = await page.getByRole('button', { name: 'Materie akkretieren' }).boundingBox();
   expect(spotlightBox!.x).toBeLessThanOrEqual(starBox!.x);
   expect(spotlightBox!.x + spotlightBox!.width).toBeGreaterThanOrEqual(starBox!.x + starBox!.width);
+  await expect(page.getByRole('button', { name: 'Materie akkretieren' })).toHaveCSS('outline-offset', '8px');
+  await expect(page.getByRole('button', { name: 'Materie akkretieren' })).toHaveCSS('outline-style', 'solid');
 
   await page.evaluate(() => window.scrollBy(0, 60));
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
@@ -169,10 +171,10 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
     const spotlight = document.querySelector('.tutorial-spotlight')!.getBoundingClientRect();
     return { focus: { x: focus.x, y: focus.y, width: focus.width, height: focus.height }, spotlight: { x: spotlight.x, y: spotlight.y, width: spotlight.width, height: spotlight.height } };
   });
-  expect(Math.abs(trackedBoxes.spotlight.x - (trackedBoxes.focus.x - 8))).toBeLessThanOrEqual(1);
-  expect(Math.abs(trackedBoxes.spotlight.y - (trackedBoxes.focus.y - 8))).toBeLessThanOrEqual(1);
-  expect(Math.abs(trackedBoxes.spotlight.width - (trackedBoxes.focus.width + 16))).toBeLessThanOrEqual(1);
-  expect(Math.abs(trackedBoxes.spotlight.height - (trackedBoxes.focus.height + 16))).toBeLessThanOrEqual(1);
+  expect(Math.abs(trackedBoxes.spotlight.x - (trackedBoxes.focus.x - 18))).toBeLessThanOrEqual(1);
+  expect(Math.abs(trackedBoxes.spotlight.y - (trackedBoxes.focus.y - 18))).toBeLessThanOrEqual(1);
+  expect(Math.abs(trackedBoxes.spotlight.width - (trackedBoxes.focus.width + 36))).toBeLessThanOrEqual(1);
+  expect(Math.abs(trackedBoxes.spotlight.height - (trackedBoxes.focus.height + 36))).toBeLessThanOrEqual(1);
 
   await page.getByRole('button', { name: 'Materie akkretieren' }).click();
   await expect.poll(() => page.locator('.left-panel').evaluate((element) => {

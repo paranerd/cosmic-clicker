@@ -439,7 +439,7 @@ function positionTutorialSpotlight(target: Element): void {
   const spotlight = app.querySelector<HTMLElement>('.tutorial-spotlight');
   if (!spotlight) return;
   const rect = target.getBoundingClientRect();
-  const padding = 8;
+  const padding = 18;
   spotlight.style.left = `${Math.max(4, rect.left - padding)}px`;
   spotlight.style.top = `${Math.max(4, rect.top - padding)}px`;
   spotlight.style.width = `${Math.min(window.innerWidth - 8, rect.width + padding * 2)}px`;

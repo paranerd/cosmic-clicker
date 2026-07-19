@@ -433,7 +433,7 @@ footer button:hover { color: $cyan; }
 .automation-particles i:nth-child(8) { --from-x: min(260px,40vw); --from-y: max(-230px,-32vh); animation-delay: -.05s; }
 .accretion-gain { position: absolute; z-index: 12; color: $amber; font-family: ui-monospace,monospace; font-size: 11px; font-weight: 700; -webkit-text-stroke: .7px rgba(2,5,9,.96); paint-order: stroke fill; text-shadow: -1px -1px 0 rgba(2,5,9,.9), 1px -1px 0 rgba(2,5,9,.9), -1px 1px 0 rgba(2,5,9,.9), 1px 1px 0 rgba(2,5,9,.9), 0 0 11px rgba($amber,.72); pointer-events: none; animation: gainRise .82s var(--gain-delay,0ms) ease-out both; }
 .tutorial-card { width: min(330px,calc(100vw - 32px)); position: fixed; z-index: 45; left: 24px; bottom: 24px; padding: 17px 18px; border: 1px solid rgba($cyan,.42); background: radial-gradient(circle at 100% 0, rgba($cyan,.1), transparent 42%), rgba(8,13,22,.98); box-shadow: 0 20px 55px rgba(0,0,0,.5); }
-.tutorial-spotlight { position: fixed; z-index: 42; border: 1px solid rgba($cyan,.72); border-radius: 4px; box-shadow: 0 0 0 9999px rgba(2,5,9,.82), 0 0 30px rgba($cyan,.24); pointer-events: none; }
+.tutorial-spotlight { position: fixed; z-index: 42; border-radius: 6px; box-shadow: 0 0 0 9999px rgba(2,5,9,.82); pointer-events: none; }
 .tutorial-card > div { display: flex; align-items: center; justify-content: space-between; }
 .tutorial-card > div span { color: $cyan; font-size: 7px; letter-spacing: .15em; }
 .tutorial-card > div button { border: 0; background: none; color: $muted; font-size: 7px; text-transform: uppercase; cursor: pointer; }
@@ -441,8 +441,8 @@ footer button:hover { color: $cyan; }
 .tutorial-card p { margin: 0; color: #8d9aad; font-size: 9px; line-height: 1.55; }
 .tutorial-card small { display: block; margin-top: 12px; color: $amber; font-size: 8px; }
 .tutorial-next { width: 100%; min-height: 34px; margin-top: 14px; border: 1px solid rgba($cyan,.35); background: rgba($cyan,.07); color: #b9e2e5; font-size: 8px; text-transform: uppercase; cursor: pointer; }
-.tutorial-focus { position: relative; z-index: 43; box-shadow: inset 0 0 0 1px rgba($cyan,.65), 0 0 28px rgba($cyan,.18) !important; }
-.star-button.tutorial-focus { z-index: 43; box-shadow: 0 0 0 2px rgba($cyan,.7), 0 0 45px rgba($cyan,.25) !important; }
+.tutorial-focus { position: relative; z-index: 43; outline: 1px solid rgba($cyan,.72); outline-offset: 8px; box-shadow: inset 0 0 0 1px rgba($cyan,.65), 0 0 28px rgba($cyan,.18) !important; }
+.star-button.tutorial-focus { z-index: 43; outline-width: 2px; box-shadow: 0 0 0 2px rgba($cyan,.7), 0 0 45px rgba($cyan,.25) !important; }
 .debug-panel { width: 320px; position: fixed; z-index: 90; right: 18px; top: 82px; padding: 15px; border: 1px solid rgba(#cf73ff,.5); background: rgba(12,8,19,.97); box-shadow: 0 20px 60px rgba(0,0,0,.55); }
 .debug-panel > div:first-child { display: flex; justify-content: space-between; color: #d29af0; font-size: 8px; letter-spacing: .14em; }
 .debug-panel > div:first-child button { border: 0; background: none; color: #b28fc4; cursor: pointer; }
