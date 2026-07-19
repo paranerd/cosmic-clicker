@@ -162,6 +162,18 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   expect(spotlightBox!.x).toBeLessThanOrEqual(starBox!.x);
   expect(spotlightBox!.x + spotlightBox!.width).toBeGreaterThanOrEqual(starBox!.x + starBox!.width);
 
+  await page.evaluate(() => window.scrollBy(0, 60));
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  const trackedBoxes = await page.evaluate(() => {
+    const focus = document.querySelector('.star-button')!.getBoundingClientRect();
+    const spotlight = document.querySelector('.tutorial-spotlight')!.getBoundingClientRect();
+    return { focus: { x: focus.x, y: focus.y, width: focus.width, height: focus.height }, spotlight: { x: spotlight.x, y: spotlight.y, width: spotlight.width, height: spotlight.height } };
+  });
+  expect(Math.abs(trackedBoxes.spotlight.x - (trackedBoxes.focus.x - 8))).toBeLessThanOrEqual(1);
+  expect(Math.abs(trackedBoxes.spotlight.y - (trackedBoxes.focus.y - 8))).toBeLessThanOrEqual(1);
+  expect(Math.abs(trackedBoxes.spotlight.width - (trackedBoxes.focus.width + 16))).toBeLessThanOrEqual(1);
+  expect(Math.abs(trackedBoxes.spotlight.height - (trackedBoxes.focus.height + 16))).toBeLessThanOrEqual(1);
+
   await page.getByRole('button', { name: 'Materie akkretieren' }).click();
   await expect.poll(() => page.locator('.left-panel').evaluate((element) => {
     const rect = element.getBoundingClientRect();

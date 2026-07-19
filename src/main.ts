@@ -50,6 +50,7 @@ let statsOpen = false;
 let debugOpen = false;
 let tutorialSignature = '';
 let debugSignature = '';
+let tutorialSpotlightFrame = 0;
 
 const icons = {
   spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></svg>',
@@ -445,6 +446,17 @@ function positionTutorialSpotlight(target: Element): void {
   spotlight.style.height = `${Math.min(window.innerHeight - 8, rect.height + padding * 2)}px`;
 }
 
+function queueTutorialSpotlightPosition(): void {
+  if (tutorialSpotlightFrame) return;
+  tutorialSpotlightFrame = window.requestAnimationFrame(() => {
+    tutorialSpotlightFrame = 0;
+    if (state.tutorial.completed) return;
+    const step = tutorialSteps[state.tutorial.step] ?? tutorialSteps[0];
+    const target = app.querySelector(step.selector);
+    if (target) positionTutorialSpotlight(target);
+  });
+}
+
 function syncTutorial(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="tutorial-root"]');
   if (!root) return;
@@ -736,6 +748,8 @@ function frame(now: number): void {
 }
 
 window.setInterval(() => saveGame(state), 5_000); window.addEventListener('beforeunload', () => saveGame(state));
+window.addEventListener('scroll', queueTutorialSpotlightPosition, { passive: true, capture: true });
+window.addEventListener('resize', queueTutorialSpotlightPosition, { passive: true });
 renderShell(); requestAnimationFrame(frame);
 if (import.meta.hot) Object.assign(window, {
   cosmicDebug: () => {
