@@ -19,6 +19,8 @@ async function seedLegacyGame(page: Page, overrides: Record<string, unknown> = {
 
 async function gotoGame(page: Page): Promise<void> {
   await page.goto('/');
+  const directStart = page.getByRole('button', { name: 'Ohne Tutorial starten' });
+  if (await directStart.isVisible()) await directStart.click();
   const acknowledgement = page.getByRole('button', { name: 'Ziel verstanden' });
   if (await acknowledgement.isVisible()) await acknowledgement.click();
 }
@@ -49,6 +51,7 @@ test('player can accrete matter and see the stellar data update', async ({ page 
 
 test('each objective requires one acknowledgement and stays acknowledged after reload', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Ohne Tutorial starten' }).click();
   const objective = page.getByRole('dialog', { name: 'Protostern verdichten' });
   await expect(objective).toBeVisible();
   await expect(objective).toContainText('Akkretiere Materie');
@@ -127,10 +130,13 @@ test('perk popover opens only on click and closes outside', async ({ page }) => 
 });
 
 test('new players can complete and replay the interactive tutorial', async ({ page }) => {
-  await gotoGame(page);
+  await page.goto('/');
+  const intro = page.getByRole('dialog', { name: 'Erschaffe einen Stern.' });
+  await expect(intro).toContainText('kalten Wolke aus Wasserstoff');
+  await expect(page.locator('[data-ui="elapsed"]')).toHaveText('00:00:00');
+  await expect(page.getByRole('dialog', { name: 'Protostern verdichten' })).toHaveCount(0);
+  await intro.getByRole('button', { name: 'Tutorial starten', exact: true }).click();
   const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
-  await expect(tutorial).toContainText('Willkommen im Protostern');
-  await tutorial.getByRole('button', { name: 'Tour starten' }).click();
   await expect(tutorial).toContainText('Materie akkretieren');
   await page.getByRole('button', { name: 'Materie akkretieren' }).click();
   await expect(tutorial).toContainText('Den Kern beobachten');
@@ -140,19 +146,20 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   await expect(tutorial).toHaveCount(0);
   await page.getByRole('button', { name: 'Chronik schließen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Protostern verdichten' })).toBeVisible();
+  await page.getByRole('button', { name: 'Ziel verstanden' }).click();
   await page.getByRole('button', { name: 'Tutorial starten' }).click();
-  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Willkommen im Protostern');
+  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Materie akkretieren');
 });
 
 test('mobile tutorial centers its card, spotlights targets and scrolls them into view', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await gotoGame(page);
+  await page.goto('/');
+  await page.getByRole('dialog', { name: 'Erschaffe einen Stern.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
   const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
   const cardBox = await tutorial.boundingBox();
   expect(Math.abs(cardBox!.x + cardBox!.width / 2 - 195)).toBeLessThanOrEqual(1);
   await expect(page.locator('.tutorial-spotlight')).toHaveCSS('box-shadow', /rgba\(2, 5, 9, 0\.82\)/);
-
-  await tutorial.getByRole('button', { name: 'Tour starten' }).click();
   await expect.poll(() => page.getByRole('button', { name: 'Materie akkretieren' }).evaluate((element) => {
     const rect = element.getBoundingClientRect();
     return rect.top >= 0 && rect.bottom <= window.innerHeight;
@@ -332,6 +339,8 @@ test('restart uses an inline confirmation instead of a browser dialog', async ({
   await fullReset.click();
   await expect(page.getByRole('button', { name: 'Wirklich alles löschen?' })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Wirklich alles löschen?' }).click();
+  await expect(page.getByRole('dialog', { name: 'Erschaffe einen Stern.' })).toBeVisible();
 });
 
 test('cycle summary offers legacy perks before the next run', async ({ page }) => {

@@ -197,7 +197,6 @@ function panelMarkup(panel: Panel): string {
 }
 
 const tutorialSteps = [
-  { title: 'Willkommen im Protostern', text: 'In dieser kurzen Tour formst du aus einer kalten Urwolke einen stabilen Hauptreihenstern.', selector: '.mission-strip', trigger: 'next' },
   { title: 'Materie akkretieren', text: 'Klicke auf den Stern. Ein Teil der Urwolke fällt ins Zentrum und erhöht Masse, Druck und Temperatur.', selector: '.star-button', trigger: 'accrete' },
   { title: 'Den Kern beobachten', text: 'Links siehst du Temperatur, Druck, Energie und Zusammensetzung. Diese Werte bestimmen, welche Reaktionen möglich sind.', selector: '.left-panel', trigger: 'next' },
   { title: 'Sternsysteme steuern', text: 'Öffne einen der drei Tabs. Reaktionen treiben den Stern an, Upgrades verstärken ihn und Automationen übernehmen wiederkehrende Arbeit.', selector: '.side-tabs', trigger: 'panel' },
@@ -388,8 +387,15 @@ function syncOverlay(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="overlay-root"]');
   if (!root) return;
   const objective = objectiveFor(state);
-  const objectiveNeedsAcknowledgement = !state.completed && !state.seenObjectives.includes(objective.id);
-  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !objectiveNeedsAcknowledgement) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
+  const introNeedsDecision = !state.tutorial.introSeen;
+  const objectiveNeedsAcknowledgement = state.tutorial.completed && !state.completed && !state.seenObjectives.includes(objective.id);
+  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !introNeedsDecision && !objectiveNeedsAcknowledgement) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
+  if (introNeedsDecision) {
+    if (overlaySignature === 'intro') return;
+    overlaySignature = 'intro';
+    root.innerHTML = `<div class="modal-backdrop intro-backdrop"><section class="intro-modal" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-description"><small>DEIN KOSMISCHES EXPERIMENT</small><span class="intro-star">${icons.spark}</span><h2 id="intro-title">Erschaffe einen Stern.</h2><p id="intro-description">Beginne mit einer kalten Wolke aus Wasserstoff. Sammle Materie, heize den Kern durch Gravitation auf und entfache schließlich das Wasserstoffbrennen.</p><div class="intro-pillars"><div><b>01</b><span>Materie sammeln</span><small>Forme aus der Urwolke einen Protostern.</small></div><div><b>02</b><span>Kern entzünden</span><small>Erreiche die nötige Temperatur für Fusion.</small></div><div><b>03</b><span>Stern stabilisieren</span><small>Bringe Gravitation und Strahlung ins Gleichgewicht.</small></div></div><div class="intro-actions"><button class="primary-action" data-action="start-intro-tutorial" aria-label="Tutorial starten"><span>Tutorial starten</span><small>Kurze geführte Tour</small></button><button class="intro-secondary" data-action="skip-intro-tutorial">Ohne Tutorial starten</button></div></section></div>`;
+    return;
+  }
   if (objectiveNeedsAcknowledgement && !chronicleOpen && !statsOpen && !state.summaryOpen) {
     const objectiveSignature = `objective:${state.run}:${objective.id}`;
     if (objectiveSignature === overlaySignature) return;
@@ -430,8 +436,19 @@ function syncToast(): void {
 }
 
 function setTutorial(step: number, completed = false): void {
-  state.tutorial = { step: Math.max(0, Math.min(tutorialSteps.length - 1, step)), completed };
+  state.tutorial = { ...state.tutorial, step: Math.max(0, Math.min(tutorialSteps.length - 1, step)), completed };
   saveGame(state);
+  syncTutorial();
+  overlaySignature = '';
+  syncOverlay();
+}
+
+function resolveIntro(startTutorial: boolean): void {
+  state.tutorial = { introSeen: true, completed: !startTutorial, step: 0 };
+  saveGame(state);
+  overlaySignature = '';
+  tutorialSignature = '';
+  syncOverlay();
   syncTutorial();
 }
 
@@ -450,7 +467,7 @@ function queueTutorialSpotlightPosition(): void {
   if (tutorialSpotlightFrame) return;
   tutorialSpotlightFrame = window.requestAnimationFrame(() => {
     tutorialSpotlightFrame = 0;
-    if (state.tutorial.completed) return;
+    if (!state.tutorial.introSeen || state.tutorial.completed) return;
     const step = tutorialSteps[state.tutorial.step] ?? tutorialSteps[0];
     const target = app.querySelector(step.selector);
     if (target) positionTutorialSpotlight(target);
@@ -461,9 +478,9 @@ function syncTutorial(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="tutorial-root"]');
   if (!root) return;
   app.querySelectorAll('.tutorial-focus').forEach((element) => element.classList.remove('tutorial-focus'));
-  if (state.tutorial.completed) {
+  if (!state.tutorial.introSeen || state.tutorial.completed) {
     if (root.innerHTML) root.innerHTML = '';
-    tutorialSignature = 'completed';
+    tutorialSignature = state.tutorial.introSeen ? 'completed' : 'waiting-for-intro';
     return;
   }
   const step = tutorialSteps[state.tutorial.step] ?? tutorialSteps[0];
@@ -478,7 +495,7 @@ function syncTutorial(): void {
     const interactionHint = step.trigger === 'accrete' ? 'Klicke auf den markierten Stern.'
       : step.trigger === 'panel' ? 'Öffne einen markierten Tab.'
         : step.trigger === 'open-chronicle' ? 'Öffne die markierte Chronik.' : '';
-    root.innerHTML = `<div class="tutorial-spotlight" aria-hidden="true"></div><aside class="tutorial-card" aria-label="Tutorial"><div><span>TUTORIAL · ${state.tutorial.step + 1}/${tutorialSteps.length}</span><button data-action="skip-tutorial">Überspringen</button></div><h2>${step.title}</h2><p>${step.text}</p>${interactionHint ? `<small>${interactionHint}</small>` : `<button class="tutorial-next" data-action="tutorial-next">${state.tutorial.step === 0 ? 'Tour starten' : 'Weiter'}</button>`}</aside>`;
+    root.innerHTML = `<div class="tutorial-spotlight" aria-hidden="true"></div><aside class="tutorial-card" aria-label="Tutorial"><div><span>TUTORIAL · ${state.tutorial.step + 1}/${tutorialSteps.length}</span><button data-action="skip-tutorial">Überspringen</button></div><h2>${step.title}</h2><p>${step.text}</p>${interactionHint ? `<small>${interactionHint}</small>` : `<button class="tutorial-next" data-action="tutorial-next">Weiter</button>`}</aside>`;
   }
   if (target) positionTutorialSpotlight(target);
 }
@@ -513,7 +530,7 @@ function runDebugAction(action: string): void {
   if (action === 'hydrogen') { moveDebugMatter(34_000); state.energy = Math.max(state.energy, 1_000); state = tick(state, 0); }
   if (action === 'fusion-ready') { moveDebugMatter(34_000); state.manualFusions = Math.max(5, state.manualFusions); state.energy = Math.max(state.energy, 2_000); state = tick(state, 0); }
   if (action === 'complete') { moveDebugMatter(36_000); state.fusedHydrogen = THRESHOLDS.stableFusedHydrogen; state = tick(state, 0); }
-  if (action === 'fresh') state = createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: { completed: true, step: 0 }, history: state.history });
+  if (action === 'fresh') state = createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: { introSeen: true, completed: true, step: 0 }, history: state.history });
   saveGame(state);
   updateUI(true);
   syncDebug();
@@ -690,6 +707,8 @@ app.addEventListener('click', (event) => {
   const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); advanceTutorial('panel'); return; }
   const button = target.closest<HTMLButtonElement>('[data-action]'); if (!button || button.disabled) return;
   const action = button.dataset.action; if (!action) return;
+  if (action === 'start-intro-tutorial') { resolveIntro(true); return; }
+  if (action === 'skip-intro-tutorial') { resolveIntro(false); return; }
   if (action === 'acknowledge-objective') { dispatch({ type: 'ACKNOWLEDGE_OBJECTIVE', objective: objectiveFor(state).id }); overlaySignature = ''; syncOverlay(); return; }
   if (action === 'tutorial-next') { advanceTutorial('next'); return; }
   if (action === 'skip-tutorial') { setTutorial(state.tutorial.step, true); showToast('Tutorial übersprungen. Über ? kannst du es erneut starten.'); return; }
@@ -740,7 +759,7 @@ function frame(now: number): void {
   if (now - lastUiUpdate > 100) {
     const delta = Math.min(1, (now - lastFrame) / 1_000);
     lastFrame = now;
-    state = tick(state, delta);
+    if (state.tutorial.introSeen) state = tick(state, delta);
     updateUI();
     lastUiUpdate = now;
   }

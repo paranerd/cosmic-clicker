@@ -49,6 +49,7 @@ export interface RoundRecord extends RunStatistics {
 }
 
 export interface TutorialState {
+  introSeen: boolean;
   completed: boolean;
   step: number;
 }

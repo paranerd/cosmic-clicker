@@ -159,7 +159,7 @@ export const createInitialState = (
     summaryOpen: false,
     soundEnabled: persistent.soundEnabled ?? true,
     volume: Math.max(0, Math.min(1, persistent.volume ?? .35)),
-    tutorial: persistent.tutorial ? { ...persistent.tutorial } : { completed: false, step: 0 },
+    tutorial: persistent.tutorial ? { ...persistent.tutorial } : { introSeen: false, completed: false, step: 0 },
     stats: createRunStatistics(),
     history: persistent.history ? structuredClone(persistent.history).slice(0, 20) : [],
     seenOpportunities: [],

@@ -9,7 +9,9 @@ export const normalizeGameState = (value: unknown): GameState | null => {
   const parsed = value as Partial<Omit<GameState, 'version'>> & { version?: number };
   if ((parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3) || !parsed.cloud || !parsed.star) return null;
   const fallback = createInitialState(parsed.perks, parsed.stardust, parsed.run);
-  const migratedTutorial = parsed.version === 1 ? { completed: true, step: 0 } : fallback.tutorial;
+  const migratedTutorial = parsed.version === 1
+    ? { introSeen: true, completed: true, step: 0 }
+    : { ...fallback.tutorial, introSeen: Boolean(parsed.tutorial) };
   return {
     ...fallback,
     ...parsed,

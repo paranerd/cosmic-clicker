@@ -105,6 +105,7 @@ describe('stellar engine', () => {
     state.volume = .62;
     state.soundEnabled = false;
     state.tutorial.completed = true;
+    state.tutorial.introSeen = true;
     state.star.hydrogen = 30_000;
 
     const next = reduceGame(state, { type: 'PRESTIGE' });
@@ -114,6 +115,7 @@ describe('stellar engine', () => {
     expect(next.volume).toBe(.62);
     expect(next.soundEnabled).toBe(false);
     expect(next.tutorial.completed).toBe(true);
+    expect(next.tutorial.introSeen).toBe(true);
     expect(next.seenObjectives).toEqual([]);
   });
 });

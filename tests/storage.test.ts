@@ -36,6 +36,7 @@ describe('save storage and migration', () => {
     expect(migrated).not.toBeNull();
     expect(migrated).toMatchObject({ version: 3, energy: 321, run: 4, volume: .35 });
     expect(migrated?.tutorial.completed).toBe(true);
+    expect(migrated?.tutorial.introSeen).toBe(true);
     expect(migrated?.stats.manualClicks).toBe(0);
   });
 
@@ -43,6 +44,7 @@ describe('save storage and migration', () => {
     const state = createInitialState();
     state.volume = .71;
     state.tutorial.completed = true;
+    state.tutorial.introSeen = true;
     state.stats.manualClicks = 12;
     state.seenObjectives.push('heat-protostar');
     saveGame(state);
@@ -51,6 +53,7 @@ describe('save storage and migration', () => {
     expect(loaded.version).toBe(3);
     expect(loaded.volume).toBe(.71);
     expect(loaded.tutorial.completed).toBe(true);
+    expect(loaded.tutorial.introSeen).toBe(true);
     expect(loaded.stats.manualClicks).toBe(12);
     expect(loaded.seenObjectives).toContain('heat-protostar');
   });

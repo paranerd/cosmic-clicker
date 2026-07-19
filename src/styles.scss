@@ -357,6 +357,22 @@ footer button { border: 0; background: none; color: #627086; font-size: 8px; tex
 footer button:hover { color: $cyan; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(2,5,9,.82); backdrop-filter: blur(12px); }
+.intro-backdrop { background: radial-gradient(circle at 50% 35%, rgba($cyan,.08), transparent 42%), rgba(2,5,9,.88); }
+.intro-modal { width: min(640px,100%); padding: 36px 42px 40px; overflow: hidden; text-align: center; border: 1px solid rgba($cyan,.35); background: radial-gradient(circle at 50% 0, rgba($cyan,.12), transparent 42%), #09111b; box-shadow: 0 32px 100px rgba(0,0,0,.62), 0 0 48px rgba($cyan,.07); }
+.intro-modal > small { color: $cyan; font-size: 8px; font-weight: 700; letter-spacing: .2em; }
+.intro-star { width: 52px; height: 52px; margin: 22px auto 16px; display: grid; place-items: center; color: $amber; border: 1px solid rgba($amber,.45); transform: rotate(45deg); box-shadow: 0 0 25px rgba($amber,.08); }
+.intro-star svg { width: 22px; transform: rotate(-45deg); }
+.intro-modal h2 { margin: 0; font-family: Georgia,serif; font-size: 34px; font-weight: 400; }
+.intro-modal > p { max-width: 500px; margin: 12px auto 26px; color: #94a2b5; font-size: 10px; line-height: 1.7; }
+.intro-pillars { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; margin-bottom: 22px; border: 1px solid $line; background: $line; text-align: left; }
+.intro-pillars div { min-width: 0; padding: 15px; display: flex; flex-direction: column; background: rgba(8,14,23,.96); }
+.intro-pillars b { color: $cyan; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 500; }
+.intro-pillars span { margin-top: 7px; font-family: Georgia,serif; font-size: 14px; }
+.intro-pillars small { margin-top: 5px; color: $muted; font-size: 8px; line-height: 1.5; }
+.intro-actions { display: grid; grid-template-columns: 1.25fr 1fr; gap: 10px; }
+.intro-actions .primary-action { width: 100%; }
+.intro-secondary { min-height: 50px; padding: 0 18px; border: 1px solid rgba($cyan,.28); background: rgba($cyan,.045); color: #9eb9bd; font-size: 9px; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; transition: .2s ease; }
+.intro-secondary:hover { border-color: rgba($cyan,.52); background: rgba($cyan,.09); color: $text; }
 .objective-backdrop { background: rgba(2,5,9,.76); }
 .objective-modal { width: min(440px,100%); padding: 34px 38px 38px; position: relative; overflow: hidden; text-align: center; border: 1px solid rgba($amber,.38); background: radial-gradient(circle at 50% 0, rgba($amber,.11), transparent 42%), #0a101a; box-shadow: 0 28px 90px rgba(0,0,0,.58), 0 0 36px rgba($amber,.06); }
 .objective-modal > small { color: $amber; font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
@@ -586,6 +602,11 @@ footer button:hover { color: $cyan; }
   .summary-modal h2 { font-size: 28px; }
   .summary-heading { grid-template-columns: 1fr; text-align: center; }
   .summary-heading .modal-star { margin: auto; }
+  .intro-modal { max-height: calc(100vh - 32px); padding: 28px 18px 22px; overflow-y: auto; }
+  .intro-modal h2 { font-size: 28px; }
+  .intro-pillars { grid-template-columns: 1fr; }
+  .intro-pillars div { padding: 11px 13px; }
+  .intro-actions { grid-template-columns: 1fr; }
   .summary-stats { grid-template-columns: 1fr; }
   .summary-stats div + div { border-left: 0; border-top: 1px solid $line; }
   .run-stat-grid { grid-template-columns: 1fr; }
