@@ -44,7 +44,7 @@ Darüber hinaus soll es weitere Upgrades geben.
 Beispiele:
 
 - Erhöhte Gravitation: erhöht die Anzahl der eingezogenen Wasserstoffteilchen pro Zeit (für die Automationen) und pro Klick
-- Deuteriumbrennen (ab 1M Kelvin und nur bis zum Wasserstoffbrennen / pp-Kette): hilft, die Temperatur schneller zu erhöhen
+- Deuteriumbrennen (ab 1 Mio. Kelvin und nur bis zum Wasserstoffbrennen): einmaliges Upgrade, das die kompressionsbedingte Erwärmung beschleunigt
 
 ## Prestige / Perks
 
@@ -73,6 +73,12 @@ Festgelegte Ausprägung für den Prototyp:
 
 - Die erste aktive Runde zielt auf eine Spielzeit von 10 bis 15 Minuten.
 - Das Tutorial ist überspringbar und kann über die Hilfe erneut gestartet werden.
+- Jeder neue Zielabschnitt wird einmalig als zu bestätigendes Popup gezeigt.
+- Das Tutorial dunkelt nicht relevante Bildschirmbereiche ab, scrollt auf Mobilgeräten zum Fokus und zeigt seine Erklärung dort horizontal zentriert.
+- Die erste Urwolke besteht zur Vereinfachung ausschließlich aus Wasserstoff; ab Zyklus 2 gilt wieder die kosmische Mischung aus Wasserstoff, Helium und einer Spur Deuterium.
+- Das Deuteriumbrennen ist ein einmaliges Upgrade ab 1 Mio. K: Es kostet 75 Energie und verstärkt die Erwärmung um 35 %, jedoch nicht über die Schwelle des Wasserstoffbrennens hinaus.
+- Die Proton-Proton-Kette wird in der Spieleroberfläche verständlich als Wasserstoffbrennen bezeichnet.
+- Toast-Meldungen erscheinen horizontal zentriert im oberen Bildschirmbereich.
 - Die Soundeffekte werden ohne externe Audiodateien über die Web Audio API erzeugt; Lautstärke (Standard: 35 %) und Stummschaltung werden gespeichert.
 - Die Rundenauswertung erfasst Klicks, Reaktionen, akkretierte Materie, erzeugte Energie, Offline-Zeit, Käufe, Rundendauer und erhaltenen Sternenstaub.
 - Der Debug-/Balance-Modus wird ausschließlich vom Vite-Dev-Server als `cosmicDebug()` in der Browser-Konsole angeboten und darf im produktiven Build nicht enthalten sein.

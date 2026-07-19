@@ -34,23 +34,25 @@ describe('save storage and migration', () => {
 
     const migrated = normalizeGameState(legacy);
     expect(migrated).not.toBeNull();
-    expect(migrated).toMatchObject({ version: 2, energy: 321, run: 4, volume: .35 });
+    expect(migrated).toMatchObject({ version: 3, energy: 321, run: 4, volume: .35 });
     expect(migrated?.tutorial.completed).toBe(true);
     expect(migrated?.stats.manualClicks).toBe(0);
   });
 
-  it('persists v2 settings and statistics', () => {
+  it('persists v3 settings, objectives and statistics', () => {
     const state = createInitialState();
     state.volume = .71;
     state.tutorial.completed = true;
     state.stats.manualClicks = 12;
+    state.seenObjectives.push('heat-protostar');
     saveGame(state);
 
     const loaded = loadGame().state;
-    expect(loaded.version).toBe(2);
+    expect(loaded.version).toBe(3);
     expect(loaded.volume).toBe(.71);
     expect(loaded.tutorial.completed).toBe(true);
     expect(loaded.stats.manualClicks).toBe(12);
+    expect(loaded.seenObjectives).toContain('heat-protostar');
   });
 
   it('caps and records offline progress at eight hours', () => {
@@ -69,7 +71,7 @@ describe('save storage and migration', () => {
   it('falls back safely when a save is malformed', () => {
     values.set(SAVE_KEY, '{not-json');
     const loaded = loadGame();
-    expect(loaded.state.version).toBe(2);
+    expect(loaded.state.version).toBe(3);
     expect(loaded.state.run).toBe(1);
     expect(loaded.offlineSeconds).toBe(0);
   });

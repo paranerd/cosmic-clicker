@@ -7,13 +7,13 @@ const SAVE_KEY = 'cosmic-clicker-save-v1';
 export const normalizeGameState = (value: unknown): GameState | null => {
   if (!value || typeof value !== 'object') return null;
   const parsed = value as Partial<Omit<GameState, 'version'>> & { version?: number };
-  if ((parsed.version !== 1 && parsed.version !== 2) || !parsed.cloud || !parsed.star) return null;
+  if ((parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3) || !parsed.cloud || !parsed.star) return null;
   const fallback = createInitialState(parsed.perks, parsed.stardust, parsed.run);
   const migratedTutorial = parsed.version === 1 ? { completed: true, step: 0 } : fallback.tutorial;
   return {
     ...fallback,
     ...parsed,
-    version: 2,
+    version: 3,
     cloud: { ...fallback.cloud, ...parsed.cloud },
     star: { ...fallback.star, ...parsed.star },
     automation: { ...fallback.automation, ...parsed.automation },
@@ -24,6 +24,7 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     history: Array.isArray(parsed.history) ? parsed.history.slice(0, 20) : [],
     volume: Math.max(0, Math.min(1, typeof parsed.volume === 'number' ? parsed.volume : .35)),
     seenOpportunities: Array.isArray(parsed.seenOpportunities) ? parsed.seenOpportunities : [],
+    seenObjectives: Array.isArray(parsed.seenObjectives) ? parsed.seenObjectives : [],
     log: Array.isArray(parsed.log) ? parsed.log : fallback.log,
   };
 };

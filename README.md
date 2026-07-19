@@ -4,10 +4,10 @@ Ein responsiver Browser-Prototyp über die Entstehung eines Sterns – von der U
 
 ## Enthalten
 
-- Endliche Urwolke aus Wasserstoff, Helium und einer Spur Deuterium
+- Vereinfachte erste Urwolke aus reinem Wasserstoff, ab Zyklus 2 mit kosmischer Elementmischung
 - Aktive und automatische Akkretion
 - Temperatur- und Druckentwicklung durch gravitative Kontraktion
-- Begrenztes Deuteriumbrennen und Proton-Proton-Kette
+- Deuteriumbrennen als zeitlich begrenztes Upgrade und verständlich erklärtes Wasserstoffbrennen
 - Upgrades, Automationen und ein permanentes Prestige-System
 - Wissenschaftliche Kurzinfos und Sternenlogbuch
 - Automatische Speicherung, bis zu acht Stunden Offline-Fortschritt sowie Import/Export

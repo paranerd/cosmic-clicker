@@ -4,6 +4,15 @@ export const CLOUD_BASE = {
   deuterium: 100,
 } as const;
 
+export const FIRST_CLOUD_BASE = {
+  hydrogen: 100_000,
+  helium: 0,
+  deuterium: 0,
+} as const;
+
+export const DEUTERIUM_UPGRADE_COST = 75;
+export const DEUTERIUM_TEMPERATURE_MULTIPLIER = 1.35;
+
 export const THRESHOLDS = {
   protostarMass: 1_500,
   deuteriumTemperature: 1_000_000,

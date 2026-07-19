@@ -17,8 +17,14 @@ async function seedLegacyGame(page: Page, overrides: Record<string, unknown> = {
   });
 }
 
-test('player can accrete matter and see the stellar data update', async ({ page }) => {
+async function gotoGame(page: Page): Promise<void> {
   await page.goto('/');
+  const acknowledgement = page.getByRole('button', { name: 'Ziel verstanden' });
+  if (await acknowledgement.isVisible()) await acknowledgement.click();
+}
+
+test('player can accrete matter and see the stellar data update', async ({ page }) => {
+  await gotoGame(page);
   await expect(page.getByRole('heading', { name: 'Stellarer Kern' })).toBeVisible();
   await expect(page.getByText('Urwolke', { exact: true }).first()).toBeVisible();
   const star = page.getByRole('button', { name: 'Materie akkretieren' });
@@ -28,6 +34,7 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   const particleCount = await page.locator('.matter-particle').count();
   expect(particleCount).toBeGreaterThanOrEqual(5);
   expect(particleCount).toBeLessThanOrEqual(7);
+  await expect(page.locator('.matter-particle').filter({ hasText: 'He' })).toHaveCount(0);
   const gain = page.locator('.accretion-gain');
   await expect(gain).toHaveText('+120 ME');
   const gainStyle = await gain.evaluate((element) => ({
@@ -40,9 +47,20 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   await expect(page.getByText('120', { exact: true }).first()).toBeVisible();
 });
 
+test('each objective requires one acknowledgement and stays acknowledged after reload', async ({ page }) => {
+  await page.goto('/');
+  const objective = page.getByRole('dialog', { name: 'Protostern verdichten' });
+  await expect(objective).toBeVisible();
+  await expect(objective).toContainText('Akkretiere Materie');
+  await objective.getByRole('button', { name: 'Ziel verstanden' }).click();
+  await expect(objective).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('dialog', { name: 'Protostern verdichten' })).toHaveCount(0);
+});
+
 test('desktop cockpit fits and exposes the separated control tabs', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto('/');
+  await gotoGame(page);
 
   await expect(page.getByRole('tab', { name: 'Reaktionen' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Upgrades' })).toBeVisible();
@@ -53,6 +71,9 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByText('Automatische Akkretion', { exact: true })).toHaveCount(0);
   await expect(page.locator('.left-panel .cloud-stats')).toContainText('Urwolke');
   await expect(page.locator('.cloud-mini-gauge [data-ui="cloud-percent"]')).toHaveText('100%');
+  await expect(page.locator('[data-cloud-matter="hydrogen"]')).toContainText('100.000');
+  await expect(page.locator('[data-cloud-matter="helium"]')).toBeHidden();
+  await expect(page.locator('[data-cloud-matter="deuterium"]')).toBeHidden();
   await expect(page.locator('.chronicle-dock')).toBeVisible();
   await expect(page.getByText('SIMULATION AKTIV', { exact: true })).toHaveCount(0);
   await expect(page.locator('[data-ui="temperature-max"]')).toHaveText('1 Mio. K');
@@ -75,7 +96,7 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
 });
 
 test('chronicle expands from the persistent bottom dock', async ({ page }) => {
-  await page.goto('/');
+  await gotoGame(page);
   await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   const chronicle = page.getByRole('dialog', { name: 'Entstehung eines Sterns' });
   await expect(chronicle).toBeVisible();
@@ -90,7 +111,7 @@ test('chronicle expands from the persistent bottom dock', async ({ page }) => {
 });
 
 test('perk popover opens only on click and closes outside', async ({ page }) => {
-  await page.goto('/');
+  await gotoGame(page);
   const perkButton = page.getByRole('button', { name: 'Aktive Vermächtnis-Perks anzeigen' });
   const popover = page.locator('.perk-popover');
 
@@ -106,7 +127,7 @@ test('perk popover opens only on click and closes outside', async ({ page }) => 
 });
 
 test('new players can complete and replay the interactive tutorial', async ({ page }) => {
-  await page.goto('/');
+  await gotoGame(page);
   const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(tutorial).toContainText('Willkommen im Protostern');
   await tutorial.getByRole('button', { name: 'Tour starten' }).click();
@@ -123,8 +144,41 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Willkommen im Protostern');
 });
 
+test('mobile tutorial centers its card, spotlights targets and scrolls them into view', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoGame(page);
+  const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
+  const cardBox = await tutorial.boundingBox();
+  expect(Math.abs(cardBox!.x + cardBox!.width / 2 - 195)).toBeLessThanOrEqual(1);
+  await expect(page.locator('.tutorial-spotlight')).toHaveCSS('box-shadow', /rgba\(2, 5, 9, 0\.82\)/);
+
+  await tutorial.getByRole('button', { name: 'Tour starten' }).click();
+  await expect.poll(() => page.getByRole('button', { name: 'Materie akkretieren' }).evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.top >= 0 && rect.bottom <= window.innerHeight;
+  })).toBe(true);
+  const spotlightBox = await page.locator('.tutorial-spotlight').boundingBox();
+  const starBox = await page.getByRole('button', { name: 'Materie akkretieren' }).boundingBox();
+  expect(spotlightBox!.x).toBeLessThanOrEqual(starBox!.x);
+  expect(spotlightBox!.x + spotlightBox!.width).toBeGreaterThanOrEqual(starBox!.x + starBox!.width);
+
+  await page.getByRole('button', { name: 'Materie akkretieren' }).click();
+  await expect.poll(() => page.locator('.left-panel').evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.top < window.innerHeight && rect.bottom > 0;
+  })).toBe(true);
+
+  await tutorial.getByRole('button', { name: 'Weiter' }).click();
+  await tutorial.getByRole('button', { name: 'Überspringen' }).click();
+  const toast = page.getByRole('status');
+  await expect(toast).toBeVisible();
+  await expect(toast).toHaveCSS('left', '195px');
+  await expect(toast).toHaveCSS('top', '76px');
+  await expect(toast).toHaveCSS('transform', /matrix\(1, 0, 0, 1, -[\d.]+, 0\)/);
+});
+
 test('audio settings persist volume and mute state', async ({ page }) => {
-  await page.goto('/');
+  await gotoGame(page);
   await page.getByRole('button', { name: 'Audioeinstellungen öffnen' }).click();
   const slider = page.getByRole('slider', { name: 'Effektlautstärke' });
   await expect(slider).toHaveValue('35');
@@ -139,7 +193,7 @@ test('audio settings persist volume and mute state', async ({ page }) => {
 });
 
 test('round statistics reflect gameplay and production exposes no debug function', async ({ page }) => {
-  await page.goto('/');
+  await gotoGame(page);
   await page.getByRole('button', { name: 'Materie akkretieren' }).click();
   await page.getByRole('button', { name: 'Statistik öffnen' }).click();
   const stats = page.getByRole('dialog', { name: /Statistik/ });
@@ -159,7 +213,7 @@ test('tabs count unseen opportunities, flash on unlock and clear when opened', a
     star: { hydrogen: 30_000, helium: 6_000, deuterium: 50 },
     energy: 1_000, temperature: 11_400_000, manualFusions: 4,
   });
-  await page.goto('/');
+  await gotoGame(page);
 
   const upgradeTab = page.getByRole('tab', { name: 'Upgrades 1' });
   const automationTab = page.getByRole('tab', { name: 'Automationen 1' });
@@ -186,7 +240,7 @@ test('active accretion automation continuously streams particles into the star',
     star: { hydrogen: 1_500, helium: 500, deuterium: 0 },
     energy: 100, temperature: 150_000, automation: { accretion: 1, fusion: 0 },
   });
-  await page.goto('/');
+  await gotoGame(page);
 
   const chamber = page.locator('.star-chamber');
   await expect(chamber).toHaveClass(/has-auto-accretion/);
@@ -196,10 +250,13 @@ test('active accretion automation continuously streams particles into the star',
 });
 
 test('upgrade and automation cards use compact heading rows', async ({ page }) => {
-  await page.goto('/');
+  await gotoGame(page);
+  await expect(page.locator('[data-card="fusion"]')).toContainText('Wasserstoffbrennen');
+  await expect(page.getByRole('button', { name: /Zünden/ })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Upgrades' }).click();
-  const upgradeHeading = page.locator('.upgrade-heading');
+  const upgradeHeading = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' }).locator('.upgrade-heading');
   await expect(upgradeHeading).toContainText('Gravitative Verdichtung ×1');
+  await expect(page.locator('.deuterium-upgrade')).toContainText('Deuteriumbrennen inaktiv');
   await expect(page.getByText('Aktueller Multiplikator', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Upgrade', { exact: true })).toHaveCount(0);
   await expect(upgradeHeading.locator('.upgrade-icon')).toHaveCount(1);
@@ -208,13 +265,13 @@ test('upgrade and automation cards use compact heading rows', async ({ page }) =
   await expect(page.locator('.upgrade-heading')).toHaveCount(2);
   await expect(page.locator('.upgrade-heading').first()).toContainText('Akkretionsstrom 0 ME/s');
   await expect(page.locator('[data-automation-card="accretion"]')).toContainText('Nächste Stufe: +42 ME/s');
-  await expect(page.locator('[data-automation-card="fusion"]')).toContainText('Stabiler pp-Zyklus 0 H/s');
+  await expect(page.locator('[data-automation-card="fusion"]')).toContainText('Stabiles Wasserstoffbrennen 0 H/s');
   await expect(page.locator('[data-automation-card="fusion"]')).toContainText('Nächste Stufe: +69 H/s');
   await expect(page.getByText('Automation', { exact: true })).toHaveCount(0);
 });
 
 test('header and chronicle utility buttons share the same translucent hover treatment', async ({ page }) => {
-  await page.goto('/');
+  await gotoGame(page);
   const hoverStyle = async (locator: Locator) => {
     await locator.hover();
     await expect(locator).toHaveCSS('background-color', 'rgba(120, 215, 223, 0.075)');
@@ -235,7 +292,7 @@ test('header and chronicle utility buttons share the same translucent hover trea
 
 test('mobile cockpit stacks star, actions, stats and chronicle without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await gotoGame(page);
 
   const positions = await page.evaluate(() => ({
     star: document.querySelector('.star-chamber')?.getBoundingClientRect().top ?? 0,
@@ -253,7 +310,7 @@ test('mobile cockpit stacks star, actions, stats and chronicle without horizonta
 });
 
 test('restart uses an inline confirmation instead of a browser dialog', async ({ page }) => {
-  await page.goto('/');
+  await gotoGame(page);
   await page.getByRole('button', { name: 'Neustartoptionen öffnen' }).click();
   await expect(page.getByRole('button', { name: 'Runde neu starten' })).toBeVisible();
   const fullReset = page.getByRole('button', { name: 'Spielstand löschen' });
@@ -276,7 +333,7 @@ test('cycle summary offers legacy perks before the next run', async ({ page }) =
       summaryOpen: true, soundEnabled: true, seenOpportunities: [], log: [],
     }));
   });
-  await page.goto('/');
+  await gotoGame(page);
   await expect(page.getByRole('dialog')).toContainText('Vermächtnis wählen');
   await expect(page.getByRole('button', { name: '+2 ✦' })).toHaveCount(2);
   await expect(page.getByRole('button', { name: 'Nächsten Zyklus beginnen' })).toBeVisible();

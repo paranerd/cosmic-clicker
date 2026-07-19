@@ -1,4 +1,4 @@
-import { CLOUD_BASE, LIMITS, THRESHOLDS } from './config';
+import { CLOUD_BASE, DEUTERIUM_TEMPERATURE_MULTIPLIER, DEUTERIUM_UPGRADE_COST, FIRST_CLOUD_BASE, LIMITS, THRESHOLDS } from './config';
 import type { GameAction, GameState, Matter, RoundRecord, RunStatistics, Stage, TutorialState } from './types';
 
 const totalMatter = (matter: Matter) => matter.hydrogen + matter.helium + matter.deuterium;
@@ -24,7 +24,11 @@ export const pressureProgress = (state: GameState): number =>
 
 export const calculateTemperature = (state: GameState): number => {
   const compression = (starMass(state) / 32_000) ** 1.5 * 9_500_000;
-  return Math.max(2_700, 2_700 + compression + state.heatBonus);
+  const normalTemperature = 2_700 + compression + state.heatBonus;
+  if (!state.upgrades.deuteriumBurning || normalTemperature >= THRESHOLDS.hydrogenTemperature) {
+    return Math.max(2_700, normalTemperature);
+  }
+  return Math.min(THRESHOLDS.hydrogenTemperature, 2_700 + compression * DEUTERIUM_TEMPERATURE_MULTIPLIER + state.heatBonus);
 };
 
 const stageFor = (state: GameState): Stage => {
@@ -97,8 +101,8 @@ const updateStage = (state: GameState) => {
   if (before === state.stage) return;
 
   if (state.stage === 'protostar') log(state, 'Gravitation formt einen Protostern.', 'discovery');
-  if (state.stage === 'deuterium') log(state, '1 Mio. K: Deuterium kann zünden.', 'discovery');
-  if (state.stage === 'hydrogen') log(state, '10 Mio. K: Die pp-Kette ist möglich.', 'discovery');
+  if (state.stage === 'deuterium') log(state, '1 Mio. K: Deuteriumbrennen kann aktiviert werden.', 'discovery');
+  if (state.stage === 'hydrogen') log(state, '10 Mio. K: Wasserstoffbrennen ist möglich.', 'discovery');
 };
 
 const completeRun = (state: GameState) => {
@@ -126,18 +130,19 @@ export const createInitialState = (
   persistent: PersistentRunOptions = {},
 ): GameState => {
   const cloudMultiplier = 1 + perks.largerCloud * 0.25;
+  const cloudBase = run === 1 ? FIRST_CLOUD_BASE : CLOUD_BASE;
   const now = Date.now();
   return {
-    version: 2,
+    version: 3,
     run,
     startedAt: now,
     lastTick: now,
     elapsed: 0,
     stage: 'nebula',
     cloud: {
-      hydrogen: CLOUD_BASE.hydrogen * cloudMultiplier,
-      helium: CLOUD_BASE.helium * cloudMultiplier,
-      deuterium: CLOUD_BASE.deuterium * cloudMultiplier,
+      hydrogen: cloudBase.hydrogen * cloudMultiplier,
+      helium: cloudBase.helium * cloudMultiplier,
+      deuterium: cloudBase.deuterium * cloudMultiplier,
     },
     star: { hydrogen: 0, helium: 0, deuterium: 0 },
     radiatedMass: 0,
@@ -147,7 +152,7 @@ export const createInitialState = (
     fusedHydrogen: 0,
     manualFusions: 0,
     automation: { accretion: 0, fusion: 0 },
-    upgrades: { gravity: 0 },
+    upgrades: { gravity: 0, deuteriumBurning: false },
     stardust,
     perks,
     completed: false,
@@ -158,6 +163,7 @@ export const createInitialState = (
     stats: createRunStatistics(),
     history: persistent.history ? structuredClone(persistent.history).slice(0, 20) : [],
     seenOpportunities: [],
+    seenObjectives: [],
     log: [{ id: now, text: 'Eine kalte Urwolke wartet auf ihren Impuls.', kind: 'info' }],
   };
 };
@@ -211,6 +217,10 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
     next.summaryOpen = false;
     return next;
   }
+  if (action.type === 'ACKNOWLEDGE_OBJECTIVE') {
+    if (!next.seenObjectives.includes(action.objective)) next.seenObjectives.push(action.objective);
+    return next;
+  }
   if (action.type === 'BUY_PERK') {
     const costs = { largerCloud: 2 + next.perks.largerCloud * 2, permanentGravity: 2 + next.perks.permanentGravity * 2 };
     const cost = costs[action.perk];
@@ -231,16 +241,12 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
       if (moved > 0 && starMass(next) < 600) log(next, 'Materie fällt ins Gravitationszentrum.', 'info');
       break;
     }
-    case 'BURN_DEUTERIUM': {
-      if (next.temperature >= THRESHOLDS.deuteriumTemperature && next.star.deuterium >= 2) {
-        next.star.deuterium -= 2;
-        next.star.helium += 1.986;
-        next.radiatedMass += 0.014;
-        next.heatBonus += 170_000;
-        next.energy += 36;
-        next.stats.deuteriumBurns += 1;
-        next.stats.energyGenerated += 36;
-        log(next, 'Deuterium zündet und stabilisiert den Protostern kurzzeitig.', 'fusion');
+    case 'BUY_DEUTERIUM': {
+      if (!next.upgrades.deuteriumBurning && next.temperature >= THRESHOLDS.deuteriumTemperature && next.temperature < THRESHOLDS.hydrogenTemperature && next.energy >= DEUTERIUM_UPGRADE_COST) {
+        next.energy -= DEUTERIUM_UPGRADE_COST;
+        next.upgrades.deuteriumBurning = true;
+        next.stats.upgradesPurchased += 1;
+        log(next, 'Deuteriumbrennen beschleunigt die Erwärmung des Kerns.', 'fusion');
       }
       break;
     }
@@ -251,7 +257,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
         next.stats.manualFusionActions += 1;
         next.stats.hydrogenFused += fused;
         next.stats.energyGenerated += fused * .34;
-        if (next.manualFusions === 1) log(next, 'Erste pp-Kette: Wasserstoff wird zu Helium.', 'fusion');
+        if (next.manualFusions === 1) log(next, 'Erstes Wasserstoffbrennen: Wasserstoff wird zu Helium.', 'fusion');
       }
       break;
     }
@@ -271,7 +277,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
         next.energy -= cost;
         next.automation.fusion += 1;
         next.stats.automationsPurchased += 1;
-        log(next, 'Ein stabiler pp-Zyklus läuft automatisch.', 'fusion');
+        log(next, 'Stabiles Wasserstoffbrennen läuft automatisch.', 'fusion');
       }
       break;
     }
@@ -292,19 +298,22 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
   return next;
 };
 
-export const objectiveFor = (state: GameState): { eyebrow: string; title: string; progress: number; detail: string } => {
-  if (state.completed) return { eyebrow: 'Stern geboren', title: 'Runde auswerten', progress: 100, detail: 'Investiere Sternenstaub oder beginne den nächsten Zyklus.' };
+export const objectiveFor = (state: GameState): { id: string; eyebrow: string; title: string; progress: number; detail: string } => {
+  if (state.completed) return { id: 'review-cycle', eyebrow: 'Stern geboren', title: 'Runde auswerten', progress: 100, detail: 'Investiere Sternenstaub oder beginne den nächsten Zyklus.' };
   if (state.temperature < THRESHOLDS.deuteriumTemperature) return {
+    id: 'heat-protostar',
     eyebrow: 'Nächstes Ziel', title: 'Protostern verdichten',
     progress: Math.min(100, state.temperature / THRESHOLDS.deuteriumTemperature * 100),
     detail: 'Akkretiere Materie, bis der Kern 1 Mio. K erreicht.',
   };
   if (state.temperature < THRESHOLDS.hydrogenTemperature) return {
+    id: 'ignite-hydrogen',
     eyebrow: 'Nächstes Ziel', title: 'Kern aufheizen',
     progress: Math.min(100, state.temperature / THRESHOLDS.hydrogenTemperature * 100),
-    detail: 'Nutze Deuterium und Gravitation, um 10 Mio. K zu erreichen.',
+    detail: state.upgrades.deuteriumBurning ? 'Deuteriumbrennen beschleunigt die Erwärmung bis 10 Mio. K.' : 'Aktiviere Deuteriumbrennen und verstärke die Gravitation, um 10 Mio. K zu erreichen.',
   };
   return {
+    id: 'stabilize-star',
     eyebrow: 'Nächstes Ziel', title: 'Gleichgewicht herstellen',
     progress: Math.min(100, state.fusedHydrogen / THRESHOLDS.stableFusedHydrogen * 100),
     detail: 'Fusioniere 15.000 Materieeinheiten Wasserstoff.',

@@ -1,6 +1,6 @@
 import './styles.scss';
 import { playSound, type SoundEffect } from './audio';
-import { LIMITS, STAGE_LABELS, THRESHOLDS } from './game/config';
+import { DEUTERIUM_UPGRADE_COST, LIMITS, STAGE_LABELS, THRESHOLDS } from './game/config';
 import {
   accretionCost,
   accretionPerClick,
@@ -100,11 +100,11 @@ function currentOpportunities(): Record<Panel, string[]> {
   const reactions: string[] = [];
   const upgrades: string[] = [];
   const automation: string[] = [];
-  if (!state.completed && state.temperature >= THRESHOLDS.deuteriumTemperature && state.star.deuterium >= 2) {
-    reactions.push('reaction:deuterium');
-  }
   if (!state.completed && state.temperature >= THRESHOLDS.hydrogenTemperature && state.star.hydrogen >= 200) {
     reactions.push('reaction:hydrogen');
+  }
+  if (!state.upgrades.deuteriumBurning && state.temperature >= THRESHOLDS.deuteriumTemperature && state.temperature < THRESHOLDS.hydrogenTemperature && state.energy >= DEUTERIUM_UPGRADE_COST) {
+    upgrades.push('deuterium-burning');
   }
   if (state.upgrades.gravity < LIMITS.gravity && state.energy >= gravityCost(state.upgrades.gravity)) {
     upgrades.push(`gravity:${state.upgrades.gravity}`);
@@ -121,17 +121,25 @@ function currentOpportunities(): Record<Panel, string[]> {
 function renderReactionPanel(): string {
   return `
     <div class="reaction-grid">
-      <div class="action-card" data-card="deuterium">
-        <div class="reaction-symbol deuterium">D</div>
-        <div class="action-copy"><span class="card-kicker">Protostern-Reaktion</span><h3>Deuteriumbrennen</h3><p>Eine begrenzte Brennphase. Wandelt 2 D um und gibt dem Kern kurzzeitig Wärme.</p><div class="reaction-equation"><span>²H + ²H</span><b>→</b><span>He + Energie</span></div></div>
-        <button class="secondary-action" data-action="burn-deuterium"><span data-button-label>Zünden</span><small>+170.000 K · +36 E</small></button>
-      </div>
       <div class="action-card" data-card="fusion">
         <div class="reaction-symbol hydrogen">H</div>
-        <div class="action-copy"><span class="card-kicker">Kernfusion</span><h3>Proton-Proton-Kette</h3><p>Wasserstoff verschmilzt zu Helium. Ein kleiner Massendefekt wird zu Energie.</p><div class="reaction-equation"><span>4 H</span><b>→</b><span>He + γ</span></div></div>
+        <div class="action-copy"><span class="card-kicker">Kernfusion</span><h3>Wasserstoffbrennen</h3><p>Wasserstoff verschmilzt zu Helium. Ein kleiner Massendefekt wird zu Energie.</p><div class="reaction-equation"><span>4 H</span><b>→</b><span>He + γ</span></div></div>
         <button class="primary-action compact" data-action="fuse-hydrogen"><span data-button-label>200 H fusionieren</span><small data-button-detail>+68 Energie</small></button>
       </div>
     </div>`;
+}
+
+function deuteriumUpgradeCard(): string {
+  const active = state.upgrades.deuteriumBurning;
+  const unlocked = state.temperature >= THRESHOLDS.deuteriumTemperature && state.temperature < THRESHOLDS.hydrogenTemperature;
+  const label = active ? 'Aktiv' : state.temperature >= THRESHOLDS.hydrogenTemperature ? 'Phase beendet' : unlocked ? 'Aktivieren' : 'Ab 1 Mio. K';
+  return `
+    <article class="upgrade-card deuterium-upgrade">
+      <div class="upgrade-heading"><span class="upgrade-icon">D</span><h3>Deuteriumbrennen <b>${active ? '×1,35' : 'inaktiv'}</b></h3></div>
+      <p>Beschleunigt die kompressionsbedingte Erwärmung um 35 %. Der Effekt endet beim Freischalten des Wasserstoffbrennens.<strong>${active ? 'Erwärmung beschleunigt' : 'Einmaliges Upgrade für die Protosternphase'}</strong></p>
+      <div class="level-row"><i class="level-pip ${active ? 'is-filled' : ''}"></i></div>
+      <button class="progress-button" data-action="buy-deuterium" style="--button-progress:${progress(state.energy, DEUTERIUM_UPGRADE_COST, unlocked)}%" ${disabled(active || !unlocked || state.energy < DEUTERIUM_UPGRADE_COST)}><i></i><span data-button-label>${label}</span><b data-button-cost>${active ? '—' : `${DEUTERIUM_UPGRADE_COST} E`}</b></button>
+    </article>`;
 }
 
 function upgradeCard(): string {
@@ -162,7 +170,7 @@ function automationCard(kind: 'accretion' | 'fusion'): string {
   const unit = isAccretion ? 'ME/s' : 'H/s';
   return `
     <article class="upgrade-card" data-automation-card="${kind}">
-      <div class="upgrade-heading"><span class="upgrade-icon">${isAccretion ? 'A' : 'H'}</span><h3>${isAccretion ? 'Akkretionsstrom' : 'Stabiler pp-Zyklus'} <b>${formatCompact(currentRate)} ${unit}</b></h3></div>
+      <div class="upgrade-heading"><span class="upgrade-icon">${isAccretion ? 'A' : 'H'}</span><h3>${isAccretion ? 'Akkretionsstrom' : 'Stabiles Wasserstoffbrennen'} <b>${formatCompact(currentRate)} ${unit}</b></h3></div>
       <p>${isAccretion ? 'Zieht kontinuierlich Materie aus der Wolke. Benötigt einen ausgebildeten Protostern.' : 'Fusioniert Wasserstoff automatisch. Wird nach fünf manuellen Reaktionen verfügbar.'}<strong>${isMax ? 'Maximum erreicht' : `Nächste Stufe: +${formatCompact(nextGain)} ${unit}`}</strong></p>
       <div class="level-row">${levelPips(level, max)}</div>
       <button class="progress-button" data-action="${isAccretion ? 'buy-accretion' : 'buy-fusion'}" style="--button-progress:${progress(state.energy, price, unlocked)}%" ${disabled(state.energy < price || !unlocked || isMax)}><i></i><span data-button-label>${label}</span><b data-button-cost>${isMax ? '—' : `${price} E`}</b></button>
@@ -172,7 +180,7 @@ function automationCard(kind: 'accretion' | 'fusion'): string {
 function timelineMarkup(): string {
   const stageIndex = ['nebula', 'protostar', 'deuterium', 'hydrogen', 'stable'].indexOf(state.stage);
   const nodes = [
-    ['nebula', 'Gaswolke', 'Materie sammeln'], ['protostar', 'Protostern', 'Kern verdichten'], ['deuterium', 'D-Brennen', '1 Mio. K'], ['hydrogen', 'pp-Kette', '10 Mio. K'], ['stable', 'Hauptreihe', 'Gleichgewicht'],
+    ['nebula', 'Gaswolke', 'Materie sammeln'], ['protostar', 'Protostern', 'Kern verdichten'], ['deuterium', 'D-Upgrade', '1 Mio. K'], ['hydrogen', 'H-Brennen', '10 Mio. K'], ['stable', 'Hauptreihe', 'Gleichgewicht'],
   ];
   return nodes.map(([key, label, detail], index) => `<div class="timeline-node ${index <= stageIndex ? 'done' : ''} ${key === state.stage ? 'current' : ''}"><i>${index < stageIndex ? '✓' : index + 1}</i><span><b>${label}</b><small>${detail}</small></span></div>`).join('');
 }
@@ -183,7 +191,7 @@ function logMarkup(limit = 5): string {
 
 function panelMarkup(panel: Panel): string {
   if (panel === 'reactions') return renderReactionPanel();
-  if (panel === 'upgrades') return `<div class="upgrade-grid single-upgrade">${upgradeCard()}</div>`;
+  if (panel === 'upgrades') return `<div class="upgrade-grid">${deuteriumUpgradeCard()}${upgradeCard()}</div>`;
   return `<div class="upgrade-grid automation-grid">${automationCard('accretion')}${automationCard('fusion')}</div>`;
 }
 
@@ -201,7 +209,6 @@ function statsEntries(): [string, string, string][] {
     ['clicks', 'Manuelle Klicks', formatNumber(stats.manualClicks)],
     ['matter', 'Akkretiert', `${formatCompact(stats.matterAccreted)} ME`],
     ['automatic-matter', 'Davon automatisch', `${formatCompact(stats.automaticMatterAccreted)} ME`],
-    ['deuterium', 'Deuterium-Zündungen', formatNumber(stats.deuteriumBurns)],
     ['fusion', 'Manuelle Fusionen', formatNumber(stats.manualFusionActions)],
     ['hydrogen', 'Wasserstoff fusioniert', `${formatCompact(stats.hydrogenFused)} H`],
     ['energy', 'Energie erzeugt', formatCompact(stats.energyGenerated)],
@@ -236,13 +243,13 @@ function renderShell(): void {
           <div class="panel-heading"><span class="index">01</span><div><small>Echtzeitdaten</small><h2>Stellarer Kern</h2></div></div>
           <div class="primary-reading"><span>Kerntemperatur</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>2.700 K</span><span data-ui="temperature-max"></span></small></div>
           <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric"><span>Energie</span><b data-ui="energy"></b><small>verfügbar</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
-          <div class="composition"><div class="section-label"><span>Kernzusammensetzung</span><small data-ui="core-total"></small></div>${['hydrogen','helium','deuterium'].map((key) => `<div class="composition-row"><span class="element ${key === 'hydrogen' ? 'h' : key === 'helium' ? 'he' : 'd'}">${key === 'hydrogen' ? 'H' : key === 'helium' ? 'He' : 'D'}</span><div><b>${key === 'hydrogen' ? 'Wasserstoff' : key === 'helium' ? 'Helium' : 'Deuterium'}</b><div class="mini-track"><i data-ui="${key}-bar"></i></div></div><strong data-ui="${key}-value"></strong></div>`).join('')}</div>
-          <div class="cloud-stats"><div class="section-label"><span>Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="cloud-elements">${['hydrogen','helium','deuterium'].map((key) => `<div><span class="element ${key === 'hydrogen' ? 'h' : key === 'helium' ? 'he' : 'd'}">${key === 'hydrogen' ? 'H' : key === 'helium' ? 'He' : 'D'}</span><p><b>${key === 'hydrogen' ? 'Wasserstoff' : key === 'helium' ? 'Helium' : 'Deuterium'}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
+          <div class="composition"><div class="section-label"><span>Kernzusammensetzung</span><small data-ui="core-total"></small></div>${['hydrogen','helium','deuterium'].map((key) => `<div class="composition-row" data-matter="${key}"><span class="element ${key === 'hydrogen' ? 'h' : key === 'helium' ? 'he' : 'd'}">${key === 'hydrogen' ? 'H' : key === 'helium' ? 'He' : 'D'}</span><div><b>${key === 'hydrogen' ? 'Wasserstoff' : key === 'helium' ? 'Helium' : 'Deuterium'}</b><div class="mini-track"><i data-ui="${key}-bar"></i></div></div><strong data-ui="${key}-value"></strong></div>`).join('')}</div>
+          <div class="cloud-stats"><div class="section-label"><span>Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="cloud-elements">${['hydrogen','helium','deuterium'].map((key) => `<div data-cloud-matter="${key}"><span class="element ${key === 'hydrogen' ? 'h' : key === 'helium' ? 'he' : 'd'}">${key === 'hydrogen' ? 'H' : key === 'helium' ? 'He' : 'D'}</span><p><b>${key === 'hydrogen' ? 'Wasserstoff' : key === 'helium' ? 'Helium' : 'Deuterium'}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
         </aside>
 
         <section class="star-chamber">
           <div class="stage-label"><span data-ui="stage"></span><b data-ui="stage-detail"></b></div><div class="orbit orbit-outer"><span></span><span></span></div><div class="orbit orbit-inner"><span></span></div>
-          <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i>${index % 5 === 4 ? 'He' : 'H'}</i>`).join('')}</div>
+          <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">H</i>`).join('')}</div>
           <button class="star-button" data-action="accrete" aria-label="Materie akkretieren"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
           <div class="click-callout"><span data-ui="click-yield"></span><small data-ui="click-detail"></small></div><div class="phase-dots">${Array.from({length:5},(_, index)=>`<i data-phase="${index}"></i>`).join('')}</div>
         </section>
@@ -274,32 +281,30 @@ function setWidth(name: string, value: number): void {
 }
 
 function syncReactionPanel(): void {
-  const dButton = app.querySelector<HTMLButtonElement>('[data-action="burn-deuterium"]');
   const hButton = app.querySelector<HTMLButtonElement>('[data-action="fuse-hydrogen"]');
-  if (!dButton || !hButton) return;
-  const canD = state.temperature >= THRESHOLDS.deuteriumTemperature && state.star.deuterium >= 2 && !state.completed;
+  if (!hButton) return;
   const canH = state.temperature >= THRESHOLDS.hydrogenTemperature && state.star.hydrogen >= 200 && !state.completed;
-  dButton.disabled = !canD;
-  dButton.querySelector('[data-button-label]')!.textContent = canD ? 'Zünden' : state.temperature < THRESHOLDS.deuteriumTemperature ? 'Ab 1 Mio. K' : 'Kein D verfügbar';
   hButton.disabled = !canH;
   hButton.querySelector('[data-button-label]')!.textContent = state.temperature >= THRESHOLDS.hydrogenTemperature ? '200 H fusionieren' : 'Ab 10 Mio. K';
   hButton.querySelector('[data-button-detail]')!.textContent = state.temperature >= THRESHOLDS.hydrogenTemperature ? '+68 Energie' : 'Kern noch zu kalt';
-  dButton.closest('.action-card')?.classList.toggle('is-ready', canD);
   hButton.closest('.action-card')?.classList.toggle('is-ready', canH);
 }
 
-function syncProgressButton(action: string, price: number, unlocked: boolean, isMax: boolean, label: string): void {
+function syncProgressButton(action: string, price: number, unlocked: boolean, isMax: boolean, label: string, terminalLabel = 'Maximum'): void {
   const button = app.querySelector<HTMLButtonElement>(`[data-action="${action}"]`);
   if (!button) return;
   button.style.setProperty('--button-progress', `${progress(state.energy, price, unlocked)}%`);
   button.disabled = !unlocked || state.energy < price || isMax;
-  button.querySelector('[data-button-label]')!.textContent = isMax ? 'Maximum' : label;
+  button.querySelector('[data-button-label]')!.textContent = isMax ? terminalLabel : label;
   button.querySelector('[data-button-cost]')!.textContent = isMax ? '—' : `${price} E`;
 }
 
 function syncActivePanel(): void {
   if (activePanel === 'reactions') syncReactionPanel();
   if (activePanel === 'upgrades') {
+    const deuteriumUnlocked = state.temperature >= THRESHOLDS.deuteriumTemperature && state.temperature < THRESHOLDS.hydrogenTemperature;
+    const deuteriumLabel = state.upgrades.deuteriumBurning ? 'Aktiv' : state.temperature >= THRESHOLDS.hydrogenTemperature ? 'Phase beendet' : deuteriumUnlocked ? 'Aktivieren' : 'Ab 1 Mio. K';
+    syncProgressButton('buy-deuterium', DEUTERIUM_UPGRADE_COST, deuteriumUnlocked, state.upgrades.deuteriumBurning, deuteriumLabel, deuteriumLabel);
     syncProgressButton('buy-gravity', gravityCost(state.upgrades.gravity), true, state.upgrades.gravity >= LIMITS.gravity, 'Verdichten');
     setText('gravity-multiplier', `×${formatNumber(1 + state.upgrades.gravity * .55 + state.perks.permanentGravity * .12, 2)}`);
   }
@@ -381,7 +386,16 @@ function syncLiveStats(root: HTMLElement): void {
 function syncOverlay(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="overlay-root"]');
   if (!root) return;
-  if (!state.summaryOpen && !chronicleOpen && !statsOpen) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
+  const objective = objectiveFor(state);
+  const objectiveNeedsAcknowledgement = !state.completed && !state.seenObjectives.includes(objective.id);
+  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !objectiveNeedsAcknowledgement) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
+  if (objectiveNeedsAcknowledgement && !chronicleOpen && !statsOpen && !state.summaryOpen) {
+    const objectiveSignature = `objective:${state.run}:${objective.id}`;
+    if (objectiveSignature === overlaySignature) return;
+    overlaySignature = objectiveSignature;
+    root.innerHTML = `<div class="modal-backdrop objective-backdrop"><section class="objective-modal" role="dialog" aria-modal="true" aria-labelledby="objective-title"><small>${objective.eyebrow}</small><span class="objective-mark">${icons.spark}</span><h2 id="objective-title">${objective.title}</h2><p>${objective.detail}</p><button class="primary-action" data-action="acknowledge-objective">Ziel verstanden</button></section></div>`;
+    return;
+  }
   if (chronicleOpen && !state.summaryOpen) {
     const chronicleSignature = `chronicle:${state.stage}:${state.log.map((entry) => entry.id).join(',')}`;
     if (chronicleSignature === overlaySignature) return;
@@ -408,13 +422,27 @@ function syncOverlay(): void {
 
 function syncToast(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="toast-root"]');
-  if (root) root.innerHTML = toast ? `<div class="toast" role="status">${toast}</div>` : '';
+  if (!root) return;
+  const renderedToast = root.querySelector<HTMLElement>('.toast')?.textContent ?? '';
+  if (renderedToast === toast) return;
+  root.innerHTML = toast ? `<div class="toast" role="status">${toast}</div>` : '';
 }
 
 function setTutorial(step: number, completed = false): void {
   state.tutorial = { step: Math.max(0, Math.min(tutorialSteps.length - 1, step)), completed };
   saveGame(state);
   syncTutorial();
+}
+
+function positionTutorialSpotlight(target: Element): void {
+  const spotlight = app.querySelector<HTMLElement>('.tutorial-spotlight');
+  if (!spotlight) return;
+  const rect = target.getBoundingClientRect();
+  const padding = 8;
+  spotlight.style.left = `${Math.max(4, rect.left - padding)}px`;
+  spotlight.style.top = `${Math.max(4, rect.top - padding)}px`;
+  spotlight.style.width = `${Math.min(window.innerWidth - 8, rect.width + padding * 2)}px`;
+  spotlight.style.height = `${Math.min(window.innerHeight - 8, rect.height + padding * 2)}px`;
 }
 
 function syncTutorial(): void {
@@ -427,14 +455,20 @@ function syncTutorial(): void {
     return;
   }
   const step = tutorialSteps[state.tutorial.step] ?? tutorialSteps[0];
-  app.querySelector(step.selector)?.classList.add('tutorial-focus');
+  const target = app.querySelector(step.selector);
+  target?.classList.add('tutorial-focus');
   const signature = `step:${state.tutorial.step}`;
-  if (signature === tutorialSignature) return;
-  tutorialSignature = signature;
-  const interactionHint = step.trigger === 'accrete' ? 'Klicke auf den markierten Stern.'
-    : step.trigger === 'panel' ? 'Öffne einen markierten Tab.'
-      : step.trigger === 'open-chronicle' ? 'Öffne die markierte Chronik.' : '';
-  root.innerHTML = `<aside class="tutorial-card" aria-label="Tutorial"><div><span>TUTORIAL · ${state.tutorial.step + 1}/${tutorialSteps.length}</span><button data-action="skip-tutorial">Überspringen</button></div><h2>${step.title}</h2><p>${step.text}</p>${interactionHint ? `<small>${interactionHint}</small>` : `<button class="tutorial-next" data-action="tutorial-next">${state.tutorial.step === 0 ? 'Tour starten' : 'Weiter'}</button>`}</aside>`;
+  if (signature !== tutorialSignature) {
+    tutorialSignature = signature;
+    if (target && window.matchMedia('(max-width: 1100px)').matches) {
+      target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    }
+    const interactionHint = step.trigger === 'accrete' ? 'Klicke auf den markierten Stern.'
+      : step.trigger === 'panel' ? 'Öffne einen markierten Tab.'
+        : step.trigger === 'open-chronicle' ? 'Öffne die markierte Chronik.' : '';
+    root.innerHTML = `<div class="tutorial-spotlight" aria-hidden="true"></div><aside class="tutorial-card" aria-label="Tutorial"><div><span>TUTORIAL · ${state.tutorial.step + 1}/${tutorialSteps.length}</span><button data-action="skip-tutorial">Überspringen</button></div><h2>${step.title}</h2><p>${step.text}</p>${interactionHint ? `<small>${interactionHint}</small>` : `<button class="tutorial-next" data-action="tutorial-next">${state.tutorial.step === 0 ? 'Tour starten' : 'Weiter'}</button>`}</aside>`;
+  }
+  if (target) positionTutorialSpotlight(target);
 }
 
 function advanceTutorial(trigger: string): void {
@@ -481,7 +515,7 @@ function syncDebug(): void {
   const signature = `${state.stage}:${Math.round(starMass(state))}:${Math.round(state.temperature)}:${Math.round(state.energy)}:${state.stats.manualClicks + state.stats.manualFusionActions + state.stats.deuteriumBurns}`;
   if (signature === debugSignature) return;
   debugSignature = signature;
-  root.innerHTML = `<aside class="debug-panel" aria-label="Debug- und Balance-Modus"><div><span>DEV · BALANCE</span><button data-debug="close" aria-label="Debug-Modus schließen">×</button></div><dl><div><dt>Stufe</dt><dd>${STAGE_LABELS[state.stage]}</dd></div><div><dt>Masse</dt><dd>${formatCompact(starMass(state))} ME</dd></div><div><dt>Temperatur</dt><dd>${formatTemperature(state.temperature)}</dd></div><div><dt>Energie</dt><dd>${formatCompact(state.energy)}</dd></div><div><dt>Aktionen</dt><dd>${formatNumber(state.stats.manualClicks + state.stats.manualFusionActions + state.stats.deuteriumBurns)}</dd></div></dl><div class="debug-actions"><button data-debug="energy">+2.000 Energie</button><button data-debug="protostar">Protostern</button><button data-debug="deuterium">D-Brennen</button><button data-debug="hydrogen">pp-Kette</button><button data-debug="fusion-ready">Automationen frei</button><button data-debug="complete">Runde abschließen</button><button data-debug="fresh">Runde zurücksetzen</button></div><p>Zielbalance: erste aktive Runde in 10–15 Minuten.</p></aside>`;
+  root.innerHTML = `<aside class="debug-panel" aria-label="Debug- und Balance-Modus"><div><span>DEV · BALANCE</span><button data-debug="close" aria-label="Debug-Modus schließen">×</button></div><dl><div><dt>Stufe</dt><dd>${STAGE_LABELS[state.stage]}</dd></div><div><dt>Masse</dt><dd>${formatCompact(starMass(state))} ME</dd></div><div><dt>Temperatur</dt><dd>${formatTemperature(state.temperature)}</dd></div><div><dt>Energie</dt><dd>${formatCompact(state.energy)}</dd></div><div><dt>Aktionen</dt><dd>${formatNumber(state.stats.manualClicks + state.stats.manualFusionActions)}</dd></div></dl><div class="debug-actions"><button data-debug="energy">+2.000 Energie</button><button data-debug="protostar">Protostern</button><button data-debug="deuterium">D-Upgrade</button><button data-debug="hydrogen">H-Brennen</button><button data-debug="fusion-ready">Automationen frei</button><button data-debug="complete">Runde abschließen</button><button data-debug="fresh">Runde zurücksetzen</button></div><p>Zielbalance: erste aktive Runde in 10–15 Minuten.</p></aside>`;
 }
 
 function updateUI(forcePanel = false): void {
@@ -498,6 +532,13 @@ function updateUI(forcePanel = false): void {
   setText('temperature', formatTemperature(state.temperature)); setText('temperature-max', scale.label); app.querySelector<HTMLElement>('[data-ui="temperature-bar"]')?.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
   setText('mass', formatCompact(mass)); setText('pressure', formatNumber(pressureProgress(state), 1)); setText('energy', formatCompact(state.energy)); setText('accretion-rate', formatCompact(accretionPerSecond(state))); setText('core-total', `${formatCompact(mass)} ME`);
   (['hydrogen', 'helium', 'deuterium'] as const).forEach((key) => { const percent = matterPercent(state.star[key], starTotal); setWidth(`${key}-bar`, key === 'deuterium' ? Math.max(1, percent) : percent); setText(`${key}-value`, key === 'deuterium' ? formatNumber(state.star[key], 1) : `${formatNumber(percent, 1)}%`); setText(`cloud-${key}`, key === 'deuterium' ? formatNumber(state.cloud[key], 1) : formatCompact(state.cloud[key])); });
+  const hydrogenOnly = state.run === 1;
+  app.querySelectorAll<HTMLElement>('[data-matter], [data-cloud-matter]').forEach((element) => {
+    const matter = element.dataset.matter ?? element.dataset.cloudMatter;
+    element.hidden = hydrogenOnly && matter !== 'hydrogen';
+  });
+  app.querySelector('.cloud-elements')?.classList.toggle('hydrogen-only', hydrogenOnly);
+  app.querySelectorAll<HTMLElement>('[data-auto-particle]').forEach((particle, index) => { particle.textContent = hydrogenOnly || index % 5 !== 4 ? 'H' : 'He'; });
   setText('stage', STAGE_LABELS[state.stage]); setText('stage-detail', state.completed ? 'Hydrostatisches Gleichgewicht' : 'Gravitative Kontraktion');
   const star = app.querySelector<HTMLButtonElement>('.star-button');
   if (star) { star.className = `star-button stage-${state.stage}`; star.disabled = state.completed || remaining <= 0; }
@@ -529,7 +570,7 @@ function dispatch(action: GameAction): void {
   const wasCompleted = state.completed;
   state = reduceGame(state, action);
   saveGame(state);
-  if (['BUY_GRAVITY', 'BUY_ACCRETION', 'BUY_FUSION', 'BUY_PERK'].includes(action.type)) switchPanel(activePanel, false);
+  if (['BUY_DEUTERIUM', 'BUY_GRAVITY', 'BUY_ACCRETION', 'BUY_FUSION', 'BUY_PERK'].includes(action.type)) switchPanel(activePanel, false);
   updateUI(true);
   if (!wasCompleted && state.completed) playSound('complete', state.soundEnabled, state.volume);
 }
@@ -588,8 +629,9 @@ function playAccretionFeedback(event: MouseEvent): void {
   const count = 5 + Math.floor(Math.random() * 3);
   for (let index = 0; index < count; index += 1) {
     const angle = Math.random() * Math.PI * 2; const radius = Math.max(chamberRect.width, chamberRect.height) * (.32 + Math.random() * .24);
-    const particle = document.createElement('span'); particle.className = 'matter-particle'; particle.textContent = Math.random() > .82 ? 'He' : 'H';
+    const particle = document.createElement('span'); particle.className = 'matter-particle';
     particle.style.left = `${targetX}px`; particle.style.top = `${targetY}px`; particle.style.setProperty('--from-x', `${Math.cos(angle) * radius}px`); particle.style.setProperty('--from-y', `${Math.sin(angle) * radius}px`); particle.style.setProperty('--particle-delay', `${index * 28}ms`);
+    particle.textContent = state.run === 1 || Math.random() <= .82 ? 'H' : 'He';
     chamber.append(particle); particle.addEventListener('animationend', () => particle.remove(), { once: true });
   }
   const gainX = targetX + (Math.random() - .5) * 36; const gainY = targetY - 20 - Math.random() * 22;
@@ -598,14 +640,14 @@ function playAccretionFeedback(event: MouseEvent): void {
 }
 
 function playActionFeedback(action: string, event: MouseEvent): void {
-  const sounds: Partial<Record<string, SoundEffect>> = { accrete: 'accrete', 'burn-deuterium': 'deuterium', 'fuse-hydrogen': 'fusion', 'buy-gravity': 'purchase', 'buy-accretion': 'purchase', 'buy-fusion': 'purchase', 'buy-perk-cloud': 'purchase', 'buy-perk-gravity': 'purchase' };
+  const sounds: Partial<Record<string, SoundEffect>> = { accrete: 'accrete', 'buy-deuterium': 'deuterium', 'fuse-hydrogen': 'fusion', 'buy-gravity': 'purchase', 'buy-accretion': 'purchase', 'buy-fusion': 'purchase', 'buy-perk-cloud': 'purchase', 'buy-perk-gravity': 'purchase' };
   if (sounds[action]) playSound(sounds[action], state.soundEnabled, state.volume);
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (action === 'accrete') playAccretionFeedback(event);
-  if (action === 'burn-deuterium' || action === 'fuse-hydrogen') {
-    const selector = action === 'burn-deuterium' ? '[data-card="deuterium"]' : '[data-card="fusion"]';
+  if (action === 'fuse-hydrogen') {
+    const selector = '[data-card="fusion"]';
     const card = app.querySelector<HTMLElement>(selector); const button = app.querySelector<HTMLElement>(`[data-action="${action}"]`);
-    if (card) createActionFeedback(card, action === 'burn-deuterium' ? '+170.000 K' : '+68 Energie', action === 'burn-deuterium' ? 'heat' : 'fusion');
+    if (card) createActionFeedback(card, '+68 Energie', 'fusion');
     card?.animate([{ borderColor: 'rgba(242,168,75,.25)' }, { borderColor: 'rgba(242,168,75,.9)', filter: 'brightness(1.35)' }, { borderColor: 'rgba(242,168,75,.25)', filter: 'brightness(1)' }], { duration: 650, easing: 'ease-out' });
     button?.animate([{ transform: 'scale(1)' }, { transform: 'scale(.97)' }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });
     app.querySelector<HTMLElement>('.star-surface')?.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.7)' }, { filter: 'brightness(1)' }], { duration: 520, easing: 'ease-out' });
@@ -636,6 +678,7 @@ app.addEventListener('click', (event) => {
   const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); advanceTutorial('panel'); return; }
   const button = target.closest<HTMLButtonElement>('[data-action]'); if (!button || button.disabled) return;
   const action = button.dataset.action; if (!action) return;
+  if (action === 'acknowledge-objective') { dispatch({ type: 'ACKNOWLEDGE_OBJECTIVE', objective: objectiveFor(state).id }); overlaySignature = ''; syncOverlay(); return; }
   if (action === 'tutorial-next') { advanceTutorial('next'); return; }
   if (action === 'skip-tutorial') { setTutorial(state.tutorial.step, true); showToast('Tutorial übersprungen. Über ? kannst du es erneut starten.'); return; }
   if (action === 'replay-tutorial') { setTutorial(0, false); showToast('Tutorial neu gestartet.'); return; }
@@ -649,7 +692,7 @@ app.addEventListener('click', (event) => {
   if (action === 'open-chronicle') { chronicleOpen = true; statsOpen = false; overlaySignature = ''; syncOverlay(); advanceTutorial('open-chronicle'); return; }
   if (action === 'close-chronicle') { chronicleOpen = false; overlaySignature = ''; syncOverlay(); return; }
   const actions: Record<string, GameAction> = {
-    accrete: { type: 'ACCRETE' }, 'burn-deuterium': { type: 'BURN_DEUTERIUM' }, 'fuse-hydrogen': { type: 'FUSE_HYDROGEN' }, 'buy-gravity': { type: 'BUY_GRAVITY' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-fusion': { type: 'BUY_FUSION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, prestige: { type: 'PRESTIGE' }, 'close-summary': { type: 'CLOSE_SUMMARY' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
+    accrete: { type: 'ACCRETE' }, 'fuse-hydrogen': { type: 'FUSE_HYDROGEN' }, 'buy-deuterium': { type: 'BUY_DEUTERIUM' }, 'buy-gravity': { type: 'BUY_GRAVITY' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-fusion': { type: 'BUY_FUSION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, prestige: { type: 'PRESTIGE' }, 'close-summary': { type: 'CLOSE_SUMMARY' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
   };
   if (actions[action]) { dispatch(actions[action]); playActionFeedback(action, event as MouseEvent); if (action === 'accrete') advanceTutorial('accrete'); }
   if (action === 'prestige') switchPanel('reactions', false);

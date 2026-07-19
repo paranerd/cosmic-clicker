@@ -11,6 +11,14 @@ describe('stellar engine', () => {
     expect(cloudMass(next) + starMass(next)).toBeCloseTo(totalBefore, 5);
   });
 
+  it('starts the first cycle with a pure hydrogen cloud and enriches later cycles', () => {
+    const first = createInitialState();
+    const second = createInitialState({ largerCloud: 0, permanentGravity: 0 }, 0, 2);
+    expect(first.cloud).toEqual({ hydrogen: 100_000, helium: 0, deuterium: 0 });
+    expect(second.cloud.helium).toBeGreaterThan(0);
+    expect(second.cloud.deuterium).toBeGreaterThan(0);
+  });
+
   it('unlocks the protostar after sufficient mass is collected', () => {
     let state = createInitialState();
     for (let index = 0; index < 14; index += 1) state = reduceGame(state, { type: 'ACCRETE' });
@@ -24,6 +32,24 @@ describe('stellar engine', () => {
     const next = reduceGame(state, { type: 'FUSE_HYDROGEN' });
     expect(next.star.hydrogen).toBe(1_000);
     expect(next.manualFusions).toBe(0);
+  });
+
+  it('activates deuterium burning once and accelerates heating only toward hydrogen ignition', () => {
+    let state = createInitialState();
+    state.star.hydrogen = 8_000;
+    state.cloud.hydrogen -= 8_000;
+    state.energy = 100;
+    state = tick(state, 0);
+    const normalTemperature = state.temperature;
+
+    const upgraded = reduceGame(state, { type: 'BUY_DEUTERIUM' });
+    expect(upgraded.upgrades.deuteriumBurning).toBe(true);
+    expect(upgraded.energy).toBe(25);
+    expect(upgraded.temperature).toBeGreaterThan(normalTemperature);
+    expect(upgraded.temperature).toBeLessThanOrEqual(THRESHOLDS.hydrogenTemperature);
+
+    const repeated = reduceGame(upgraded, { type: 'BUY_DEUTERIUM' });
+    expect(repeated.energy).toBe(upgraded.energy);
   });
 
   it('applies permanent cloud perks to a new run', () => {
@@ -88,5 +114,6 @@ describe('stellar engine', () => {
     expect(next.volume).toBe(.62);
     expect(next.soundEnabled).toBe(false);
     expect(next.tutorial.completed).toBe(true);
+    expect(next.seenObjectives).toEqual([]);
   });
 });
