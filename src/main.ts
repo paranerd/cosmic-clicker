@@ -393,14 +393,14 @@ function syncOverlay(): void {
   if (introNeedsDecision) {
     if (overlaySignature === 'intro') return;
     overlaySignature = 'intro';
-    root.innerHTML = `<div class="modal-backdrop intro-backdrop"><section class="intro-modal" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-description"><small>DEIN KOSMISCHES EXPERIMENT</small><span class="intro-star">${icons.spark}</span><h2 id="intro-title">Erschaffe einen Stern.</h2><p id="intro-description">Beginne mit einer kalten Wolke aus Wasserstoff. Sammle Materie, heize den Kern durch Gravitation auf und entfache schließlich das Wasserstoffbrennen.</p><div class="intro-pillars"><div><b>01</b><span>Materie sammeln</span><small>Forme aus der Urwolke einen Protostern.</small></div><div><b>02</b><span>Kern entzünden</span><small>Erreiche die nötige Temperatur für Fusion.</small></div><div><b>03</b><span>Stern stabilisieren</span><small>Bringe Gravitation und Strahlung ins Gleichgewicht.</small></div></div><div class="intro-actions"><button class="primary-action" data-action="start-intro-tutorial" aria-label="Tutorial starten"><span>Tutorial starten</span><small>Kurze geführte Tour</small></button><button class="intro-secondary" data-action="skip-intro-tutorial">Ohne Tutorial starten</button></div></section></div>`;
+    root.innerHTML = `<div class="modal-backdrop intro-backdrop"><section class="intro-modal" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-description"><div class="intro-brand"><span>COSMIC</span><b>CLICKER</b></div><small>DEIN KOSMISCHES EXPERIMENT</small><span class="intro-star">${icons.spark}</span><h2 id="intro-title">Erschaffe einen Stern.</h2><p id="intro-description">Beginne mit einer kalten Wolke aus Wasserstoff. Sammle Materie, heize den Kern durch Gravitation auf und entfache schließlich das Wasserstoffbrennen.</p><div class="intro-pillars"><div><b>01</b><span>Materie sammeln</span><small>Forme aus der Urwolke einen Protostern.</small></div><div><b>02</b><span>Kern entzünden</span><small>Erreiche die nötige Temperatur für Fusion.</small></div><div><b>03</b><span>Stern stabilisieren</span><small>Bringe Gravitation und Strahlung ins Gleichgewicht.</small></div></div><div class="intro-actions"><button class="primary-action" data-action="start-intro-tutorial" aria-label="Tutorial starten"><span>Tutorial starten</span><small>Kurze geführte Tour</small></button><button class="intro-secondary" data-action="skip-intro-tutorial">Ohne Tutorial starten</button></div></section></div>`;
     return;
   }
   if (objectiveNeedsAcknowledgement && !chronicleOpen && !statsOpen && !state.summaryOpen) {
     const objectiveSignature = `objective:${state.run}:${objective.id}`;
     if (objectiveSignature === overlaySignature) return;
     overlaySignature = objectiveSignature;
-    root.innerHTML = `<div class="modal-backdrop objective-backdrop"><section class="objective-modal" role="dialog" aria-modal="true" aria-labelledby="objective-title"><small>${objective.eyebrow}</small><span class="objective-mark">${icons.spark}</span><h2 id="objective-title">${objective.title}</h2><p>${objective.detail}</p><button class="primary-action" data-action="acknowledge-objective">Ziel verstanden</button></section></div>`;
+    root.innerHTML = `<div class="modal-backdrop objective-backdrop"><section class="objective-modal" role="dialog" aria-modal="true" aria-labelledby="objective-title"><small>${objective.eyebrow}</small><span class="objective-mark">${icons.spark}</span><h2 id="objective-title">${objective.title}</h2><p>${objective.detail}</p><button class="primary-action" data-action="acknowledge-objective">Okay</button></section></div>`;
     return;
   }
   if (chronicleOpen && !state.summaryOpen) {
@@ -444,7 +444,7 @@ function setTutorial(step: number, completed = false): void {
 }
 
 function resolveIntro(startTutorial: boolean): void {
-  state.tutorial = { introSeen: true, completed: !startTutorial, step: 0 };
+  state.tutorial = { ...state.tutorial, introSeen: true, completed: !startTutorial, step: 0 };
   saveGame(state);
   overlaySignature = '';
   tutorialSignature = '';
@@ -530,7 +530,7 @@ function runDebugAction(action: string): void {
   if (action === 'hydrogen') { moveDebugMatter(34_000); state.energy = Math.max(state.energy, 1_000); state = tick(state, 0); }
   if (action === 'fusion-ready') { moveDebugMatter(34_000); state.manualFusions = Math.max(5, state.manualFusions); state.energy = Math.max(state.energy, 2_000); state = tick(state, 0); }
   if (action === 'complete') { moveDebugMatter(36_000); state.fusedHydrogen = THRESHOLDS.stableFusedHydrogen; state = tick(state, 0); }
-  if (action === 'fresh') state = createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: { introSeen: true, completed: true, step: 0 }, history: state.history });
+  if (action === 'fresh') state = createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 }, history: state.history });
   saveGame(state);
   updateUI(true);
   syncDebug();
@@ -638,9 +638,10 @@ function armFullReset(): void {
 
 function performReset(mode: ResetMode): void {
   closeResetMenu();
-  if (mode === 'full') { clearSave(); state = createInitialState(); }
+  if (mode === 'full') { clearSave(); state = createInitialState(); toast = ''; window.clearTimeout(toastTimer); }
   else state = createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: state.tutorial, history: state.history });
-  activePanel = 'reactions'; switchPanel('reactions', false); saveGame(state); updateUI(true); showToast(mode === 'full' ? 'Ein neuer Kosmos beginnt.' : 'Der aktuelle Zyklus wurde neu gestartet.');
+  activePanel = 'reactions'; switchPanel('reactions', false); saveGame(state); updateUI(true);
+  if (mode === 'run') showToast('Der aktuelle Zyklus wurde neu gestartet.');
 }
 
 function createActionFeedback(container: HTMLElement, text: string, kind: string): void {
@@ -709,7 +710,12 @@ app.addEventListener('click', (event) => {
   const action = button.dataset.action; if (!action) return;
   if (action === 'start-intro-tutorial') { resolveIntro(true); return; }
   if (action === 'skip-intro-tutorial') { resolveIntro(false); return; }
-  if (action === 'acknowledge-objective') { dispatch({ type: 'ACKNOWLEDGE_OBJECTIVE', objective: objectiveFor(state).id }); overlaySignature = ''; syncOverlay(); return; }
+  if (action === 'acknowledge-objective') {
+    const celebrateNewCosmos = state.tutorial.cosmosToastPending;
+    dispatch({ type: 'ACKNOWLEDGE_OBJECTIVE', objective: objectiveFor(state).id });
+    if (celebrateNewCosmos) { state.tutorial.cosmosToastPending = false; saveGame(state); showToast('Ein neuer Kosmos beginnt.'); }
+    overlaySignature = ''; syncOverlay(); return;
+  }
   if (action === 'tutorial-next') { advanceTutorial('next'); return; }
   if (action === 'skip-tutorial') { setTutorial(state.tutorial.step, true); showToast('Tutorial übersprungen. Über ? kannst du es erneut starten.'); return; }
   if (action === 'replay-tutorial') { setTutorial(0, false); showToast('Tutorial neu gestartet.'); return; }

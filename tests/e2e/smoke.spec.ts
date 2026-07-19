@@ -21,7 +21,7 @@ async function gotoGame(page: Page): Promise<void> {
   await page.goto('/');
   const directStart = page.getByRole('button', { name: 'Ohne Tutorial starten' });
   if (await directStart.isVisible()) await directStart.click();
-  const acknowledgement = page.getByRole('button', { name: 'Ziel verstanden' });
+  const acknowledgement = page.getByRole('button', { name: 'Okay' });
   if (await acknowledgement.isVisible()) await acknowledgement.click();
 }
 
@@ -55,7 +55,8 @@ test('each objective requires one acknowledgement and stays acknowledged after r
   const objective = page.getByRole('dialog', { name: 'Protostern verdichten' });
   await expect(objective).toBeVisible();
   await expect(objective).toContainText('Akkretiere Materie');
-  await objective.getByRole('button', { name: 'Ziel verstanden' }).click();
+  await objective.getByRole('button', { name: 'Okay' }).click();
+  await expect(page.getByRole('status')).toHaveText('Ein neuer Kosmos beginnt.');
   await expect(objective).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('dialog', { name: 'Protostern verdichten' })).toHaveCount(0);
@@ -132,7 +133,9 @@ test('perk popover opens only on click and closes outside', async ({ page }) => 
 test('new players can complete and replay the interactive tutorial', async ({ page }) => {
   await page.goto('/');
   const intro = page.getByRole('dialog', { name: 'Erschaffe einen Stern.' });
+  await expect(intro).toContainText('COSMICCLICKER');
   await expect(intro).toContainText('kalten Wolke aus Wasserstoff');
+  await expect(intro).toHaveCSS('animation-name', 'introModalIn');
   await expect(page.locator('[data-ui="elapsed"]')).toHaveText('00:00:00');
   await expect(page.getByRole('dialog', { name: 'Protostern verdichten' })).toHaveCount(0);
   await intro.getByRole('button', { name: 'Tutorial starten', exact: true }).click();
@@ -147,7 +150,9 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await expect(tutorial).toHaveCount(0);
   await page.getByRole('button', { name: 'Chronik schließen' }).click();
   await expect(page.getByRole('dialog', { name: 'Protostern verdichten' })).toBeVisible();
-  await page.getByRole('button', { name: 'Ziel verstanden' }).click();
+  await expect(page.getByText('Ein neuer Kosmos beginnt.')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Okay' }).click();
+  await expect(page.getByRole('status')).toHaveText('Ein neuer Kosmos beginnt.');
   await page.getByRole('button', { name: 'Tutorial starten' }).click();
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Materie akkretieren');
 });
@@ -341,6 +346,7 @@ test('restart uses an inline confirmation instead of a browser dialog', async ({
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'Wirklich alles löschen?' }).click();
   await expect(page.getByRole('dialog', { name: 'Erschaffe einen Stern.' })).toBeVisible();
+  await expect(page.getByText('Ein neuer Kosmos beginnt.')).toHaveCount(0);
 });
 
 test('cycle summary offers legacy perks before the next run', async ({ page }) => {

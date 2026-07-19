@@ -10,8 +10,8 @@ export const normalizeGameState = (value: unknown): GameState | null => {
   if ((parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3) || !parsed.cloud || !parsed.star) return null;
   const fallback = createInitialState(parsed.perks, parsed.stardust, parsed.run);
   const migratedTutorial = parsed.version === 1
-    ? { introSeen: true, completed: true, step: 0 }
-    : { ...fallback.tutorial, introSeen: Boolean(parsed.tutorial) };
+    ? { introSeen: true, cosmosToastPending: false, completed: true, step: 0 }
+    : { ...fallback.tutorial, introSeen: Boolean(parsed.tutorial), cosmosToastPending: false };
   return {
     ...fallback,
     ...parsed,
@@ -37,6 +37,7 @@ export const loadGame = (): { state: GameState; offlineSeconds: number } => {
     if (!raw) return { state: createInitialState(), offlineSeconds: 0 };
     const parsed = normalizeGameState(JSON.parse(raw));
     if (!parsed) return { state: createInitialState(), offlineSeconds: 0 };
+    if (!parsed.tutorial.introSeen) return { state: { ...parsed, lastTick: Date.now() }, offlineSeconds: 0 };
     const offlineSeconds = Math.min(LIMITS.offlineSeconds, Math.max(0, (Date.now() - parsed.lastTick) / 1_000));
     const state = tick(parsed, offlineSeconds);
     state.stats.offlineSeconds += offlineSeconds;

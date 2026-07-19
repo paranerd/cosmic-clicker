@@ -50,6 +50,7 @@ export interface RoundRecord extends RunStatistics {
 
 export interface TutorialState {
   introSeen: boolean;
+  cosmosToastPending: boolean;
   completed: boolean;
   step: number;
 }

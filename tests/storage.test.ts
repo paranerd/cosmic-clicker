@@ -37,6 +37,7 @@ describe('save storage and migration', () => {
     expect(migrated).toMatchObject({ version: 3, energy: 321, run: 4, volume: .35 });
     expect(migrated?.tutorial.completed).toBe(true);
     expect(migrated?.tutorial.introSeen).toBe(true);
+    expect(migrated?.tutorial.cosmosToastPending).toBe(false);
     expect(migrated?.stats.manualClicks).toBe(0);
   });
 
@@ -45,6 +46,7 @@ describe('save storage and migration', () => {
     state.volume = .71;
     state.tutorial.completed = true;
     state.tutorial.introSeen = true;
+    state.tutorial.cosmosToastPending = false;
     state.stats.manualClicks = 12;
     state.seenObjectives.push('heat-protostar');
     saveGame(state);
@@ -54,12 +56,14 @@ describe('save storage and migration', () => {
     expect(loaded.volume).toBe(.71);
     expect(loaded.tutorial.completed).toBe(true);
     expect(loaded.tutorial.introSeen).toBe(true);
+    expect(loaded.tutorial.cosmosToastPending).toBe(false);
     expect(loaded.stats.manualClicks).toBe(12);
     expect(loaded.seenObjectives).toContain('heat-protostar');
   });
 
   it('caps and records offline progress at eight hours', () => {
     const state = createInitialState();
+    state.tutorial.introSeen = true;
     state.tutorial.completed = true;
     state.automation.accretion = 1;
     state.lastTick = Date.now() - 24 * 60 * 60 * 1_000;
@@ -69,6 +73,17 @@ describe('save storage and migration', () => {
     expect(loaded.offlineSeconds).toBe(LIMITS.offlineSeconds);
     expect(loaded.state.stats.offlineSeconds).toBe(LIMITS.offlineSeconds);
     expect(loaded.state.stats.automaticMatterAccreted).toBeGreaterThan(0);
+  });
+
+  it('pauses offline time until the intro has been decided', () => {
+    const state = createInitialState();
+    state.lastTick = Date.now() - 60 * 60 * 1_000;
+    values.set(SAVE_KEY, JSON.stringify(state));
+
+    const loaded = loadGame();
+    expect(loaded.offlineSeconds).toBe(0);
+    expect(loaded.state.elapsed).toBe(0);
+    expect(loaded.state.stats.offlineSeconds).toBe(0);
   });
 
   it('falls back safely when a save is malformed', () => {

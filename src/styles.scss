@@ -357,8 +357,11 @@ footer button { border: 0; background: none; color: #627086; font-size: 8px; tex
 footer button:hover { color: $cyan; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(2,5,9,.82); backdrop-filter: blur(12px); }
-.intro-backdrop { background: radial-gradient(circle at 50% 35%, rgba($cyan,.08), transparent 42%), rgba(2,5,9,.88); }
-.intro-modal { width: min(640px,100%); padding: 36px 42px 40px; overflow: hidden; text-align: center; border: 1px solid rgba($cyan,.35); background: radial-gradient(circle at 50% 0, rgba($cyan,.12), transparent 42%), #09111b; box-shadow: 0 32px 100px rgba(0,0,0,.62), 0 0 48px rgba($cyan,.07); }
+.intro-backdrop { background: radial-gradient(circle at 50% 35%, rgba($cyan,.08), transparent 42%), rgba(2,5,9,.88); animation: introBackdropIn .35s ease-out both; }
+.intro-modal { width: min(640px,100%); padding: 32px 42px 40px; overflow: hidden; text-align: center; border: 1px solid rgba($cyan,.35); background: radial-gradient(circle at 50% 0, rgba($cyan,.12), transparent 42%), #09111b; box-shadow: 0 32px 100px rgba(0,0,0,.62), 0 0 48px rgba($cyan,.07); animation: introModalIn .55s cubic-bezier(.2,.8,.25,1) both; }
+.intro-brand { margin-bottom: 8px; font-size: 11px; letter-spacing: .2em; }
+.intro-brand span { font-weight: 300; }
+.intro-brand b { color: $cyan; font-weight: 700; }
 .intro-modal > small { color: $cyan; font-size: 8px; font-weight: 700; letter-spacing: .2em; }
 .intro-star { width: 52px; height: 52px; margin: 22px auto 16px; display: grid; place-items: center; color: $amber; border: 1px solid rgba($amber,.45); transform: rotate(45deg); box-shadow: 0 0 25px rgba($amber,.08); }
 .intro-star svg { width: 22px; transform: rotate(-45deg); }
@@ -373,6 +376,14 @@ footer button:hover { color: $cyan; }
 .intro-actions .primary-action { width: 100%; }
 .intro-secondary { min-height: 50px; padding: 0 18px; border: 1px solid rgba($cyan,.28); background: rgba($cyan,.045); color: #9eb9bd; font-size: 9px; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; transition: .2s ease; }
 .intro-secondary:hover { border-color: rgba($cyan,.52); background: rgba($cyan,.09); color: $text; }
+.intro-brand, .intro-modal > small, .intro-modal h2, .intro-modal > p, .intro-pillars, .intro-actions { animation: introContentIn .42s ease-out both; }
+.intro-brand { animation-delay: .1s; }
+.intro-modal > small { animation-delay: .15s; }
+.intro-star { animation: introStarIn .5s .19s cubic-bezier(.2,.85,.3,1.2) both; }
+.intro-modal h2 { animation-delay: .25s; }
+.intro-modal > p { animation-delay: .3s; }
+.intro-pillars { animation-delay: .35s; }
+.intro-actions { animation-delay: .4s; }
 .objective-backdrop { background: rgba(2,5,9,.76); }
 .objective-modal { width: min(440px,100%); padding: 34px 38px 38px; position: relative; overflow: hidden; text-align: center; border: 1px solid rgba($amber,.38); background: radial-gradient(circle at 50% 0, rgba($amber,.11), transparent 42%), #0a101a; box-shadow: 0 28px 90px rgba(0,0,0,.58), 0 0 36px rgba($amber,.06); }
 .objective-modal > small { color: $amber; font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
@@ -479,6 +490,10 @@ footer button:hover { color: $cyan; }
 @keyframes accreteIn { from { opacity: 0; transform: translate(calc(var(--from-x) - 50%), calc(var(--from-y) - 50%)) scale(.55); } 18% { opacity: 1; } to { opacity: 0; transform: translate(-50%,-50%) scale(.18); } }
 @keyframes gainRise { from { opacity: 0; transform: translate(-50%,0) scale(.75); } 24% { opacity: 1; transform: translate(-50%,-8px) scale(1.06); } to { opacity: 0; transform: translate(-50%,-48px) scale(1); } }
 @keyframes tabUnlockFlash { 0%,100% { color: inherit; text-shadow: none; } 28%,62% { color: $amber; border-bottom-color: $amber; background: rgba($amber,.07); text-shadow: 0 0 12px rgba($amber,.58); } }
+@keyframes introBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes introModalIn { from { opacity: 0; transform: translateY(18px) scale(.975); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes introContentIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+@keyframes introStarIn { from { opacity: 0; transform: rotate(45deg) scale(.5); } to { opacity: 1; transform: rotate(45deg) scale(1); } }
 @keyframes starDriftA { to { background-position: 290px -240px; } }
 @keyframes starDriftB { to { background-position: -410px 330px; } }
 @keyframes nebulaPulse { from { opacity: .55; } to { opacity: 1; } }
@@ -615,4 +630,5 @@ footer button:hover { color: $cyan; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+  .intro-backdrop, .intro-modal, .intro-modal > * { animation-delay: 0s !important; }
 }

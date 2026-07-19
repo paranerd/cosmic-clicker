@@ -74,6 +74,7 @@ Festgelegte Ausprägung für den Prototyp:
 - Die erste aktive Runde zielt auf eine Spielzeit von 10 bis 15 Minuten.
 - Das Tutorial ist überspringbar und kann über die Hilfe erneut gestartet werden.
 - Ein vollständig neuer Spielstand beginnt mit einem kurzen Intro, das Spielziel und Ablauf erklärt und die Wahl zwischen einer geführten Tour und einem direkten Start anbietet.
+- Das Intro zeigt den Namen „Cosmic Clicker“ und erscheint mit einer kurzen, bei reduzierter Bewegung deaktivierten Animation. „Ein neuer Kosmos beginnt.“ wird erst nach der Bestätigung des ersten Ziels angezeigt.
 - Beim Start der geführten Tour erscheint das erste Ziel-Popup erst nach Abschluss oder Überspringen des Tutorials; beim direkten Start erscheint es unmittelbar nach dem Intro.
 - Jeder neue Zielabschnitt wird einmalig als zu bestätigendes Popup gezeigt.
 - Das Tutorial dunkelt nicht relevante Bildschirmbereiche ab, scrollt auf Mobilgeräten zum Fokus und zeigt seine Erklärung dort horizontal zentriert.
