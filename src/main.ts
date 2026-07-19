@@ -59,6 +59,10 @@ let debugOpen = false;
 let tutorialSignature = '';
 let debugSignature = '';
 let tutorialSpotlightFrame = 0;
+let summaryPerkPurchased = false;
+let prestigeConfirmationArmed = false;
+let prestigeConfirmationTimer = 0;
+let summaryAttentionRun = 0;
 
 const icons = {
   spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></svg>',
@@ -306,7 +310,7 @@ function renderShell(): void {
         </aside>
 
         <section class="star-chamber">
-          <div class="stage-label"><span data-ui="stage"></span><b data-ui="stage-detail"></b></div><div class="orbit orbit-outer"><span></span><span></span></div><div class="orbit orbit-inner"><span></span></div>
+          <div class="stage-label"><span data-ui="stage"></span><b data-ui="stage-detail"></b></div>
           <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">H</i>`).join('')}</div>
           <button class="star-button" data-action="accrete" aria-label="Materie akkretieren"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
           <div class="click-callout"><span data-ui="click-yield"></span><small data-ui="click-detail"></small></div><div class="phase-dots">${Array.from({length:8},(_, index)=>`<i data-phase="${index}"></i>`).join('')}</div>
@@ -487,6 +491,10 @@ function syncOverlay(): void {
   const cloudMax = state.perks.largerCloud >= LIMITS.cloudTier;
   const gravityMax = state.perks.permanentGravity >= LIMITS.permanentGravity;
   const fusionMax = state.perks.fusionMemory >= LIMITS.fusionMemory;
+  const showPerkAttention = summaryAttentionRun !== state.run;
+  const cloudAttention = showPerkAttention && !cloudMax && state.stardust >= cloudCost ? 'perk-attention' : '';
+  const gravityAttention = showPerkAttention && !gravityMax && state.stardust >= gravityCostValue ? 'perk-attention' : '';
+  const fusionAttention = showPerkAttention && !fusionMax && state.stardust >= fusionCostValue ? 'perk-attention' : '';
   const outcome = state.outcome ?? 'legacyMainSequence';
   const outcomeCopy = {
     brownDwarf: ['Eine Massengrenze wird sichtbar.', 'Die kleine Wolke wurde vollständig gebunden, blieb aber zu leicht für dauerhaftes Wasserstoffbrennen.'],
@@ -496,7 +504,8 @@ function syncOverlay(): void {
     legacyMainSequence: ['Ein Hauptreihenstern wurde archiviert.', 'Dieser Abschluss stammt aus dem v0.2-Lebenszyklus.'],
   }[outcome];
   const cloudChoices = ([0, 1, 2] as CloudTier[]).filter((tier) => tier <= state.perks.largerCloud).map((tier) => `<button class="cloud-choice ${state.nextCloudTier === tier ? 'is-selected' : ''}" data-action="select-cloud-${tier}"><span>${CLOUD_TIERS[tier].shortName}</span><small>${tier === 0 ? 'Brauner Zwerg' : tier === 1 ? 'Weißer Zwerg' : 'Supernova'}</small></button>`).join('');
-  root.innerHTML = `<div class="modal-backdrop" role="presentation"><section class="summary-modal" role="dialog" aria-modal="true" aria-labelledby="summary-title"><div class="summary-heading"><span class="modal-star">${icons.spark}</span><div><small>ZYKLUS ${state.run.toString().padStart(2, '0')} · ${OUTCOME_LABELS[outcome]}</small><h2 id="summary-title">${outcomeCopy[0]}</h2><p>${outcomeCopy[1]}</p></div></div><div class="summary-stats"><div><span>Endmasse</span><b>${formatCompact(starMass(state))} ME</b></div><div><span>Rundendauer</span><b>${formatDuration(state.elapsed)}</b></div><div><span>Sternenstaub erhalten</span><b>+${state.stats.stardustEarned} ✦</b></div></div><div class="summary-detail"><div class="summary-section-title"><span>Rundenauswertung</span><small>ZYKLUS ${state.run.toString().padStart(2, '0')}</small></div><div class="run-stat-grid compact">${statsGridMarkup()}</div></div><div class="summary-legacy"><div class="summary-section-title"><span>Vermächtnis wählen</span><small>DAUERHAFTE EFFEKTE</small></div><div class="summary-perk-grid"><article><span class="perk-orbit">01</span><div><h3>Wolkenwachstum</h3><p>Schaltet die nächste Wolkengröße und neue Sternpfade frei.</p><strong>${CLOUD_TIERS[Math.min(2, state.perks.largerCloud) as CloudTier].name}</strong></div><button data-action="buy-perk-cloud" ${disabled(cloudMax || state.stardust < cloudCost)}>${cloudMax ? 'MAX' : `+${cloudCost} ✦`}</button></article><article><span class="perk-orbit">02</span><div><h3>Gravitatives Gedächtnis</h3><p>+12 % Akkretionsrate pro Stufe</p><strong>Stufe ${state.perks.permanentGravity}</strong></div><button data-action="buy-perk-gravity" ${disabled(gravityMax || state.stardust < gravityCostValue)}>${gravityMax ? 'MAX' : `+${gravityCostValue} ✦`}</button></article><article><span class="perk-orbit">03</span><div><h3>Fusionsgedächtnis</h3><p>+15 % manuelle und automatische Fusion pro Stufe</p><strong>Stufe ${state.perks.fusionMemory}</strong></div><button data-action="buy-perk-fusion" ${disabled(fusionMax || state.stardust < fusionCostValue)}>${fusionMax ? 'MAX' : `+${fusionCostValue} ✦`}</button></article></div><div class="cloud-selection"><div class="summary-section-title"><span>Nächste Urwolke</span><small>${CLOUD_TIERS[state.nextCloudTier].description}</small></div><div>${cloudChoices}</div></div></div><div class="summary-actions"><button class="primary-action" data-action="prestige">Mit ${CLOUD_TIERS[state.nextCloudTier].name} beginnen</button><button class="text-action" data-action="close-summary">Später entscheiden</button></div></section></div>`;
+  root.innerHTML = `<div class="modal-backdrop" role="presentation"><section class="summary-modal" role="dialog" aria-modal="true" aria-labelledby="summary-title"><div class="summary-heading"><span class="modal-star">${icons.spark}</span><div><small>ZYKLUS ${state.run.toString().padStart(2, '0')} · ${OUTCOME_LABELS[outcome]}</small><h2 id="summary-title">${outcomeCopy[0]}</h2><p>${outcomeCopy[1]}</p></div></div><div class="summary-stats"><div><span>Endmasse</span><b>${formatCompact(starMass(state))} ME</b></div><div><span>Rundendauer</span><b>${formatDuration(state.elapsed)}</b></div><div><span>Sternenstaub erhalten</span><b>+${state.stats.stardustEarned} ✦</b></div></div><div class="summary-detail"><div class="summary-section-title"><span>Rundenauswertung</span><small>ZYKLUS ${state.run.toString().padStart(2, '0')}</small></div><div class="run-stat-grid compact">${statsGridMarkup()}</div></div><div class="summary-legacy"><div class="summary-section-title"><span>Vermächtnis wählen</span><small>DAUERHAFTE EFFEKTE</small></div><div class="summary-perk-grid"><article class="${cloudAttention}"><span class="perk-orbit">01</span><div><h3>Wolkenwachstum</h3><p>Schaltet die nächste Wolkengröße und neue Sternpfade frei.</p><strong>${CLOUD_TIERS[Math.min(2, state.perks.largerCloud) as CloudTier].name}</strong></div><button data-action="buy-perk-cloud" ${disabled(cloudMax || state.stardust < cloudCost)}>${cloudMax ? 'MAX' : `+${cloudCost} ✦`}</button></article><article class="${gravityAttention}"><span class="perk-orbit">02</span><div><h3>Gravitatives Gedächtnis</h3><p>+12 % Akkretionsrate pro Stufe</p><strong>Stufe ${state.perks.permanentGravity}</strong></div><button data-action="buy-perk-gravity" ${disabled(gravityMax || state.stardust < gravityCostValue)}>${gravityMax ? 'MAX' : `+${gravityCostValue} ✦`}</button></article><article class="${fusionAttention}"><span class="perk-orbit">03</span><div><h3>Fusionsgedächtnis</h3><p>+15 % manuelle und automatische Fusion pro Stufe</p><strong>Stufe ${state.perks.fusionMemory}</strong></div><button data-action="buy-perk-fusion" ${disabled(fusionMax || state.stardust < fusionCostValue)}>${fusionMax ? 'MAX' : `+${fusionCostValue} ✦`}</button></article></div><div class="cloud-selection"><div class="summary-section-title"><span>Nächste Urwolke</span><small>${CLOUD_TIERS[state.nextCloudTier].description}</small></div><div>${cloudChoices}</div></div></div><div class="summary-actions"><button class="primary-action" data-action="prestige">Mit ${CLOUD_TIERS[state.nextCloudTier].name} beginnen</button><button class="text-action" data-action="close-summary">Später entscheiden</button></div></section></div>`;
+  summaryAttentionRun = state.run;
 }
 
 function syncToast(): void {
@@ -699,12 +708,17 @@ function updateUI(forcePanel = false): void {
   const stageDetails: Record<Stage, string> = { nebula: 'Kalte Ausgangswolke', protostar: 'Gravitative Kontraktion', deuterium: 'Frühe Kernheizung', hydrogen: 'Wasserstoff wird zu Helium', mainSequence: 'Hydrostatisches Gleichgewicht', redGiant: 'Hülle expandiert', helium: 'Triple-Alpha-Prozess', carbonOxygen: 'Entarteter C/O-Kern', massiveStar: 'Späte Brennphasen', supernova: 'Explosiver Kernkollaps', brownDwarf: 'Unterhalb der Zündmasse', whiteDwarf: 'Freigelegter C/O-Kern', neutronStar: 'Entartete Neutronenmaterie', blackHole: 'Ereignishorizont' };
   setText('stage', STAGE_LABELS[state.stage]); setText('stage-detail', stageDetails[state.stage]); setText('cloud-name', CLOUD_TIERS[state.cloudTier].name);
   const star = app.querySelector<HTMLButtonElement>('.star-button');
-  if (star) { star.className = `star-button stage-${state.stage}`; star.disabled = state.completed || remaining <= 0; }
+  if (star) {
+    star.className = `star-button stage-${state.stage}`;
+    star.dataset.action = state.completed ? 'open-summary' : 'accrete';
+    star.ariaLabel = state.completed ? 'Zyklus-Zusammenfassung öffnen' : 'Materie akkretieren';
+    star.disabled = !state.completed && remaining <= 0;
+  }
   const chamber = app.querySelector<HTMLElement>('.star-chamber');
   chamber?.style.setProperty('--star-scale', String(Math.min(1, Math.max(.1, mass / 70_000)))); chamber?.style.setProperty('--temp-scale', String(Math.min(1, state.temperature / THRESHOLDS.heliumTemperature)));
   chamber?.style.setProperty('--auto-accretion-duration', `${Math.max(1.45, 3.2 - state.automation.accretion * .2)}s`);
   chamber?.classList.toggle('has-auto-accretion', state.automation.accretion > 0 && !state.completed && remaining > 0);
-  setText('click-yield', state.completed ? OUTCOME_LABELS[state.outcome ?? 'legacyMainSequence'].toUpperCase() : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Zyklus abgeschlossen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken zum Akkretieren');
+  setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken zum Akkretieren');
   app.querySelectorAll<HTMLElement>('[data-phase]').forEach((dot) => { const normalizedStage = nodes.length <= 1 ? 7 : Math.round(stageIndex / (nodes.length - 1) * 7); dot.classList.toggle('active', Number(dot.dataset.phase) <= normalizedStage); });
   const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatCompact(remaining)} ME`); setText('cloud-initial', `von ${formatCompact(initialCloud)} ME`); app.querySelector<HTMLElement>('.gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
   const soundButton = app.querySelector<HTMLButtonElement>('[data-action="toggle-sound-menu"]'); if (soundButton) { soundButton.innerHTML = state.soundEnabled ? icons.sound : icons.soundOff; soundButton.ariaLabel = 'Audioeinstellungen öffnen'; }
@@ -730,7 +744,37 @@ function dispatch(action: GameAction): void {
   saveGame(state);
   if (['BUY_DEUTERIUM', 'BUY_GRAVITY', 'BUY_ACCRETION', 'BUY_FUSION', 'BUY_PERK'].includes(action.type)) switchPanel(activePanel, false);
   updateUI(true);
-  if (!wasCompleted && state.completed) playSound('complete', state.soundEnabled, state.volume);
+  if (!wasCompleted && state.completed) {
+    summaryPerkPurchased = false;
+    clearPrestigeConfirmation();
+    playSound('complete', state.soundEnabled, state.volume);
+  }
+}
+
+function hasAffordableSummaryPerk(): boolean {
+  return state.perks.largerCloud < LIMITS.cloudTier && state.stardust >= cloudTierCost(state.perks.largerCloud)
+    || state.perks.permanentGravity < LIMITS.permanentGravity && state.stardust >= gravityPerkCost(state.perks.permanentGravity)
+    || state.perks.fusionMemory < LIMITS.fusionMemory && state.stardust >= fusionPerkCost(state.perks.fusionMemory);
+}
+
+function clearPrestigeConfirmation(): void {
+  prestigeConfirmationArmed = false;
+  window.clearTimeout(prestigeConfirmationTimer);
+  const button = app.querySelector<HTMLButtonElement>('[data-action="prestige"]');
+  if (!button) return;
+  button.classList.remove('is-confirming');
+  button.textContent = `Mit ${CLOUD_TIERS[state.nextCloudTier].name} beginnen`;
+}
+
+function armPrestigeConfirmation(): void {
+  prestigeConfirmationArmed = true;
+  const button = app.querySelector<HTMLButtonElement>('[data-action="prestige"]');
+  if (button) {
+    button.classList.add('is-confirming');
+    button.textContent = 'Ohne Upgrades starten';
+  }
+  window.clearTimeout(prestigeConfirmationTimer);
+  prestigeConfirmationTimer = window.setTimeout(clearPrestigeConfirmation, 5_000);
 }
 
 function showToast(message: string): void {
@@ -781,6 +825,9 @@ function armFullReset(): void {
 
 function performReset(mode: ResetMode): void {
   closeResetMenu();
+  clearPrestigeConfirmation();
+  summaryPerkPurchased = false;
+  summaryAttentionRun = 0;
   if (mode === 'full') { clearSave(); state = createInitialState(); clearToasts(); }
   else state = createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: state.tutorial, history: state.history, cloudTier: state.cloudTier, nextCloudTier: state.nextCloudTier, discoveredOutcomes: state.discoveredOutcomes });
   activePanel = 'reactions'; switchPanel('reactions', false); saveGame(state); updateUI(true);
@@ -872,12 +919,22 @@ app.addEventListener('click', (event) => {
   if (action === 'close-stats') { statsOpen = false; overlaySignature = ''; syncOverlay(); return; }
   if (action === 'open-chronicle') { chronicleOpen = true; statsOpen = false; overlaySignature = ''; syncOverlay(); advanceTutorial('open-chronicle'); return; }
   if (action === 'close-chronicle') { chronicleOpen = false; overlaySignature = ''; syncOverlay(); return; }
-  if (action.startsWith('select-cloud-')) { dispatch({ type: 'SELECT_CLOUD_TIER', tier: Number(action.slice(-1)) as CloudTier }); return; }
+  if (action === 'open-summary') { clearPrestigeConfirmation(); overlaySignature = ''; dispatch({ type: 'OPEN_SUMMARY' }); return; }
+  if (action === 'close-summary') { clearPrestigeConfirmation(); dispatch({ type: 'CLOSE_SUMMARY' }); return; }
+  if (action === 'prestige') {
+    if (!summaryPerkPurchased && hasAffordableSummaryPerk() && !prestigeConfirmationArmed) { armPrestigeConfirmation(); return; }
+    clearPrestigeConfirmation();
+    dispatch({ type: 'PRESTIGE' });
+    summaryPerkPurchased = false;
+    switchPanel('reactions', false);
+    return;
+  }
+  if (action.startsWith('select-cloud-')) { clearPrestigeConfirmation(); dispatch({ type: 'SELECT_CLOUD_TIER', tier: Number(action.slice(-1)) as CloudTier }); return; }
+  if (action.startsWith('buy-perk-')) { summaryPerkPurchased = true; clearPrestigeConfirmation(); }
   const actions: Record<string, GameAction> = {
-    accrete: { type: 'ACCRETE' }, 'fuse-hydrogen': { type: 'FUSE_HYDROGEN' }, 'fuse-helium': { type: 'FUSE_HELIUM' }, 'create-oxygen': { type: 'CREATE_OXYGEN' }, 'advance-evolution': { type: 'ADVANCE_EVOLUTION' }, 'buy-deuterium': { type: 'BUY_DEUTERIUM' }, 'buy-gravity': { type: 'BUY_GRAVITY' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-fusion': { type: 'BUY_FUSION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, 'buy-perk-fusion': { type: 'BUY_PERK', perk: 'fusionMemory' }, prestige: { type: 'PRESTIGE' }, 'close-summary': { type: 'CLOSE_SUMMARY' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
+    accrete: { type: 'ACCRETE' }, 'fuse-hydrogen': { type: 'FUSE_HYDROGEN' }, 'fuse-helium': { type: 'FUSE_HELIUM' }, 'create-oxygen': { type: 'CREATE_OXYGEN' }, 'advance-evolution': { type: 'ADVANCE_EVOLUTION' }, 'buy-deuterium': { type: 'BUY_DEUTERIUM' }, 'buy-gravity': { type: 'BUY_GRAVITY' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-fusion': { type: 'BUY_FUSION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, 'buy-perk-fusion': { type: 'BUY_PERK', perk: 'fusionMemory' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
   };
   if (actions[action]) { dispatch(actions[action]); playActionFeedback(action, event as MouseEvent); if (action === 'accrete') advanceTutorial('accrete'); }
-  if (action === 'prestige') switchPanel('reactions', false);
   if (action === 'export') exportSave();
   if (action === 'import') document.querySelector<HTMLInputElement>('#save-import')?.click();
 });

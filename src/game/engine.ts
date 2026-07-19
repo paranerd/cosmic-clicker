@@ -332,6 +332,10 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
     return next;
   }
   if (action.type === 'CLOSE_SUMMARY') { next.summaryOpen = false; return next; }
+  if (action.type === 'OPEN_SUMMARY') {
+    if (next.completed) next.summaryOpen = true;
+    return next;
+  }
   if (action.type === 'ACKNOWLEDGE_OBJECTIVE') {
     if (!next.seenObjectives.includes(action.objective)) next.seenObjectives.push(action.objective);
     return next;

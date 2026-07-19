@@ -91,6 +91,14 @@ describe('stellar engine v0.3', () => {
     expect(next.history[0]).toMatchObject({ outcome: 'brownDwarf', cloudTier: 0 });
   });
 
+  it('allows a closed cycle summary to be opened again', () => {
+    let state = accreteUntil(createInitialState(), CLOUD_TIERS[0].matter.hydrogen);
+    state = reduceGame(state, { type: 'CLOSE_SUMMARY' });
+    expect(state.summaryOpen).toBe(false);
+    state = reduceGame(state, { type: 'OPEN_SUMMARY' });
+    expect(state.summaryOpen).toBe(true);
+  });
+
   it('keeps the first discovery deliberately short', () => {
     let state = createInitialState();
     let actions = 0;

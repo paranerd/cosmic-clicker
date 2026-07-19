@@ -150,16 +150,9 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .cloud-elements.hydrogen-only > div { max-width: 130px; }
 
 .star-chamber { position: relative; overflow: hidden; min-height: 600px; display: grid; place-items: center; isolation: isolate; background: radial-gradient(circle at center, rgba(83, 70, 51, calc(.08 + var(--temp-scale) * .09)), transparent 48%); }
-.star-chamber::before, .star-chamber::after { content: ''; position: absolute; width: 1px; height: 80%; background: linear-gradient(transparent, rgba($cyan,.08), transparent); left: 50%; top: 10%; z-index: -1; }
-.star-chamber::after { transform: rotate(90deg); }
 .stage-label { position: absolute; z-index: 4; top: 34px; text-align: center; }
 .stage-label span { display: block; color: $amber; font-family: Georgia, serif; font-size: 22px; }
 .stage-label b { display: block; margin-top: 5px; color: $muted; font-weight: 500; text-transform: uppercase; font-size: 7px; letter-spacing: .22em; }
-.orbit { position: absolute; border: 1px solid rgba(151, 177, 198, .1); border-radius: 50%; pointer-events: none; }
-.orbit-outer { width: min(440px, 82%); aspect-ratio: 1; animation: rotate 55s linear infinite; }
-.orbit-inner { width: min(330px, 62%); aspect-ratio: 1; border-style: dashed; animation: rotate 38s linear infinite reverse; }
-.orbit span { width: 4px; height: 4px; border-radius: 50%; background: $cyan; box-shadow: 0 0 10px $cyan; position: absolute; top: 15%; left: 13%; }
-.orbit span:nth-child(2) { top: 73%; left: 91%; background: $amber; box-shadow: 0 0 10px $amber; }
 .star-button { --size: calc(140px + var(--star-scale) * 100px); width: var(--size); height: var(--size); padding: 0; border: 0; background: transparent; border-radius: 50%; position: relative; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; transition: transform .15s ease, filter .3s; z-index: 3; }
 .star-button:hover:not(:disabled) { transform: scale(1.035); filter: brightness(1.12); }
 .star-button:active:not(:disabled) { transform: scale(.975); }
@@ -441,6 +434,7 @@ footer button:hover { color: $cyan; }
 .summary-section-title small { color: $muted; font-size: 8px; }
 .summary-perk-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
 .summary-perk-grid article { min-height: 94px; padding: 14px; display: grid; grid-template-columns: 34px 1fr auto; gap: 11px; align-items: center; border: 1px solid $line; background: rgba(255,255,255,.018); }
+.summary-perk-grid article.perk-attention { animation: perkAttention 1.45s ease-out both; }
 .summary-perk-grid .perk-orbit { position: static; width: 30px; height: 30px; }
 .summary-perk-grid h3 { margin: 0 0 3px; font-family: Georgia,serif; font-size: 15px; font-weight: 400; }
 .summary-perk-grid p { margin: 0 0 5px; color: $muted; font-size: 8px; }
@@ -457,6 +451,7 @@ footer button:hover { color: $cyan; }
 .summary-actions { margin-top: 20px; display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
 .summary-modal .primary-action { width: 100%; }
 .summary-actions .text-action { margin-top: 0; }
+.summary-actions .primary-action.is-confirming { border-color: rgba($orange,.75); background: linear-gradient(135deg, rgba($orange,.98), rgba(#c94f31,.96)); }
 .summary-detail { margin: 0 0 20px; }
 .run-stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; border: 1px solid $line; background: $line; }
 .run-stat-grid > div { min-width: 0; padding: 13px; display: flex; flex-direction: column; background: #0a101a; }
@@ -532,6 +527,7 @@ footer button:hover { color: $cyan; }
 @keyframes accreteIn { from { opacity: 0; transform: translate(calc(var(--from-x) - 50%), calc(var(--from-y) - 50%)) scale(.55); } 18% { opacity: 1; } to { opacity: 0; transform: translate(-50%,-50%) scale(.18); } }
 @keyframes gainRise { from { opacity: 0; transform: translate(-50%,0) scale(.75); } 24% { opacity: 1; transform: translate(-50%,-8px) scale(1.06); } to { opacity: 0; transform: translate(-50%,-48px) scale(1); } }
 @keyframes tabUnlockFlash { 0%,100% { color: inherit; text-shadow: none; } 28%,62% { color: $amber; border-bottom-color: $amber; background: rgba($amber,.07); text-shadow: 0 0 12px rgba($amber,.58); } }
+@keyframes perkAttention { 0%,100% { border-color: $line; background: rgba(255,255,255,.018); box-shadow: none; } 30%,68% { border-color: rgba($amber,.7); background: rgba($amber,.09); box-shadow: 0 0 24px rgba($amber,.16), inset 0 0 18px rgba($amber,.04); } }
 @keyframes introBackdropIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes introModalIn { from { opacity: 0; transform: translateY(18px) scale(.975); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes introContentIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
@@ -652,8 +648,6 @@ footer button:hover { color: $cyan; }
   .header-actions { gap: 5px; }
   .icon-button { width: 36px; }
   .stellar-lab, .star-chamber { min-height: 480px; }
-  .orbit-outer { width: 92%; }
-  .orbit-inner { width: 72%; }
   .click-callout { bottom: 52px; }
   .phase-dots { bottom: 24px; }
   .action-copy p { display: none; }

@@ -131,6 +131,7 @@ export type GameAction =
   | { type: 'BUY_PERK'; perk: keyof PerkState }
   | { type: 'SELECT_CLOUD_TIER'; tier: CloudTier }
   | { type: 'PRESTIGE' }
+  | { type: 'OPEN_SUMMARY' }
   | { type: 'CLOSE_SUMMARY' }
   | { type: 'ACKNOWLEDGE_OBJECTIVE'; objective: string }
   | { type: 'TOGGLE_SOUND' }
