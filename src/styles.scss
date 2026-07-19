@@ -433,14 +433,19 @@ footer button:hover { color: $cyan; }
 .summary-section-title span { font-size: 9px; text-transform: uppercase; letter-spacing: .13em; }
 .summary-section-title small { color: $muted; font-size: 8px; }
 .summary-perk-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
-.summary-perk-grid article { min-height: 94px; padding: 14px; display: grid; grid-template-columns: 34px 1fr auto; gap: 11px; align-items: center; border: 1px solid $line; background: rgba(255,255,255,.018); }
-.summary-perk-grid article.perk-attention { animation: perkAttention 1.45s ease-out both; }
+.summary-perk-grid article { min-height: 118px; padding: 14px; display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 11px; align-items: center; border: 1px solid $line; background: rgba(255,255,255,.018); }
+.summary-perk-grid article.perk-attention { animation: perkAttention 1.45s ease-out; }
+.summary-perk-grid article.has-selection { border-color: rgba($cyan,.42); background: rgba($cyan,.045); }
 .summary-perk-grid .perk-orbit { position: static; width: 30px; height: 30px; }
 .summary-perk-grid h3 { margin: 0 0 3px; font-family: Georgia,serif; font-size: 15px; font-weight: 400; }
+.summary-perk-grid article > div:nth-child(2), .summary-perk-grid h3 { min-width: 0; }
 .summary-perk-grid p { margin: 0 0 5px; color: $muted; font-size: 8px; }
 .summary-perk-grid strong { color: $cyan; font-size: 8px; font-weight: 500; }
 .summary-perk-grid button { min-width: 56px; height: 34px; border: 1px solid rgba($amber,.3); background: rgba($amber,.05); color: $amber; font-size: 9px; cursor: pointer; }
 .summary-perk-grid button:disabled { color: #596273; border-color: $line; background: transparent; }
+.summary-perk-controls { grid-column: 1 / -1; display: grid; grid-template-columns: 34px 1fr; gap: 5px; }
+.summary-perk-controls button { min-width: 0; }
+.summary-perk-controls .perk-remove { color: $cyan; border-color: rgba($cyan,.28); background: rgba($cyan,.035); font-size: 15px; }
 .cloud-selection { margin-top: 18px; padding-top: 16px; border-top: 1px solid $line; }
 .cloud-selection > div:last-child { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
 .cloud-choice { min-height: 48px; padding: 9px 11px; display: flex; flex-direction: column; align-items: flex-start; border: 1px solid $line; background: rgba(255,255,255,.015); color: $muted; cursor: pointer; transition: .18s ease; }

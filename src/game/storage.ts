@@ -5,12 +5,13 @@ import type { CloudTier, GameState, Matter, PerkState, RoundRecord, Stage, Stell
 const SAVE_KEY = 'cosmic-clicker-save-v1';
 const EMPTY_MATTER: Matter = { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 };
 
-type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star' | 'perks' | 'history' | 'tutorial'>> & {
+type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star' | 'perks' | 'pendingPerks' | 'history' | 'tutorial'>> & {
   version?: number;
   stage?: Stage | 'stable';
   cloud?: Partial<Matter>;
   star?: Partial<Matter>;
   perks?: Partial<PerkState>;
+  pendingPerks?: Partial<PerkState>;
   history?: Partial<RoundRecord>[];
   tutorial?: Partial<TutorialState>;
 };
@@ -44,7 +45,12 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     permanentGravity: Math.max(0, Math.min(LIMITS.permanentGravity, parsed.perks?.permanentGravity ?? 0)),
     fusionMemory: Math.max(0, Math.min(LIMITS.fusionMemory, parsed.perks?.fusionMemory ?? 0)),
   };
-  const unlockedTier = Math.min(LIMITS.cloudTier, perks.largerCloud) as CloudTier;
+  const pendingPerks: PerkState = {
+    largerCloud: Math.max(0, Math.min(LIMITS.cloudTier - perks.largerCloud, parsed.pendingPerks?.largerCloud ?? 0)),
+    permanentGravity: Math.max(0, Math.min(LIMITS.permanentGravity - perks.permanentGravity, parsed.pendingPerks?.permanentGravity ?? 0)),
+    fusionMemory: Math.max(0, Math.min(LIMITS.fusionMemory - perks.fusionMemory, parsed.pendingPerks?.fusionMemory ?? 0)),
+  };
+  const unlockedTier = Math.min(LIMITS.cloudTier, perks.largerCloud + pendingPerks.largerCloud) as CloudTier;
   const nextCloudTier = isCloudTier(parsed.nextCloudTier) && parsed.nextCloudTier <= unlockedTier ? parsed.nextCloudTier : unlockedTier;
   const fallback = createInitialState(perks, parsed.stardust, parsed.run, { cloudTier, nextCloudTier });
   const legacyCompleted = Boolean(parsed.completed);
@@ -78,6 +84,7 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     cloud,
     star,
     perks,
+    pendingPerks,
     automation: { ...fallback.automation, ...parsed.automation },
     upgrades: { ...fallback.upgrades, ...parsed.upgrades },
     tutorial: migratedTutorial,

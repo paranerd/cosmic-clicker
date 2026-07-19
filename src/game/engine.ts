@@ -51,6 +51,11 @@ export const fusionCost = (level: number): number => Math.round(280 * 1.9 ** lev
 export const cloudTierCost = (level: number): number => level === 0 ? 2 : level === 1 ? 5 : Number.POSITIVE_INFINITY;
 export const gravityPerkCost = (level: number): number => 2 + level * 2;
 export const fusionPerkCost = (level: number): number => 3 + level * 3;
+export const effectivePerks = (state: GameState): PerkState => ({
+  largerCloud: state.perks.largerCloud + state.pendingPerks.largerCloud,
+  permanentGravity: state.perks.permanentGravity + state.pendingPerks.permanentGravity,
+  fusionMemory: state.perks.fusionMemory + state.pendingPerks.fusionMemory,
+});
 
 export const pressureProgress = (state: GameState): number =>
   Math.min(100, (starMass(state) / 34_000) ** 1.18 * 100);
@@ -257,6 +262,7 @@ export const createInitialState = (
     upgrades: { gravity: 0, deuteriumBurning: false },
     stardust,
     perks,
+    pendingPerks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
     completed: false,
     outcome: null,
     discoveredOutcomes: [...(persistent.discoveredOutcomes ?? [])],
@@ -313,7 +319,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
   if (action.type === 'PRESTIGE') {
     if (!state.completed || !state.outcome) return state;
     const record: RoundRecord = { ...state.stats, run: state.run, duration: state.elapsed, finalMass: starMass(state), cloudTier: state.cloudTier, outcome: state.outcome };
-    return createInitialState(state.perks, state.stardust, state.run + 1, {
+    return createInitialState(effectivePerks(state), state.stardust, state.run + 1, {
       soundEnabled: state.soundEnabled,
       volume: state.volume,
       tutorial: state.tutorial,
@@ -341,11 +347,11 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
     return next;
   }
   if (action.type === 'SELECT_CLOUD_TIER') {
-    if (next.completed && action.tier <= next.perks.largerCloud) next.nextCloudTier = action.tier;
+    if (next.completed && action.tier <= effectivePerks(next).largerCloud) next.nextCloudTier = action.tier;
     return next;
   }
   if (action.type === 'BUY_PERK') {
-    const level = next.perks[action.perk];
+    const level = effectivePerks(next)[action.perk];
     const costs = {
       largerCloud: cloudTierCost(level),
       permanentGravity: gravityPerkCost(level),
@@ -355,9 +361,23 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
     const cost = costs[action.perk];
     if (next.completed && level < limits[action.perk] && next.stardust >= cost) {
       next.stardust -= cost;
-      next.perks[action.perk] += 1;
-      if (action.perk === 'largerCloud') next.nextCloudTier = clampCloudTier(next.perks.largerCloud);
+      next.pendingPerks[action.perk] += 1;
+      if (action.perk === 'largerCloud') next.nextCloudTier = clampCloudTier(effectivePerks(next).largerCloud);
     }
+    return next;
+  }
+  if (action.type === 'REMOVE_PERK') {
+    const pending = next.pendingPerks[action.perk];
+    if (!next.completed || pending <= 0) return next;
+    const removedLevel = next.perks[action.perk] + pending - 1;
+    const refunds = {
+      largerCloud: cloudTierCost(removedLevel),
+      permanentGravity: gravityPerkCost(removedLevel),
+      fusionMemory: fusionPerkCost(removedLevel),
+    };
+    next.pendingPerks[action.perk] -= 1;
+    next.stardust += refunds[action.perk];
+    if (action.perk === 'largerCloud') next.nextCloudTier = clampCloudTier(Math.min(next.nextCloudTier, effectivePerks(next).largerCloud));
     return next;
   }
   if (next.completed) return next;

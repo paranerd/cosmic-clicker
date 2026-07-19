@@ -104,6 +104,7 @@ export interface GameState {
   upgrades: UpgradeState;
   stardust: number;
   perks: PerkState;
+  pendingPerks: PerkState;
   completed: boolean;
   outcome: StellarOutcome | null;
   discoveredOutcomes: StellarOutcome[];
@@ -129,6 +130,7 @@ export type GameAction =
   | { type: 'BUY_FUSION' }
   | { type: 'BUY_GRAVITY' }
   | { type: 'BUY_PERK'; perk: keyof PerkState }
+  | { type: 'REMOVE_PERK'; perk: keyof PerkState }
   | { type: 'SELECT_CLOUD_TIER'; tier: CloudTier }
   | { type: 'PRESTIGE' }
   | { type: 'OPEN_SUMMARY' }

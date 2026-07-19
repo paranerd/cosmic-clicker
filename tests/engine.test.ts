@@ -80,12 +80,15 @@ describe('stellar engine v0.3', () => {
     expect(state.temperature).toBeLessThan(THRESHOLDS.hydrogenTemperature);
 
     state = reduceGame(state, { type: 'BUY_PERK', perk: 'largerCloud' });
-    expect(state.perks.largerCloud).toBe(1);
+    expect(state.perks.largerCloud).toBe(0);
+    expect(state.pendingPerks.largerCloud).toBe(1);
     expect(state.nextCloudTier).toBe(1);
     expect(state.stardust).toBe(0);
 
     const next = reduceGame(state, { type: 'PRESTIGE' });
     expect(next.run).toBe(2);
+    expect(next.perks.largerCloud).toBe(1);
+    expect(next.pendingPerks.largerCloud).toBe(0);
     expect(next.cloudTier).toBe(1);
     expect(next.cloud).toEqual(CLOUD_TIERS[1].matter);
     expect(next.history[0]).toMatchObject({ outcome: 'brownDwarf', cloudTier: 0 });
@@ -97,6 +100,26 @@ describe('stellar engine v0.3', () => {
     expect(state.summaryOpen).toBe(false);
     state = reduceGame(state, { type: 'OPEN_SUMMARY' });
     expect(state.summaryOpen).toBe(true);
+  });
+
+  it('stages multiple affordable perk levels and refunds deselected levels', () => {
+    let state = accreteUntil(createInitialState(), CLOUD_TIERS[0].matter.hydrogen);
+    state.stardust = 7;
+    state = reduceGame(state, { type: 'BUY_PERK', perk: 'largerCloud' });
+    state = reduceGame(state, { type: 'BUY_PERK', perk: 'largerCloud' });
+    expect(state.pendingPerks.largerCloud).toBe(2);
+    expect(state.perks.largerCloud).toBe(0);
+    expect(state.stardust).toBe(0);
+    expect(state.nextCloudTier).toBe(2);
+
+    state = reduceGame(state, { type: 'REMOVE_PERK', perk: 'largerCloud' });
+    expect(state.pendingPerks.largerCloud).toBe(1);
+    expect(state.stardust).toBe(5);
+    expect(state.nextCloudTier).toBe(1);
+
+    state = reduceGame(state, { type: 'PRESTIGE' });
+    expect(state.perks.largerCloud).toBe(1);
+    expect(state.pendingPerks.largerCloud).toBe(0);
   });
 
   it('keeps the first discovery deliberately short', () => {

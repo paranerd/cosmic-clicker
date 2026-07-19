@@ -65,6 +65,7 @@ describe('save storage and v0.3 migration', () => {
     state.stats.manualClicks = 12;
     state.seenObjectives.push('discover-mass-limit');
     state.discoveredOutcomes.push('brownDwarf');
+    state.pendingPerks.permanentGravity = 2;
     saveGame(state);
 
     const loaded = loadGame().state;
@@ -74,6 +75,7 @@ describe('save storage and v0.3 migration', () => {
     expect(loaded.stats.manualClicks).toBe(12);
     expect(loaded.seenObjectives).toContain('discover-mass-limit');
     expect(loaded.discoveredOutcomes).toContain('brownDwarf');
+    expect(loaded.pendingPerks.permanentGravity).toBe(2);
   });
 
   it('caps and records offline progress at eight hours', () => {

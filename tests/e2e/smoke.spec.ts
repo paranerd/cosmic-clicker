@@ -467,10 +467,43 @@ test('cycle summary can be reopened and confirms skipping affordable perks', asy
   await expect(summary).toBeVisible();
   await summary.getByRole('button', { name: 'Mit Kleine Urwolke beginnen' }).click();
   await expect(summary.getByRole('button', { name: 'Ohne Upgrades starten' })).toBeVisible();
+  const remindedPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenwachstum' });
+  await expect(remindedPerk).toHaveClass(/perk-attention/);
+  expect(await remindedPerk.evaluate((element) => element.getAnimations().some((animation) => animation.playState === 'running'))).toBe(true);
   await expect(page.locator('[data-ui="run"]')).toHaveText('ZYKLUS 01');
   await summary.getByRole('button', { name: 'Ohne Upgrades starten' }).click();
   await expect(summary).toHaveCount(0);
   await expect(page.locator('[data-ui="run"]')).toHaveText('ZYKLUS 02');
+});
+
+test('multiple perk levels can be staged and deselected before prestige', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, stage: 'brownDwarf', cloudTier: 0, nextCloudTier: 0,
+    cloud: { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 12_000, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    completed: true, outcome: 'brownDwarf', discoveredOutcomes: ['brownDwarf'], summaryOpen: true,
+    stardust: 7, perks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+    stats: { stardustEarned: 7 }, seenObjectives: [],
+  });
+  await page.goto('/');
+
+  const summary = page.getByRole('dialog', { name: 'Eine Massengrenze wird sichtbar.' });
+  const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenwachstum' });
+  await cloudPerk.getByRole('button', { name: '+2 ✦' }).click();
+  await cloudPerk.getByRole('button', { name: '+5 ✦' }).click();
+  await expect(cloudPerk).toContainText('+2 gewählt');
+  await expect(summary.getByRole('button', { name: 'Massereich Supernova' })).toBeVisible();
+  await expect(page.locator('[data-ui="stardust"]')).toHaveText('0');
+
+  await cloudPerk.getByRole('button', { name: 'Wolkenwachstum abwählen' }).click();
+  await expect(cloudPerk).toContainText('+1 gewählt');
+  await expect(summary.getByRole('button', { name: 'Massereich Supernova' })).toHaveCount(0);
+  await expect(page.locator('[data-ui="stardust"]')).toHaveText('5');
+
+  await summary.getByRole('button', { name: 'Mit Stellare Urwolke beginnen' }).click();
+  await expect(page.locator('[data-ui="run"]')).toHaveText('ZYKLUS 02');
+  await expect(page.locator('[data-ui="cloud-name"]')).toHaveText('Stellare Urwolke');
 });
 
 test('the first brown dwarf reward unlocks the stellar cloud for cycle two', async ({ page }) => {
