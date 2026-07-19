@@ -81,7 +81,7 @@ Festgelegte Ausprägung für den Prototyp:
 - Die erste Urwolke besteht zur Vereinfachung ausschließlich aus Wasserstoff; ab Zyklus 2 gilt wieder die kosmische Mischung aus Wasserstoff, Helium und einer Spur Deuterium.
 - Das Deuteriumbrennen ist ein einmaliges Upgrade ab 1 Mio. K: Es kostet 75 Energie und verstärkt die Erwärmung um 35 %, jedoch nicht über die Schwelle des Wasserstoffbrennens hinaus.
 - Die Proton-Proton-Kette wird in der Spieleroberfläche verständlich als Wasserstoffbrennen bezeichnet.
-- Toast-Meldungen erscheinen horizontal zentriert im oberen Bildschirmbereich.
+- Toast-Meldungen gleiten horizontal zentriert von oben herein, stapeln und verschieben sich bei Folgemeldungen und blenden nach kurzer Zeit einzeln aus.
 - Die Soundeffekte werden ohne externe Audiodateien über die Web Audio API erzeugt; Lautstärke (Standard: 35 %) und Stummschaltung werden gespeichert.
 - Die Rundenauswertung erfasst Klicks, Reaktionen, akkretierte Materie, erzeugte Energie, Offline-Zeit, Käufe, Rundendauer und erhaltenen Sternenstaub.
 - Der Debug-/Balance-Modus wird ausschließlich vom Vite-Dev-Server als `cosmicDebug()` in der Browser-Konsole angeboten und darf im produktiven Build nicht enthalten sein.

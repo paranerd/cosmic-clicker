@@ -441,7 +441,10 @@ footer button:hover { color: $cyan; }
 .chronicle-modal .timeline-card, .chronicle-modal .log-card { min-height: 360px; }
 .text-action { margin-top: 13px; border: 0; background: none; color: $muted; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; cursor: pointer; }
 .text-action:hover { color: $text; }
-.toast { width: max-content; max-width: calc(100vw - 32px); position: fixed; z-index: 80; left: 50%; top: 88px; padding: 14px 18px; transform: translateX(-50%); text-align: center; border: 1px solid rgba($cyan,.3); background: #0c1420; color: #b9dfe2; font-size: 10px; box-shadow: 0 15px 40px rgba(0,0,0,.35); animation: toastIn .25s ease-out; }
+.toast-stack { width: min(520px,calc(100vw - 32px)); position: fixed; z-index: 80; left: 50%; top: 88px; transform: translateX(-50%); pointer-events: none; }
+.toast { width: max-content; max-width: 100%; position: absolute; left: 50%; top: 0; padding: 14px 18px; transform: translate(-50%,var(--toast-offset,0)); opacity: 1; text-align: center; border: 1px solid rgba($cyan,.3); background: #0c1420; color: #b9dfe2; font-size: 10px; box-shadow: 0 15px 40px rgba(0,0,0,.35); transition: transform .32s cubic-bezier(.2,.75,.25,1), opacity .28s ease; }
+.toast.is-entering { transform: translate(-50%,calc(var(--toast-offset,0px) - 26px)); opacity: 0; }
+.toast.is-leaving { transform: translate(-50%,calc(var(--toast-offset,0px) - 12px)); opacity: 0; }
 .action-feedback { position: absolute; z-index: 12; left: 50%; top: 48%; pointer-events: none; color: $cyan; font-family: ui-monospace,monospace; font-size: 13px; font-weight: 600; text-shadow: 0 0 12px currentColor; animation: feedbackRise .9s ease-out forwards; }
 .action-card .action-feedback { left: auto; right: 22px; top: 28%; }
 .action-feedback.heat { color: #b8a9f3; }
@@ -485,7 +488,6 @@ footer button:hover { color: $cyan; }
 @keyframes breathe { 50% { transform: scale(1.12); opacity: .75; } }
 @keyframes pulse { 50% { opacity: .45; } }
 @keyframes starWobble { 0%,100% { transform: scale(1); } 50% { transform: scale(1.025) rotate(2deg); } }
-@keyframes toastIn { from { transform: translate(-50%,-10px); opacity: 0; } to { transform: translate(-50%,0); opacity: 1; } }
 @keyframes feedbackRise { from { opacity: 0; transform: translate(-50%, 8px) scale(.9); } 18% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -42px) scale(1.05); } }
 @keyframes accreteIn { from { opacity: 0; transform: translate(calc(var(--from-x) - 50%), calc(var(--from-y) - 50%)) scale(.55); } 18% { opacity: 1; } to { opacity: 0; transform: translate(-50%,-50%) scale(.18); } }
 @keyframes gainRise { from { opacity: 0; transform: translate(-50%,0) scale(.75); } 24% { opacity: 1; transform: translate(-50%,-8px) scale(1.06); } to { opacity: 0; transform: translate(-50%,-48px) scale(1); } }
@@ -599,7 +601,7 @@ footer button:hover { color: $cyan; }
   footer { flex-wrap: wrap; justify-content: center; padding: 18px 0; }
   footer p { order: 3; width: 100%; flex: auto; }
   .tutorial-card { left: 50%; bottom: 16px; transform: translateX(-50%); }
-  .toast { top: 76px; }
+  .toast-stack { top: 76px; }
   .debug-panel { width: calc(100% - 24px); right: 12px; top: 74px; }
 }
 

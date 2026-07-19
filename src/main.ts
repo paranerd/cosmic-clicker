@@ -22,6 +22,7 @@ import type { GameAction } from './game/types';
 
 type Panel = 'reactions' | 'upgrades' | 'automation';
 type ResetMode = 'run' | 'full';
+interface ToastMessage { id: number; text: string; leaving: boolean }
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 if (!app) throw new Error('App root missing');
@@ -35,10 +36,12 @@ let lastStage = state.stage;
 let lastLogSignature = '';
 let lastOpportunitySignature = '';
 let notificationsInitialized = false;
-let toast = loaded.offlineSeconds >= 60
+const offlineToast = loaded.offlineSeconds >= 60
   ? `Während deiner Abwesenheit liefen ${formatDuration(loaded.offlineSeconds)} Simulation.`
   : '';
-let toastTimer = 0;
+let toastSequence = 0;
+let toastMessages: ToastMessage[] = [];
+const toastTimers = new Map<number, number>();
 let resetMenuOpen = false;
 let fullResetArmed = false;
 let resetTimer = 0;
@@ -430,9 +433,29 @@ function syncOverlay(): void {
 function syncToast(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="toast-root"]');
   if (!root) return;
-  const renderedToast = root.querySelector<HTMLElement>('.toast')?.textContent ?? '';
-  if (renderedToast === toast) return;
-  root.innerHTML = toast ? `<div class="toast" role="status">${toast}</div>` : '';
+  if (!toastMessages.length) { if (root.innerHTML) root.innerHTML = ''; return; }
+  let stack = root.querySelector<HTMLElement>('.toast-stack');
+  if (!stack) { stack = document.createElement('div'); stack.className = 'toast-stack'; root.append(stack); }
+  const activeIds = new Set(toastMessages.map((message) => String(message.id)));
+  stack.querySelectorAll<HTMLElement>('.toast').forEach((element) => {
+    if (!activeIds.has(element.dataset.toastId ?? '')) element.remove();
+  });
+  const entering: HTMLElement[] = [];
+  toastMessages.forEach((message) => {
+    let element = stack!.querySelector<HTMLElement>(`[data-toast-id="${message.id}"]`);
+    if (!element) {
+      element = document.createElement('div'); element.className = 'toast is-entering'; element.dataset.toastId = String(message.id); element.setAttribute('role', 'status'); element.setAttribute('aria-atomic', 'true'); element.textContent = message.text; stack!.append(element); entering.push(element);
+    }
+    element.classList.toggle('is-leaving', message.leaving);
+  });
+  let offset = 0;
+  toastMessages.forEach((message) => {
+    const element = stack!.querySelector<HTMLElement>(`[data-toast-id="${message.id}"]`);
+    if (!element) return;
+    element.style.setProperty('--toast-offset', `${offset}px`);
+    offset += element.getBoundingClientRect().height + 8;
+  });
+  if (entering.length) window.requestAnimationFrame(() => entering.forEach((element) => element.classList.remove('is-entering')));
 }
 
 function setTutorial(step: number, completed = false): void {
@@ -450,6 +473,7 @@ function resolveIntro(startTutorial: boolean): void {
   tutorialSignature = '';
   syncOverlay();
   syncTutorial();
+  if (!startTutorial) showToast('Tutorial übersprungen. Über ? kannst du es erneut starten.');
 }
 
 function positionTutorialSpotlight(target: Element): void {
@@ -605,8 +629,22 @@ function dispatch(action: GameAction): void {
 }
 
 function showToast(message: string): void {
-  toast = message; window.clearTimeout(toastTimer); syncToast();
-  toastTimer = window.setTimeout(() => { toast = ''; syncToast(); }, 3_500);
+  const toastMessage: ToastMessage = { id: ++toastSequence, text: message, leaving: false };
+  toastMessages = [toastMessage, ...toastMessages]; syncToast();
+  toastTimers.set(toastMessage.id, window.setTimeout(() => dismissToast(toastMessage.id), 3_200));
+}
+
+function dismissToast(id: number): void {
+  const message = toastMessages.find((item) => item.id === id);
+  if (!message || message.leaving) return;
+  message.leaving = true; syncToast();
+  toastTimers.set(id, window.setTimeout(() => {
+    toastMessages = toastMessages.filter((item) => item.id !== id); toastTimers.delete(id); syncToast();
+  }, 320));
+}
+
+function clearToasts(): void {
+  toastTimers.forEach((timer) => window.clearTimeout(timer)); toastTimers.clear(); toastMessages = []; syncToast();
 }
 
 function exportSave(): void {
@@ -638,7 +676,7 @@ function armFullReset(): void {
 
 function performReset(mode: ResetMode): void {
   closeResetMenu();
-  if (mode === 'full') { clearSave(); state = createInitialState(); toast = ''; window.clearTimeout(toastTimer); }
+  if (mode === 'full') { clearSave(); state = createInitialState(); clearToasts(); }
   else state = createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: state.tutorial, history: state.history });
   activePanel = 'reactions'; switchPanel('reactions', false); saveGame(state); updateUI(true);
   if (mode === 'run') showToast('Der aktuelle Zyklus wurde neu gestartet.');
@@ -775,7 +813,7 @@ function frame(now: number): void {
 window.setInterval(() => saveGame(state), 5_000); window.addEventListener('beforeunload', () => saveGame(state));
 window.addEventListener('scroll', queueTutorialSpotlightPosition, { passive: true, capture: true });
 window.addEventListener('resize', queueTutorialSpotlightPosition, { passive: true });
-renderShell(); requestAnimationFrame(frame);
+renderShell(); if (offlineToast) showToast(offlineToast); requestAnimationFrame(frame);
 if (import.meta.hot) Object.assign(window, {
   cosmicDebug: () => {
     debugOpen = !debugOpen;

@@ -52,11 +52,13 @@ test('player can accrete matter and see the stellar data update', async ({ page 
 test('each objective requires one acknowledgement and stays acknowledged after reload', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Ohne Tutorial starten' }).click();
+  await expect(page.getByRole('status')).toHaveText('Tutorial übersprungen. Über ? kannst du es erneut starten.');
   const objective = page.getByRole('dialog', { name: 'Protostern verdichten' });
   await expect(objective).toBeVisible();
   await expect(objective).toContainText('Akkretiere Materie');
   await objective.getByRole('button', { name: 'Okay' }).click();
-  await expect(page.getByRole('status')).toHaveText('Ein neuer Kosmos beginnt.');
+  await expect(page.getByRole('status')).toHaveCount(2);
+  await expect(page.getByText('Ein neuer Kosmos beginnt.', { exact: true })).toBeVisible();
   await expect(objective).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('dialog', { name: 'Protostern verdichten' })).toHaveCount(0);
@@ -198,9 +200,29 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   await tutorial.getByRole('button', { name: 'Überspringen' }).click();
   const toast = page.getByRole('status');
   await expect(toast).toBeVisible();
-  await expect(toast).toHaveCSS('left', '195px');
-  await expect(toast).toHaveCSS('top', '76px');
+  const toastBox = await toast.boundingBox();
+  expect(Math.abs(toastBox!.x + toastBox!.width / 2 - 195)).toBeLessThanOrEqual(1);
+  await expect(page.locator('.toast-stack')).toHaveCSS('left', '195px');
+  await expect(page.locator('.toast-stack')).toHaveCSS('top', '76px');
   await expect(toast).toHaveCSS('transform', /matrix\(1, 0, 0, 1, -[\d.]+, 0\)/);
+});
+
+test('rapid onboarding toasts stack, shift and disappear independently', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('dialog', { name: 'Erschaffe einen Stern.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
+  await page.getByRole('complementary', { name: 'Tutorial' }).getByRole('button', { name: 'Überspringen' }).click();
+  await page.getByRole('dialog', { name: 'Protostern verdichten' }).getByRole('button', { name: 'Okay' }).click();
+
+  const skipped = page.getByText('Tutorial übersprungen. Über ? kannst du es erneut starten.', { exact: true });
+  const cosmos = page.getByText('Ein neuer Kosmos beginnt.', { exact: true });
+  await expect(page.getByRole('status')).toHaveCount(2);
+  await expect(skipped).toBeVisible();
+  await expect(cosmos).toBeVisible();
+  await expect.poll(async () => {
+    const skippedBox = await skipped.boundingBox(); const cosmosBox = await cosmos.boundingBox();
+    return skippedBox!.y > cosmosBox!.y;
+  }).toBe(true);
+  await expect(page.getByRole('status')).toHaveCount(0, { timeout: 5_000 });
 });
 
 test('audio settings persist volume and mute state', async ({ page }) => {
