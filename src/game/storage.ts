@@ -1,34 +1,97 @@
-import { LIMITS } from './config';
+import { LIMITS, MATTER_KEYS } from './config';
 import { createInitialState, createRunStatistics, tick } from './engine';
-import type { GameState } from './types';
+import type { CloudTier, GameState, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState } from './types';
 
 const SAVE_KEY = 'cosmic-clicker-save-v1';
+const EMPTY_MATTER: Matter = { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 };
+
+type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star' | 'perks' | 'history' | 'tutorial'>> & {
+  version?: number;
+  stage?: Stage | 'stable';
+  cloud?: Partial<Matter>;
+  star?: Partial<Matter>;
+  perks?: Partial<PerkState>;
+  history?: Partial<RoundRecord>[];
+  tutorial?: Partial<TutorialState>;
+};
+
+const normalizeMatter = (matter?: Partial<Matter>): Matter => ({ ...EMPTY_MATTER, ...matter });
+const matterTotal = (matter: Matter): number => MATTER_KEYS.reduce((sum, key) => sum + matter[key], 0);
+const isCloudTier = (value: unknown): value is CloudTier => value === 0 || value === 1 || value === 2;
+
+const inferCloudTier = (cloud: Matter, star: Matter): CloudTier => {
+  const initialMatter = matterTotal(cloud) + matterTotal(star);
+  if (initialMatter <= 20_000) return 0;
+  if (initialMatter <= 100_000) return 1;
+  return 2;
+};
+
+const normalizeOutcome = (value: unknown, legacyCompleted: boolean): StellarOutcome | null => {
+  if (value === 'brownDwarf' || value === 'whiteDwarf' || value === 'neutronStar' || value === 'blackHole' || value === 'legacyMainSequence') return value;
+  return legacyCompleted ? 'legacyMainSequence' : null;
+};
 
 export const normalizeGameState = (value: unknown): GameState | null => {
   if (!value || typeof value !== 'object') return null;
-  const parsed = value as Partial<Omit<GameState, 'version'>> & { version?: number };
-  if ((parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3) || !parsed.cloud || !parsed.star) return null;
-  const fallback = createInitialState(parsed.perks, parsed.stardust, parsed.run);
-  const migratedTutorial = parsed.version === 1
+  const parsed = value as SavedState;
+  if (![1, 2, 3, 4].includes(parsed.version ?? 0) || !parsed.cloud || !parsed.star) return null;
+
+  const cloud = normalizeMatter(parsed.cloud);
+  const star = normalizeMatter(parsed.star);
+  const cloudTier = isCloudTier(parsed.cloudTier) ? parsed.cloudTier : inferCloudTier(cloud, star);
+  const perks: PerkState = {
+    largerCloud: Math.max(0, Math.min(LIMITS.cloudTier, parsed.perks?.largerCloud ?? 0)),
+    permanentGravity: Math.max(0, Math.min(LIMITS.permanentGravity, parsed.perks?.permanentGravity ?? 0)),
+    fusionMemory: Math.max(0, Math.min(LIMITS.fusionMemory, parsed.perks?.fusionMemory ?? 0)),
+  };
+  const unlockedTier = Math.min(LIMITS.cloudTier, perks.largerCloud) as CloudTier;
+  const nextCloudTier = isCloudTier(parsed.nextCloudTier) && parsed.nextCloudTier <= unlockedTier ? parsed.nextCloudTier : unlockedTier;
+  const fallback = createInitialState(perks, parsed.stardust, parsed.run, { cloudTier, nextCloudTier });
+  const legacyCompleted = Boolean(parsed.completed);
+  const outcome = normalizeOutcome(parsed.outcome, legacyCompleted && parsed.version !== 4);
+  const stage: Stage = parsed.stage === 'stable' ? 'mainSequence' : parsed.stage ?? fallback.stage;
+  const migratedTutorial: TutorialState = parsed.version === 1
     ? { introSeen: true, cosmosToastPending: false, completed: true, step: 0 }
-    : { ...fallback.tutorial, introSeen: Boolean(parsed.tutorial), cosmosToastPending: false };
+    : { ...fallback.tutorial, ...parsed.tutorial };
+  const stats = { ...createRunStatistics(), ...parsed.stats };
+  const history = Array.isArray(parsed.history) ? parsed.history.slice(0, 20).map((record): RoundRecord => ({
+    ...createRunStatistics(),
+    ...record,
+    run: record.run ?? 1,
+    duration: record.duration ?? 0,
+    finalMass: record.finalMass ?? 0,
+    cloudTier: isCloudTier(record.cloudTier) ? record.cloudTier : 1,
+    outcome: normalizeOutcome(record.outcome, true) ?? 'legacyMainSequence',
+  })) : [];
+  const discoveredOutcomes: StellarOutcome[] = Array.isArray(parsed.discoveredOutcomes)
+    ? parsed.discoveredOutcomes.filter((entry): entry is StellarOutcome => normalizeOutcome(entry, false) !== null)
+    : outcome ? [outcome] : [];
+  if (outcome && !discoveredOutcomes.includes(outcome)) discoveredOutcomes.push(outcome);
+
   return {
     ...fallback,
     ...parsed,
-    version: 3,
-    cloud: { ...fallback.cloud, ...parsed.cloud },
-    star: { ...fallback.star, ...parsed.star },
+    version: 4,
+    stage,
+    cloudTier,
+    nextCloudTier,
+    cloud,
+    star,
+    perks,
     automation: { ...fallback.automation, ...parsed.automation },
     upgrades: { ...fallback.upgrades, ...parsed.upgrades },
-    perks: { ...fallback.perks, ...parsed.perks },
-    tutorial: { ...migratedTutorial, ...parsed.tutorial },
-    stats: { ...createRunStatistics(), ...parsed.stats },
-    history: Array.isArray(parsed.history) ? parsed.history.slice(0, 20) : [],
+    tutorial: migratedTutorial,
+    stats,
+    history,
+    outcome,
+    discoveredOutcomes,
+    fusedHelium: typeof parsed.fusedHelium === 'number' ? parsed.fusedHelium : 0,
+    manualHeliumFusions: typeof parsed.manualHeliumFusions === 'number' ? parsed.manualHeliumFusions : 0,
     volume: Math.max(0, Math.min(1, typeof parsed.volume === 'number' ? parsed.volume : .35)),
     seenOpportunities: Array.isArray(parsed.seenOpportunities) ? parsed.seenOpportunities : [],
     seenObjectives: Array.isArray(parsed.seenObjectives) ? parsed.seenObjectives : [],
     log: Array.isArray(parsed.log) ? parsed.log : fallback.log,
-  };
+  } as GameState;
 };
 
 export const loadGame = (): { state: GameState; offlineSeconds: number } => {

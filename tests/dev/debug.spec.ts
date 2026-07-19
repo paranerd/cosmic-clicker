@@ -10,6 +10,7 @@ test('cosmicDebug exists only on the dev server and can finish a round', async (
   expect(result).toEqual({ type: 'function', message: 'Cosmic Debug geöffnet.' });
   const panel = page.getByLabel('Debug- und Balance-Modus');
   await expect(panel).toBeVisible();
+  await panel.getByRole('button', { name: 'Stellare Wolke' }).click();
   await panel.getByRole('button', { name: 'Runde abschließen' }).click();
-  await expect(page.getByRole('dialog', { name: /Ein Stern erwacht/ })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: /Ein Weißer Zwerg bleibt zurück/ })).toBeVisible();
 });

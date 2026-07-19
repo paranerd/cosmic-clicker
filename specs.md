@@ -89,12 +89,36 @@ Festgelegte Ausprägung für den Prototyp:
 
 ### Meilenstein v0.3 – echte Sternentwicklung
 
-Erst nach v0.2 beginnt der große Ausbau über den Hauptreihenstern hinaus:
+Der Hauptreihenstern ist nicht mehr das Ende einer Runde. v0.3 bildet erstmals einen vollständigen, spielerisch komprimierten Lebenszyklus vom kalten Ausgangsgas bis zum stellaren Rest ab.
 
-- Verschiedene Wolkengrößen
-- Brauner Zwerg als alternativer Ausgang
-- Heliumbrennen und Triple-Alpha-Prozess
-- Kohlenstoff und Sauerstoff
-- Masseabhängige Entwicklungszweige
-- Weißer Zwerg, Supernova, Neutronenstern und Schwarzes Loch
-- Umfangreicherer Prestige-Baum
+Festgelegte Progression:
+
+- Jedes vollständig neue Spiel beginnt mit derselben kleinen, ausschließlich aus Wasserstoff bestehenden Urwolke bei 10 K.
+- Diese erste Wolke kann die Massengrenze für dauerhaftes Wasserstoffbrennen nicht erreichen und endet nach vollständiger Akkretion als Brauner Zwerg.
+- Der Braune Zwerg gilt als erste erfolgreiche Entdeckung, nicht als Niederlage. Er gewährt garantiert genug Sternenstaub für die nächste Wolkenstufe.
+- Der permanente Perk „Wolkenwachstum“ schaltet nacheinander eine stellare und eine massereiche Urwolke frei. Bereits freigeschaltete Größen bleiben für spätere Zyklen auswählbar.
+- Die stellare Urwolke ermöglicht den Pfad über Wasserstoffbrennen, Hauptreihe, Roten Riesen, Heliumbrennen und einen Kohlenstoff-Sauerstoff-Kern bis zum Weißen Zwerg.
+- Die massereiche Urwolke führt nach den detaillierten Wasserstoff- und Heliumphasen über zusammengefasste späte Brennphasen zur Supernova. Die akkretierte Endmasse entscheidet zwischen Neutronenstern und Schwarzem Loch.
+- Heliumbrennen wird als Triple-Alpha-Prozess umgesetzt. Kohlenstoff und Sauerstoff sind sichtbare, gespeicherte Kernressourcen; Sauerstoff entsteht durch Alpha-Einfang an Kohlenstoff.
+- Neon-, Sauerstoff- und Siliziumbrennen werden in v0.3 bewusst als „Späte Brennphasen“ zusammengefasst.
+- Der bestehende Sternenstaub bleibt die einzige Prestige-Währung. Der Vermächtnis-Baum erhält die Äste Wolkenwachstum, Akkretion und Fusion.
+- Eine interaktive Entwicklungsübersicht in der Chronik zeigt den aktuellen Pfad, bekannte Endzustände und noch nicht entdeckte Abzweigungen.
+- Echte Wendepunkte werden weiterhin einmalig als Ziel-Popup erklärt; Detailwissen bleibt freiwillig in Reaktionskarten und Chronik.
+- Bestehende v0.1- bis v0.2-Spielstände werden auf das neue Zustandsmodell migriert. Abgeschlossene Runden bleiben in der Historie erhalten.
+- Die erste Brauner-Zwerg-Runde bleibt bewusst kurz. Vollständige stellare Runden zielen zunächst auf etwa 20 bis 30 Minuten und werden durch Vermächtnis-Perks schneller.
+
+### Meilenstein v0.4 – detaillierte Sternphysik und neue Systeme
+
+Nach dem vollständigen v0.3-Lebenszyklus können folgende Vertiefungen umgesetzt werden:
+
+- Einzelne Reaktionen und Ressourcen für Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen bis zum Eisenkern
+- Physikalisch kalibrierte Massen in Sonnen- und Jupitermassen statt ausschließlich abstrakter Materieeinheiten
+- Metallizität, unterschiedliche chemische Zusammensetzungen und weitere Typen von Sternentstehungswolken
+- Detailliertere Brauner-Zwerg-Entwicklung einschließlich Deuterium- und gegebenenfalls Lithiumbrennen
+- Zeitabhängige Hauptreihen- und Abkühlphasen mit stärkerer Offline-Progression
+- Weitere masseabhängige Unterklassen von Weißen Zwergen, Supernovae, Neutronensternen und Schwarzen Löchern
+- Rotation, Magnetfelder, Masseverlust und stellare Winde als neue Einflussgrößen
+- Binärsterne, Massentransfer und alternative Supernova-Pfade
+- Ausgebaute Automationen für Helium- und schwere Brennphasen
+- Entdeckungsarchiv mit wissenschaftlichen Kurzartikeln zu allen beobachteten Entwicklungsstufen
+- Erste planetare Systeme und die Abhängigkeit ihrer Entstehung von Sternmasse und Metallizität

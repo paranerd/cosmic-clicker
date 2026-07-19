@@ -27,6 +27,7 @@ async function gotoGame(page: Page): Promise<void> {
 
 test('player can accrete matter and see the stellar data update', async ({ page }) => {
   await gotoGame(page);
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/cosmic-clicker/favicon.svg');
   await expect(page.getByRole('heading', { name: 'Stellarer Kern' })).toBeVisible();
   await expect(page.getByText('Urwolke', { exact: true }).first()).toBeVisible();
   await expect(page.locator('[data-ui="temperature"]')).toHaveText('10 K');
@@ -54,15 +55,15 @@ test('each objective requires one acknowledgement and stays acknowledged after r
   await page.goto('/');
   await page.getByRole('button', { name: 'Ohne Tutorial starten' }).click();
   await expect(page.getByRole('status')).toHaveText('Tutorial übersprungen. Über ? kannst du es erneut starten.');
-  const objective = page.getByRole('dialog', { name: 'Protostern verdichten' });
+  const objective = page.getByRole('dialog', { name: 'Die kleine Urwolke verdichten' });
   await expect(objective).toBeVisible();
-  await expect(objective).toContainText('Akkretiere Materie');
+  await expect(objective).toContainText('Akkretiere die gesamte Wolke');
   await objective.getByRole('button', { name: 'Okay' }).click();
   await expect(page.getByRole('status')).toHaveCount(2);
   await expect(page.getByText('Ein neuer Kosmos beginnt.', { exact: true })).toBeVisible();
   await expect(objective).toHaveCount(0);
   await page.reload();
-  await expect(page.getByRole('dialog', { name: 'Protostern verdichten' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Die kleine Urwolke verdichten' })).toHaveCount(0);
 });
 
 test('desktop cockpit fits and exposes the separated control tabs', async ({ page }) => {
@@ -78,13 +79,22 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByText('Automatische Akkretion', { exact: true })).toHaveCount(0);
   await expect(page.locator('.left-panel .cloud-stats')).toContainText('Urwolke');
   await expect(page.locator('.cloud-mini-gauge [data-ui="cloud-percent"]')).toHaveText('100%');
-  await expect(page.locator('[data-cloud-matter="hydrogen"]')).toContainText('100.000');
+  await expect(page.locator('[data-cloud-matter="hydrogen"]')).toContainText('12.000');
   await expect(page.locator('[data-cloud-matter="helium"]')).toBeHidden();
   await expect(page.locator('[data-cloud-matter="deuterium"]')).toBeHidden();
   await expect(page.locator('.chronicle-dock')).toBeVisible();
   await expect(page.getByText('SIMULATION AKTIV', { exact: true })).toHaveCount(0);
   await expect(page.locator('[data-ui="temperature-max"]')).toHaveText('1 Mio. K');
   await expect(page.locator('[data-ui="elapsed"]')).toHaveText(/^\d{2}:\d{2}:\d{2}$/);
+
+  const objectivePositions = await page.locator('.mission-copy').evaluate((element) => {
+    const eyebrow = element.querySelector('[data-ui="objective-eyebrow"]')!.getBoundingClientRect();
+    const title = element.querySelector('[data-ui="objective-title"]')!.getBoundingClientRect();
+    const detail = element.querySelector('[data-ui="objective-detail"]')!.getBoundingClientRect();
+    return { eyebrow: eyebrow.top, title: title.top, detail: detail.top };
+  });
+  expect(objectivePositions.eyebrow).toBeLessThan(objectivePositions.title);
+  expect(objectivePositions.title).toBeLessThan(objectivePositions.detail);
 
   const dimensions = await page.evaluate(() => ({
     documentHeight: document.body.scrollHeight,
@@ -105,9 +115,11 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
 test('chronicle expands from the persistent bottom dock', async ({ page }) => {
   await gotoGame(page);
   await page.getByRole('button', { name: 'Chronik öffnen' }).click();
-  const chronicle = page.getByRole('dialog', { name: 'Entstehung eines Sterns' });
+  const chronicle = page.getByRole('dialog', { name: 'Lebenswege der Sterne' });
   await expect(chronicle).toBeVisible();
-  await expect(chronicle.locator('.timeline-node')).toHaveCount(5);
+  await expect(chronicle.locator('.timeline-node')).toHaveCount(3);
+  await expect(chronicle.locator('.evolution-branch')).toHaveCount(4);
+  await expect(chronicle).toContainText('Unterhalb der Zündmasse');
   const closeButton = page.getByRole('button', { name: 'Chronik schließen' });
   const restingBackground = await closeButton.evaluate((element) => getComputedStyle(element).backgroundColor);
   await closeButton.hover();
@@ -135,12 +147,12 @@ test('perk popover opens only on click and closes outside', async ({ page }) => 
 
 test('new players can complete and replay the interactive tutorial', async ({ page }) => {
   await page.goto('/');
-  const intro = page.getByRole('dialog', { name: 'Erschaffe einen Stern.' });
+  const intro = page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' });
   await expect(intro).toContainText('COSMICCLICKER');
-  await expect(intro).toContainText('kalten Wolke aus Wasserstoff');
+  await expect(intro).toContainText('kleinen Wolke aus kaltem Wasserstoff');
   await expect(intro).toHaveCSS('animation-name', 'introModalIn');
   await expect(page.locator('[data-ui="elapsed"]')).toHaveText('00:00:00');
-  await expect(page.getByRole('dialog', { name: 'Protostern verdichten' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Die kleine Urwolke verdichten' })).toHaveCount(0);
   await intro.getByRole('button', { name: 'Tutorial starten', exact: true }).click();
   const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(tutorial).toContainText('Materie akkretieren');
@@ -152,7 +164,7 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   await expect(tutorial).toHaveCount(0);
   await page.getByRole('button', { name: 'Chronik schließen' }).click();
-  await expect(page.getByRole('dialog', { name: 'Protostern verdichten' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Die kleine Urwolke verdichten' })).toBeVisible();
   await expect(page.getByText('Ein neuer Kosmos beginnt.')).toHaveCount(0);
   await page.getByRole('button', { name: 'Okay' }).click();
   await expect(page.getByRole('status')).toHaveText('Ein neuer Kosmos beginnt.');
@@ -163,7 +175,7 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
 test('mobile tutorial centers its card, spotlights targets and scrolls them into view', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await page.getByRole('dialog', { name: 'Erschaffe einen Stern.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
   const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
   const cardBox = await tutorial.boundingBox();
   expect(Math.abs(cardBox!.x + cardBox!.width / 2 - 195)).toBeLessThanOrEqual(1);
@@ -210,9 +222,9 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
 
 test('rapid onboarding toasts stack, shift and disappear independently', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('dialog', { name: 'Erschaffe einen Stern.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
   await page.getByRole('complementary', { name: 'Tutorial' }).getByRole('button', { name: 'Überspringen' }).click();
-  await page.getByRole('dialog', { name: 'Protostern verdichten' }).getByRole('button', { name: 'Okay' }).click();
+  await page.getByRole('dialog', { name: 'Die kleine Urwolke verdichten' }).getByRole('button', { name: 'Okay' }).click();
 
   const skipped = page.getByText('Tutorial übersprungen. Über ? kannst du es erneut starten.', { exact: true });
   const cosmos = page.getByText('Ein neuer Kosmos beginnt.', { exact: true });
@@ -319,6 +331,41 @@ test('upgrade and automation cards use compact heading rows', async ({ page }) =
   await expect(page.getByText('Automation', { exact: true })).toHaveCount(0);
 });
 
+test('terminal upgrades no longer render a purchase progress bar', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, run: 2, stage: 'deuterium', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 40_000, helium: 12_000, deuterium: 40, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 16_000, helium: 6_900, deuterium: 60, carbon: 0, oxygen: 0 },
+    temperature: 2_000_000, upgrades: { gravity: 0, deuteriumBurning: true },
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+    seenObjectives: ['ignite-hydrogen'],
+  });
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Upgrades' }).click();
+
+  const button = page.locator('.deuterium-upgrade').getByRole('button', { name: 'Aktiv —' });
+  await expect(button).toHaveClass(/terminal-button/);
+  await expect(button.locator('i')).toHaveCount(0);
+});
+
+test('an affordable next automation level uses an expansion toast', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, run: 2, stage: 'protostar', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 54_000, helium: 17_000, deuterium: 100, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 2_000, helium: 1_900, deuterium: 0, carbon: 0, oxygen: 0 },
+    energy: 114, temperature: 200_000, automation: { accretion: 1, fusion: 0 },
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+    seenObjectives: ['heat-protostar'], seenOpportunities: ['accretion:0'],
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Materie akkretieren' }).click({ clickCount: 4 });
+
+  await expect(page.getByRole('status')).toContainText('Automation kann ausgebaut werden.');
+  await expect(page.getByText('Neue Automation verfügbar.', { exact: true })).toHaveCount(0);
+});
+
 test('header and chronicle utility buttons share the same translucent hover treatment', async ({ page }) => {
   await gotoGame(page);
   const hoverStyle = async (locator: Locator) => {
@@ -342,6 +389,7 @@ test('header and chronicle utility buttons share the same translucent hover trea
 test('mobile cockpit stacks star, actions, stats and chronicle without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoGame(page);
+  await expect(page.getByRole('button', { name: 'Materie akkretieren' })).toHaveCSS('touch-action', 'manipulation');
 
   const positions = await page.evaluate(() => ({
     star: document.querySelector('.star-chamber')?.getBoundingClientRect().top ?? 0,
@@ -368,11 +416,11 @@ test('restart uses an inline confirmation instead of a browser dialog', async ({
   await expect(page.getByRole('button', { name: 'Wirklich alles löschen?' })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'Wirklich alles löschen?' }).click();
-  await expect(page.getByRole('dialog', { name: 'Erschaffe einen Stern.' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' })).toBeVisible();
   await expect(page.getByText('Ein neuer Kosmos beginnt.')).toHaveCount(0);
 });
 
-test('cycle summary offers legacy perks before the next run', async ({ page }) => {
+test('cycle summary offers v0.3 perks and cloud selection before the next run', async ({ page }) => {
   await page.addInitScript(() => {
     const now = Date.now();
     localStorage.setItem('cosmic-clicker-save-v1', JSON.stringify({
@@ -387,6 +435,50 @@ test('cycle summary offers legacy perks before the next run', async ({ page }) =
   });
   await gotoGame(page);
   await expect(page.getByRole('dialog')).toContainText('Vermächtnis wählen');
-  await expect(page.getByRole('button', { name: '+2 ✦' })).toHaveCount(2);
-  await expect(page.getByRole('button', { name: 'Nächsten Zyklus beginnen' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toContainText('Wolkenwachstum');
+  await expect(page.getByRole('dialog')).toContainText('Fusionsgedächtnis');
+  await expect(page.getByRole('button', { name: 'Mit Kleine Urwolke beginnen' })).toBeVisible();
+});
+
+test('the first brown dwarf reward unlocks the stellar cloud for cycle two', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, stage: 'brownDwarf', cloudTier: 0, nextCloudTier: 0,
+    cloud: { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 12_000, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    completed: true, outcome: 'brownDwarf', discoveredOutcomes: ['brownDwarf'], summaryOpen: true,
+    stardust: 2, perks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+    stats: { stardustEarned: 2 }, seenObjectives: [],
+  });
+  await page.goto('/');
+
+  const summary = page.getByRole('dialog', { name: 'Eine Massengrenze wird sichtbar.' });
+  await expect(summary).toContainText('Brauner Zwerg');
+  const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenwachstum' });
+  await cloudPerk.getByRole('button', { name: '+2 ✦' }).click();
+  await expect(summary.getByRole('button', { name: 'Stellar Weißer Zwerg' })).toBeVisible();
+  await summary.getByRole('button', { name: 'Mit Stellare Urwolke beginnen' }).click();
+
+  await expect(page.locator('[data-ui="cloud-name"]')).toHaveText('Stellare Urwolke');
+  await expect(page.locator('[data-cloud-matter="helium"]')).toBeVisible();
+  await expect(page.locator('[data-cloud-matter="deuterium"]')).toBeVisible();
+});
+
+test('carbon and oxygen reactions appear during the advanced stellar path', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, run: 2, stage: 'carbonOxygen', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 10_000, helium: 4_000, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 20_000, helium: 2_000, deuterium: 30, carbon: 5_000, oxygen: 0 },
+    temperature: 180_000_000, fusedHydrogen: 15_000, fusedHelium: 4_500,
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+    stats: { heliumFused: 4_500, oxygenCreated: 0 }, seenObjectives: ['build-oxygen-core'],
+  });
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Sauerstoff bilden', level: 3 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
+  await page.getByRole('button', { name: 'Sauerstoff erzeugen 0 / 1200 O' }).click();
+  await expect(page.locator('[data-matter="oxygen"]')).toBeVisible();
+  await expect(page.locator('[data-ui="oxygen-value"]')).not.toHaveText('0%');
 });
