@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { THRESHOLDS } from '../src/game/config';
+import { INITIAL_TEMPERATURE, THRESHOLDS } from '../src/game/config';
 import { accretionPerClick, cloudMass, createInitialState, reduceGame, starMass, tick } from '../src/game/engine';
 
 describe('stellar engine', () => {
+  it('starts new stellar cycles at ten kelvin', () => {
+    expect(createInitialState().temperature).toBe(INITIAL_TEMPERATURE);
+    expect(INITIAL_TEMPERATURE).toBe(10);
+  });
+
   it('conserves matter during accretion', () => {
     const state = createInitialState();
     const totalBefore = cloudMass(state) + starMass(state);

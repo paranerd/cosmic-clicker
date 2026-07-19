@@ -12,6 +12,7 @@ export const FIRST_CLOUD_BASE = {
 
 export const DEUTERIUM_UPGRADE_COST = 75;
 export const DEUTERIUM_TEMPERATURE_MULTIPLIER = 1.35;
+export const INITIAL_TEMPERATURE = 10;
 
 export const THRESHOLDS = {
   protostarMass: 1_500,

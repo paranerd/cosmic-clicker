@@ -1,4 +1,4 @@
-import { CLOUD_BASE, DEUTERIUM_TEMPERATURE_MULTIPLIER, DEUTERIUM_UPGRADE_COST, FIRST_CLOUD_BASE, LIMITS, THRESHOLDS } from './config';
+import { CLOUD_BASE, DEUTERIUM_TEMPERATURE_MULTIPLIER, DEUTERIUM_UPGRADE_COST, FIRST_CLOUD_BASE, INITIAL_TEMPERATURE, LIMITS, THRESHOLDS } from './config';
 import type { GameAction, GameState, Matter, RoundRecord, RunStatistics, Stage, TutorialState } from './types';
 
 const totalMatter = (matter: Matter) => matter.hydrogen + matter.helium + matter.deuterium;
@@ -24,11 +24,11 @@ export const pressureProgress = (state: GameState): number =>
 
 export const calculateTemperature = (state: GameState): number => {
   const compression = (starMass(state) / 32_000) ** 1.5 * 9_500_000;
-  const normalTemperature = 2_700 + compression + state.heatBonus;
+  const normalTemperature = INITIAL_TEMPERATURE + compression + state.heatBonus;
   if (!state.upgrades.deuteriumBurning || normalTemperature >= THRESHOLDS.hydrogenTemperature) {
-    return Math.max(2_700, normalTemperature);
+    return Math.max(INITIAL_TEMPERATURE, normalTemperature);
   }
-  return Math.min(THRESHOLDS.hydrogenTemperature, 2_700 + compression * DEUTERIUM_TEMPERATURE_MULTIPLIER + state.heatBonus);
+  return Math.min(THRESHOLDS.hydrogenTemperature, INITIAL_TEMPERATURE + compression * DEUTERIUM_TEMPERATURE_MULTIPLIER + state.heatBonus);
 };
 
 const stageFor = (state: GameState): Stage => {
@@ -147,7 +147,7 @@ export const createInitialState = (
     star: { hydrogen: 0, helium: 0, deuterium: 0 },
     radiatedMass: 0,
     energy: 0,
-    temperature: 2_700,
+    temperature: INITIAL_TEMPERATURE,
     heatBonus: 0,
     fusedHydrogen: 0,
     manualFusions: 0,

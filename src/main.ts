@@ -1,6 +1,6 @@
 import './styles.scss';
 import { playSound, type SoundEffect } from './audio';
-import { DEUTERIUM_UPGRADE_COST, LIMITS, STAGE_LABELS, THRESHOLDS } from './game/config';
+import { DEUTERIUM_UPGRADE_COST, INITIAL_TEMPERATURE, LIMITS, STAGE_LABELS, THRESHOLDS } from './game/config';
 import {
   accretionCost,
   accretionPerClick,
@@ -244,7 +244,7 @@ function renderShell(): void {
       <section class="stellar-lab">
         <aside class="data-panel left-panel">
           <div class="panel-heading"><span class="index">01</span><div><small>Echtzeitdaten</small><h2>Stellarer Kern</h2></div></div>
-          <div class="primary-reading"><span>Kerntemperatur</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>2.700 K</span><span data-ui="temperature-max"></span></small></div>
+          <div class="primary-reading"><span>Kerntemperatur</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>${formatTemperature(INITIAL_TEMPERATURE)}</span><span data-ui="temperature-max"></span></small></div>
           <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric"><span>Energie</span><b data-ui="energy"></b><small>verfügbar</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
           <div class="composition"><div class="section-label"><span>Kernzusammensetzung</span><small data-ui="core-total"></small></div>${['hydrogen','helium','deuterium'].map((key) => `<div class="composition-row" data-matter="${key}"><span class="element ${key === 'hydrogen' ? 'h' : key === 'helium' ? 'he' : 'd'}">${key === 'hydrogen' ? 'H' : key === 'helium' ? 'He' : 'D'}</span><div><b>${key === 'hydrogen' ? 'Wasserstoff' : key === 'helium' ? 'Helium' : 'Deuterium'}</b><div class="mini-track"><i data-ui="${key}-bar"></i></div></div><strong data-ui="${key}-value"></strong></div>`).join('')}</div>
           <div class="cloud-stats"><div class="section-label"><span>Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="cloud-elements">${['hydrogen','helium','deuterium'].map((key) => `<div data-cloud-matter="${key}"><span class="element ${key === 'hydrogen' ? 'h' : key === 'helium' ? 'he' : 'd'}">${key === 'hydrogen' ? 'H' : key === 'helium' ? 'He' : 'D'}</span><p><b>${key === 'hydrogen' ? 'Wasserstoff' : key === 'helium' ? 'Helium' : 'Deuterium'}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>

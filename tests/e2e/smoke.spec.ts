@@ -29,6 +29,7 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   await gotoGame(page);
   await expect(page.getByRole('heading', { name: 'Stellarer Kern' })).toBeVisible();
   await expect(page.getByText('Urwolke', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('[data-ui="temperature"]')).toHaveText('10 K');
   const star = page.getByRole('button', { name: 'Materie akkretieren' });
   const starBox = await star.boundingBox();
   const chamberBox = await page.locator('.star-chamber').boundingBox();

@@ -72,6 +72,7 @@ Nach einem Playtest wird der bestehende Vertical Slice von der Urwolke bis zum H
 Festgelegte Ausprägung für den Prototyp:
 
 - Die erste aktive Runde zielt auf eine Spielzeit von 10 bis 15 Minuten.
+- Jede neue Urwolke beginnt bei einer Kerntemperatur von 10 K.
 - Das Tutorial ist überspringbar und kann über die Hilfe erneut gestartet werden.
 - Ein vollständig neuer Spielstand beginnt mit einem kurzen Intro, das Spielziel und Ablauf erklärt und die Wahl zwischen einer geführten Tour und einem direkten Start anbietet.
 - Das Intro zeigt den Namen „Cosmic Clicker“ und erscheint mit einer kurzen, bei reduzierter Bewegung deaktivierten Animation. „Ein neuer Kosmos beginnt.“ wird erst nach der Bestätigung des ersten Ziels angezeigt.
