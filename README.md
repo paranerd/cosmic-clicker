@@ -30,6 +30,7 @@ Die lokale App läuft anschließend standardmäßig auf `http://localhost:5173`.
 ## Prüfen
 
 ```bash
+npm run lint
 npm run build
 npm test
 npm run test:e2e

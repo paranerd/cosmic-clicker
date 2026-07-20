@@ -210,7 +210,7 @@ describe('data-driven stellar engine v0.4', () => {
   });
 
   it('archives the calibrated outcome and persistent settings during prestige', () => {
-    let state = accreteUntil(createInitialState(), cloudMass(createInitialState()));
+    const state = accreteUntil(createInitialState(), cloudMass(createInitialState()));
     state.volume = .62;
     state.soundEnabled = false;
     const next = reduceGame(state, { type: 'PRESTIGE' });
