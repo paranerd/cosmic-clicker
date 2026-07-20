@@ -26,7 +26,7 @@ describe('save storage and v0.3 migration', () => {
 
   it('migrates a v1 save without losing stellar progress', () => {
     const current = createInitialState();
-    const legacy = { ...current, version: 1, energy: 321, run: 4 } as Record<string, unknown>;
+    const legacy = { ...current, version: 1, energy: 321, run: 4, fusedHydrogen: 4_800 } as Record<string, unknown>;
     delete legacy.stats;
     delete legacy.history;
     delete legacy.tutorial;
@@ -43,6 +43,7 @@ describe('save storage and v0.3 migration', () => {
     expect(migrated?.tutorial.completed).toBe(true);
     expect(migrated?.tutorial.introSeen).toBe(true);
     expect(migrated?.stats.manualClicks).toBe(0);
+    expect(migrated?.stats.hydrogenFused).toBe(4_800);
     expect(migrated?.star.carbon).toBe(0);
     expect(migrated?.perks.fusionMemory).toBe(0);
   });

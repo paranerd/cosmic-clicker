@@ -79,8 +79,8 @@ Festgelegte Ausprägung für den Prototyp:
 - Beim Start der geführten Tour erscheint das erste Ziel-Popup erst nach Abschluss oder Überspringen des Tutorials; beim direkten Start erscheint es unmittelbar nach dem Intro.
 - Jeder neue Zielabschnitt wird einmalig als zu bestätigendes Popup gezeigt.
 - Das Tutorial dunkelt nicht relevante Bildschirmbereiche ab, scrollt auf Mobilgeräten zum Fokus und zeigt seine Erklärung dort horizontal zentriert.
-- Die erste Urwolke besteht zur Vereinfachung ausschließlich aus Wasserstoff; ab Zyklus 2 gilt wieder die kosmische Mischung aus Wasserstoff, Helium und einer Spur Deuterium.
-- Das Deuteriumbrennen ist ein einmaliges Upgrade ab 1 Mio. K: Es kostet 75 Energie und verstärkt die Erwärmung um 35 %, jedoch nicht über die Schwelle des Wasserstoffbrennens hinaus.
+- In der Oberfläche werden nur chemische Elemente ausgewiesen, keine Isotope. Deuterium ist implizit in jeder Wasserstoffwolke vorhanden.
+- Das Deuteriumbrennen wird ab dem Protostern angezeigt und ist in jeder Runde ab 1 Mio. K als einmaliges Upgrade verfügbar: Es kostet 75 Energie und verstärkt die Erwärmung um 35 %, jedoch nicht über die Schwelle des Wasserstoffbrennens hinaus.
 - Die Proton-Proton-Kette wird in der Spieleroberfläche verständlich als Wasserstoffbrennen bezeichnet.
 - Toast-Meldungen gleiten horizontal zentriert von oben herein, stapeln und verschieben sich bei Folgemeldungen und blenden nach kurzer Zeit einzeln aus.
 - Die Soundeffekte werden ohne externe Audiodateien über die Web Audio API erzeugt; Lautstärke (Standard: 35 %) und Stummschaltung werden gespeichert.
@@ -93,8 +93,9 @@ Der Hauptreihenstern ist nicht mehr das Ende einer Runde. v0.3 bildet erstmals e
 
 Festgelegte Progression:
 
-- Jedes vollständig neue Spiel beginnt mit derselben kleinen, ausschließlich aus Wasserstoff bestehenden Urwolke bei 10 K.
-- Diese erste Wolke kann die Massengrenze für dauerhaftes Wasserstoffbrennen nicht erreichen und endet nach vollständiger Akkretion als Brauner Zwerg.
+- Jedes vollständig neue Spiel beginnt mit derselben kleinen Wasserstoffwolke bei 10 K. Isotope wie Deuterium werden nicht separat ausgewiesen.
+- Jede Runde beginnt ergebnisoffen. Entwicklungsstufen werden ausschließlich aus Masse, Temperatur, Zusammensetzung und Reaktionen abgeleitet; es gibt keinen Sonderfall, der den ersten Zyklus auf einen Braunen Zwerg begrenzt.
+- Die kleine Ausgangswolke enthält implizit zu wenig Wasserstoff, um 10 Mio. K und damit dauerhaftes Wasserstoffbrennen zu erreichen. Wird eine Wolke vor der Zündung vollständig gebunden, entsteht daraus ein Brauner Zwerg.
 - Der Braune Zwerg gilt als erste erfolgreiche Entdeckung, nicht als Niederlage. Er gewährt garantiert genug Sternenstaub für die nächste Wolkenstufe.
 - Der permanente Perk „Wolkenwachstum“ schaltet nacheinander eine stellare und eine massereiche Urwolke frei. Bereits freigeschaltete Größen bleiben für spätere Zyklen auswählbar.
 - Die stellare Urwolke ermöglicht den Pfad über Wasserstoffbrennen, Hauptreihe, Roten Riesen, Heliumbrennen und einen Kohlenstoff-Sauerstoff-Kern bis zum Weißen Zwerg.
@@ -105,7 +106,8 @@ Festgelegte Progression:
 - Eine interaktive Entwicklungsübersicht in der Chronik zeigt den aktuellen Pfad, bekannte Endzustände und noch nicht entdeckte Abzweigungen.
 - Echte Wendepunkte werden weiterhin einmalig als Ziel-Popup erklärt; Detailwissen bleibt freiwillig in Reaktionskarten und Chronik.
 - Bestehende v0.1- bis v0.2-Spielstände werden auf das neue Zustandsmodell migriert. Abgeschlossene Runden bleiben in der Historie erhalten.
-- Die erste Brauner-Zwerg-Runde bleibt bewusst kurz. Vollständige stellare Runden zielen zunächst auf etwa 20 bis 30 Minuten und werden durch Vermächtnis-Perks schneller.
+- Die Verdichtung bis zum ersten Protostern benötigt ohne Upgrades ungefähr 50 bis 60 aktive Impulse. Die erste Brauner-Zwerg-Runde zielt auf etwa 7 bis 10 Minuten; vollständige stellare Runden auf etwa 20 bis 30 Minuten und werden durch Vermächtnis-Perks schneller.
+- „Stabiles Wasserstoffbrennen“ erscheint erst nach Freischaltung des Wasserstoffbrennens und wird nach 5.000 ME durch Fusion selbst erzeugtem Helium kaufbar.
 
 ### Meilenstein v0.4 – detaillierte Sternphysik und neue Systeme
 

@@ -60,6 +60,9 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     ? { introSeen: true, cosmosToastPending: false, completed: true, step: 0 }
     : { ...fallback.tutorial, ...parsed.tutorial };
   const stats = { ...createRunStatistics(), ...parsed.stats };
+  if (parsed.stats?.hydrogenFused === undefined && typeof parsed.fusedHydrogen === 'number') {
+    stats.hydrogenFused = parsed.fusedHydrogen;
+  }
   const history = Array.isArray(parsed.history) ? parsed.history.slice(0, 20).map((record): RoundRecord => ({
     ...createRunStatistics(),
     ...record,

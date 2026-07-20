@@ -1,6 +1,6 @@
 import './styles.scss';
 import { playSound, type SoundEffect } from './audio';
-import { CLOUD_TIERS, DEUTERIUM_UPGRADE_COST, INITIAL_TEMPERATURE, LIMITS, MATTER_KEYS, OUTCOME_LABELS, STAGE_LABELS, THRESHOLDS } from './game/config';
+import { ACCRETION_CLICK_BASE, ACCRETION_SECOND_BASE, CLOUD_TIERS, DEUTERIUM_UPGRADE_COST, FUSION_AUTOMATION_HELIUM, HYDROGEN_TO_HELIUM_RATIO, INITIAL_TEMPERATURE, LIMITS, MATTER_KEYS, OUTCOME_LABELS, STAGE_LABELS, THRESHOLDS } from './game/config';
 import {
   accretionCost,
   accretionPerClick,
@@ -116,8 +116,15 @@ const MATTER_META = {
   carbon: { symbol: 'C', label: 'Kohlenstoff', className: 'c' },
   oxygen: { symbol: 'O', label: 'Sauerstoff', className: 'o' },
 } as const;
+const DISPLAY_MATTER_KEYS = MATTER_KEYS.filter((key) => key !== 'deuterium');
 
 const hydrogenPast = (stage: Stage): boolean => !['nebula', 'protostar', 'deuterium', 'hydrogen'].includes(stage);
+const hydrogenBurningUnlocked = (): boolean => !['nebula', 'protostar', 'deuterium', 'brownDwarf'].includes(state.stage);
+const deuteriumUpgradeVisible = (): boolean => state.stage !== 'nebula';
+const deuteriumUpgradeUnlocked = (): boolean => starMass(state) >= THRESHOLDS.protostarMass
+  && state.temperature >= THRESHOLDS.deuteriumTemperature
+  && state.temperature < THRESHOLDS.hydrogenTemperature;
+const heliumCreatedByHydrogen = (): number => state.stats.hydrogenFused * HYDROGEN_TO_HELIUM_RATIO;
 
 function currentOpportunities(): Record<Panel, string[]> {
   const reactions: string[] = [];
@@ -130,7 +137,7 @@ function currentOpportunities(): Record<Panel, string[]> {
   if (!state.completed && state.stage === 'carbonOxygen' && state.star.carbon >= 180 && state.star.helium >= 60) reactions.push('reaction:oxygen');
   const evolution = evolutionActionFor(state);
   if (evolution?.available) reactions.push(`evolution:${state.stage}`);
-  if (!state.upgrades.deuteriumBurning && state.star.deuterium > 0 && state.temperature >= THRESHOLDS.deuteriumTemperature && state.temperature < THRESHOLDS.hydrogenTemperature && state.energy >= DEUTERIUM_UPGRADE_COST) {
+  if (!state.upgrades.deuteriumBurning && deuteriumUpgradeVisible() && deuteriumUpgradeUnlocked() && state.energy >= DEUTERIUM_UPGRADE_COST) {
     upgrades.push('deuterium-burning');
   }
   if (state.upgrades.gravity < LIMITS.gravity && state.energy >= gravityCost(state.upgrades.gravity)) {
@@ -139,7 +146,7 @@ function currentOpportunities(): Record<Panel, string[]> {
   if (state.automation.accretion < LIMITS.accretion && starMass(state) >= THRESHOLDS.protostarMass && state.energy >= accretionCost(state.automation.accretion)) {
     automation.push(`accretion:${state.automation.accretion}`);
   }
-  if (state.automation.fusion < LIMITS.fusion && state.manualFusions >= 5 && state.energy >= fusionCost(state.automation.fusion)) {
+  if (hydrogenBurningUnlocked() && state.automation.fusion < LIMITS.fusion && heliumCreatedByHydrogen() >= FUSION_AUTOMATION_HELIUM && state.energy >= fusionCost(state.automation.fusion)) {
     automation.push(`fusion:${state.automation.fusion}`);
   }
   return { reactions, upgrades, automation };
@@ -150,7 +157,7 @@ function renderReactionPanel(): string {
   const hydrogenAmount = Math.round(200 * multiplier);
   const heliumAmount = Math.round(300 * multiplier);
   const canHydrogen = state.stage === 'hydrogen' && state.star.hydrogen >= hydrogenAmount;
-  const hydrogenLabel = state.cloudTier === 0 ? 'Zündmasse nicht erreichbar' : hydrogenPast(state.stage) ? 'Phase abgeschlossen' : state.temperature < THRESHOLDS.hydrogenTemperature ? 'Ab 10 Mio. K' : `${hydrogenAmount} H fusionieren`;
+  const hydrogenLabel = hydrogenPast(state.stage) ? 'Phase abgeschlossen' : state.temperature < THRESHOLDS.hydrogenTemperature ? 'Ab 10 Mio. K' : `${hydrogenAmount} H fusionieren`;
   const heliumVisible = ['redGiant', 'helium', 'carbonOxygen', 'massiveStar', 'supernova', 'whiteDwarf', 'neutronStar', 'blackHole'].includes(state.stage);
   const canHelium = state.stage === 'helium' && state.star.helium >= heliumAmount;
   const oxygenVisible = ['carbonOxygen', 'massiveStar', 'supernova', 'whiteDwarf', 'neutronStar', 'blackHole'].includes(state.stage);
@@ -160,7 +167,7 @@ function renderReactionPanel(): string {
     <div class="action-card ${canHydrogen ? 'is-ready' : ''}" data-card="fusion">
       <div class="reaction-symbol hydrogen">H</div>
       <div class="action-copy"><span class="card-kicker">Kernfusion</span><h3>Wasserstoffbrennen</h3><p>Wasserstoff verschmilzt zu Helium. Ein kleiner Massendefekt wird zu Energie.</p><div class="reaction-equation"><span>4 H</span><b>→</b><span>He + γ</span></div></div>
-      <button class="primary-action compact" data-action="fuse-hydrogen" ${disabled(!canHydrogen)}><span data-button-label>${hydrogenLabel}</span><small data-button-detail>${canHydrogen ? `+${formatCompact(hydrogenAmount * .34)} Energie` : state.cloudTier === 0 ? 'Die Wolke ist zu leicht' : 'Kern noch nicht bereit'}</small></button>
+      <button class="primary-action compact" data-action="fuse-hydrogen" ${disabled(!canHydrogen)}><span data-button-label>${hydrogenLabel}</span><small data-button-detail>${canHydrogen ? `+${formatCompact(hydrogenAmount * .34)} Energie` : ''}</small></button>
     </div>
     ${heliumVisible ? `<div class="action-card ${canHelium ? 'is-ready' : ''}" data-card="helium-fusion"><div class="reaction-symbol helium">He</div><div class="action-copy"><span class="card-kicker">Triple-Alpha</span><h3>Heliumbrennen</h3><p>Drei Heliumkerne verschmelzen bei etwa 100 Mio. K zu Kohlenstoff.</p><div class="reaction-equation"><span>3 He</span><b>→</b><span>C + γ</span></div></div><button class="primary-action compact" data-action="fuse-helium" ${disabled(!canHelium)}><span>${state.stage === 'helium' ? `${heliumAmount} He fusionieren` : hydrogenPast(state.stage) && state.stage !== 'redGiant' ? 'Phase abgeschlossen' : 'Heliumkern noch inaktiv'}</span><small>Bildet Kohlenstoff</small></button></div>` : ''}
     ${oxygenVisible ? `<div class="action-card ${canOxygen ? 'is-ready' : ''}" data-card="oxygen-fusion"><div class="reaction-symbol oxygen">O</div><div class="action-copy"><span class="card-kicker">Alpha-Einfang</span><h3>Sauerstoff bilden</h3><p>Ein Kohlenstoffkern fängt Helium ein und wächst zu Sauerstoff.</p><div class="reaction-equation"><span>C + He</span><b>→</b><span>O + γ</span></div></div><button class="primary-action compact" data-action="create-oxygen" ${disabled(!canOxygen)}><span>${state.stats.oxygenCreated >= THRESHOLDS.oxygenCore ? 'C/O-Kern vollständig' : 'Sauerstoff erzeugen'}</span><small>${formatCompact(state.stats.oxygenCreated)} / ${formatCompact(THRESHOLDS.oxygenCore)} O</small></button></div>` : ''}
@@ -170,9 +177,8 @@ function renderReactionPanel(): string {
 
 function deuteriumUpgradeCard(): string {
   const active = state.upgrades.deuteriumBurning;
-  const hasDeuterium = state.star.deuterium > 0 || state.cloud.deuterium > 0;
-  const unlocked = hasDeuterium && state.star.deuterium > 0 && state.temperature >= THRESHOLDS.deuteriumTemperature && state.temperature < THRESHOLDS.hydrogenTemperature;
-  const label = active ? 'Aktiv' : !hasDeuterium ? 'Kein Deuterium' : state.temperature >= THRESHOLDS.hydrogenTemperature ? 'Phase beendet' : unlocked ? 'Aktivieren' : 'Ab 1 Mio. K';
+  const unlocked = deuteriumUpgradeUnlocked();
+  const label = active ? 'Aktiv' : state.temperature >= THRESHOLDS.hydrogenTemperature ? 'Phase beendet' : unlocked ? 'Aktivieren' : 'Ab 1 Mio. K';
   return `
     <article class="upgrade-card deuterium-upgrade">
       <div class="upgrade-heading"><span class="upgrade-icon">D</span><h3>Deuteriumbrennen <b>${active ? '×1,35' : 'inaktiv'}</b></h3></div>
@@ -199,11 +205,12 @@ function automationCard(kind: 'accretion' | 'fusion'): string {
   const level = state.automation[kind];
   const max = isAccretion ? LIMITS.accretion : LIMITS.fusion;
   const price = isAccretion ? accretionCost(level) : fusionCost(level);
-  const unlocked = isAccretion ? starMass(state) >= THRESHOLDS.protostarMass : state.manualFusions >= 5;
+  const heliumCreated = heliumCreatedByHydrogen();
+  const unlocked = isAccretion ? starMass(state) >= THRESHOLDS.protostarMass : heliumCreated >= FUSION_AUTOMATION_HELIUM;
   const isMax = level >= max;
-  const label = isMax ? 'Maximum' : !unlocked ? (isAccretion ? 'Noch instabil' : `${state.manualFusions}/5 Reaktionen`) : 'Ausbauen';
+  const label = isMax ? 'Maximum' : !unlocked ? (isAccretion ? 'Noch instabil' : `${formatCompact(heliumCreated)} / ${formatNumber(FUSION_AUTOMATION_HELIUM)} He`) : 'Ausbauen';
   const rateAt = (targetLevel: number) => isAccretion
-    ? targetLevel * 42 * (accretionPerClick(state) / 120)
+    ? targetLevel * ACCRETION_SECOND_BASE * (accretionPerClick(state) / ACCRETION_CLICK_BASE)
     : targetLevel * 64 * (1 + targetLevel * .08) * stellarFusionMultiplier(state);
   const currentRate = rateAt(level);
   const nextGain = rateAt(Math.min(max, level + 1)) - currentRate;
@@ -211,7 +218,7 @@ function automationCard(kind: 'accretion' | 'fusion'): string {
   return `
     <article class="upgrade-card" data-automation-card="${kind}">
       <div class="upgrade-heading"><span class="upgrade-icon">${isAccretion ? 'A' : 'H'}</span><h3>${isAccretion ? 'Akkretionsstrom' : 'Stabiles Wasserstoffbrennen'} <b>${formatCompact(currentRate)} ${unit}</b></h3></div>
-      <p>${isAccretion ? 'Zieht kontinuierlich Materie aus der Wolke. Benötigt einen ausgebildeten Protostern.' : 'Fusioniert Wasserstoff automatisch. Wird nach fünf manuellen Reaktionen verfügbar.'}<strong>${isMax ? 'Maximum erreicht' : `Nächste Stufe: +${formatCompact(nextGain)} ${unit}`}</strong></p>
+      <p>${isAccretion ? 'Zieht kontinuierlich Materie aus der Wolke. Benötigt einen ausgebildeten Protostern.' : `Fusioniert Wasserstoff automatisch. Wird nach ${formatNumber(FUSION_AUTOMATION_HELIUM)} ME selbst erzeugtem Helium verfügbar.`}<strong>${isMax ? 'Maximum erreicht' : `Nächste Stufe: +${formatCompact(nextGain)} ${unit}`}</strong></p>
       <div class="level-row">${levelPips(level, max)}</div>
       <button class="${isMax ? 'terminal-button' : 'progress-button'}" data-action="${isAccretion ? 'buy-accretion' : 'buy-fusion'}" ${isMax ? '' : `style="--button-progress:${progress(state.energy, price, unlocked)}%"`} ${disabled(state.energy < price || !unlocked || isMax)}>${isMax ? '' : '<i></i>'}<span data-button-label>${label}</span><b data-button-cost>${isMax ? '—' : `${price} E`}</b></button>
     </article>`;
@@ -219,7 +226,7 @@ function automationCard(kind: 'accretion' | 'fusion'): string {
 
 function timelineNodes(tier: CloudTier = state.cloudTier): [Stage, string, string][] {
   if (tier === 0) return [
-    ['nebula', 'Urwolke', '10 K'], ['protostar', 'Protostern', 'Verdichtung'], ['brownDwarf', 'Brauner Zwerg', 'Massengrenze'],
+    ['nebula', 'Urwolke', '10 K'], ['protostar', 'Protostern', 'Verdichtung'], ['deuterium', 'D-Brennen', '1 Mio. K'], ['brownDwarf', state.completed ? 'Brauner Zwerg' : 'Sternentwicklung', state.completed ? 'Nicht gezündet' : 'Ausgang offen'],
   ];
   const shared: [Stage, string, string][] = [
     ['nebula', 'Urwolke', CLOUD_TIERS[tier].shortName], ['protostar', 'Protostern', 'Verdichtung'], ['deuterium', 'D-Brennen', '1 Mio. K'], ['hydrogen', 'H-Brennen', '10 Mio. K'], ['mainSequence', 'Hauptreihe', 'Gleichgewicht'], ['redGiant', 'Roter Riese', 'Kernkontraktion'], ['helium', 'He-Brennen', 'Triple-Alpha'], ['carbonOxygen', 'C/O-Kern', 'Alpha-Einfang'],
@@ -252,13 +259,15 @@ function logMarkup(limit = 5): string {
 
 function panelMarkup(panel: Panel): string {
   if (panel === 'reactions') return renderReactionPanel();
-  if (panel === 'upgrades') return `<div class="upgrade-grid">${deuteriumUpgradeCard()}${upgradeCard()}</div>`;
-  return `<div class="upgrade-grid automation-grid">${automationCard('accretion')}${automationCard('fusion')}</div>`;
+  if (panel === 'upgrades') return `<div class="upgrade-grid ${deuteriumUpgradeVisible() ? '' : 'single-upgrade'}">${deuteriumUpgradeVisible() ? deuteriumUpgradeCard() : ''}${upgradeCard()}</div>`;
+  return `<div class="upgrade-grid automation-grid ${hydrogenBurningUnlocked() ? '' : 'single-upgrade'}">${automationCard('accretion')}${hydrogenBurningUnlocked() ? automationCard('fusion') : ''}</div>`;
 }
 
 const tutorialSteps = [
-  { title: 'Materie akkretieren', text: 'Klicke auf den Stern. Ein Teil der Urwolke fällt ins Zentrum und erhöht Masse, Druck und Temperatur.', selector: '.star-button', trigger: 'accrete' },
+  { title: 'Materie einsammeln', text: 'Klicke auf den Stern. Ein Teil der Urwolke fällt ins Zentrum und erhöht Masse, Druck und Temperatur.', selector: '.star-button', trigger: 'accrete' },
   { title: 'Den Kern beobachten', text: 'Links siehst du Temperatur, Druck, Energie und Zusammensetzung. Diese Werte bestimmen, welche Reaktionen möglich sind.', selector: '.left-panel', trigger: 'next' },
+  { title: 'Energie aus Fusionen', text: 'Jede Fusion im Kern setzt Energie frei. Mit dieser Energie kannst du bestimmte Upgrades und Automationen freischalten.', selector: '.energy-metric', trigger: 'next' },
+  { title: 'Sternenstaub sammeln', text: 'Sternenstaub erhältst du am Ende eines stellaren Lebenszyklus. Nutze ihn für dauerhafte Vermächtnis-Upgrades und größere Urwolken.', selector: '.resource-chip', trigger: 'next' },
   { title: 'Sternsysteme steuern', text: 'Öffne einen der drei Tabs. Reaktionen treiben den Stern an, Upgrades verstärken ihn und Automationen übernehmen wiederkehrende Arbeit.', selector: '.side-tabs', trigger: 'panel' },
   { title: 'Entwicklung nachverfolgen', text: 'Öffne die Chronik. Sie zeigt Meilensteine und erklärt, was im Kern deines Sterns geschieht.', selector: '.chronicle-dock', trigger: 'open-chronicle' },
 ] as const;
@@ -294,7 +303,7 @@ function renderShell(): void {
     <header class="topbar">
       <a class="brand" href="#" aria-label="Cosmic Clicker Startseite"><span class="brand-mark">${icons.spark}</span><span><b>COSMIC</b><em>CLICKER</em></span></a>
       <div class="run-status"><b data-ui="run">ZYKLUS 01</b></div>
-      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>Wolkenwachstum</b><small><i data-ui="cloud-perk-name">Kleine Urwolke</i></small></div><div><b>Gravitatives Gedächtnis</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><div><b>Fusionsgedächtnis</b><small>Stufe <i data-ui="fusion-perk-level">0</i></small></div><p>Neue Stufen werden am Zyklusende gekauft.</p></div></div><div class="sound-menu"><button class="icon-button" data-action="toggle-sound-menu" aria-label="Audioeinstellungen öffnen" aria-expanded="false">${state.soundEnabled ? icons.sound : icons.soundOff}</button><div class="sound-popover"><div><span>Effektlautstärke</span><b data-ui="volume-label">35%</b></div><input data-action="set-volume" aria-label="Effektlautstärke" type="range" min="0" max="100" step="1" value="35"><button data-action="toggle-sound" data-ui="mute-label">Ton stummschalten</button></div></div><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
+      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Sternenstaub und aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>Wolkenwachstum</b><small><i data-ui="cloud-perk-name">Kleine Urwolke</i></small></div><div><b>Gravitatives Gedächtnis</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><div><b>Fusionsgedächtnis</b><small>Stufe <i data-ui="fusion-perk-level">0</i></small></div><p>Neue Stufen werden am Zyklusende gekauft.</p></div></div><div class="sound-menu"><button class="icon-button" data-action="toggle-sound-menu" aria-label="Audioeinstellungen öffnen" aria-expanded="false">${state.soundEnabled ? icons.sound : icons.soundOff}</button><div class="sound-popover"><div><span>Effektlautstärke</span><b data-ui="volume-label">35%</b></div><input data-action="set-volume" aria-label="Effektlautstärke" type="range" min="0" max="100" step="1" value="35"><button data-action="toggle-sound" data-ui="mute-label">Ton stummschalten</button></div></div><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
     </header>
 
     <main>
@@ -304,15 +313,15 @@ function renderShell(): void {
         <aside class="data-panel left-panel">
           <div class="panel-heading"><span class="index">01</span><div><small>Echtzeitdaten</small><h2>Stellarer Kern</h2></div></div>
           <div class="primary-reading"><span>Kerntemperatur</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>${formatTemperature(INITIAL_TEMPERATURE)}</span><span data-ui="temperature-max"></span></small></div>
-          <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric"><span>Energie</span><b data-ui="energy"></b><small>verfügbar</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
-          <div class="composition"><div class="section-label"><span>Kernzusammensetzung</span><small data-ui="core-total"></small></div>${MATTER_KEYS.map((key) => `<div class="composition-row" data-matter="${key}"><span class="element ${MATTER_META[key].className}">${MATTER_META[key].symbol}</span><div><b>${MATTER_META[key].label}</b><div class="mini-track"><i data-ui="${key}-bar"></i></div></div><strong data-ui="${key}-value"></strong></div>`).join('')}</div>
-          <div class="cloud-stats"><div class="section-label"><span data-ui="cloud-name">Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="cloud-elements">${MATTER_KEYS.map((key) => `<div data-cloud-matter="${key}"><span class="element ${MATTER_META[key].className}">${MATTER_META[key].symbol}</span><p><b>${MATTER_META[key].label}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
+          <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric energy-metric"><span>Energie</span><b data-ui="energy"></b><small>verfügbar</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
+          <div class="composition"><div class="section-label"><span>Kernzusammensetzung</span><small data-ui="core-total"></small></div>${DISPLAY_MATTER_KEYS.map((key) => `<div class="composition-row" data-matter="${key}"><span class="element ${MATTER_META[key].className}">${MATTER_META[key].symbol}</span><div><b>${MATTER_META[key].label}</b><div class="mini-track"><i data-ui="${key}-bar"></i></div></div><strong data-ui="${key}-value"></strong></div>`).join('')}</div>
+          <div class="cloud-stats"><div class="section-label"><span data-ui="cloud-name">Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="cloud-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-cloud-matter="${key}"><span class="element ${MATTER_META[key].className}">${MATTER_META[key].symbol}</span><p><b>${MATTER_META[key].label}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
         </aside>
 
         <section class="star-chamber">
           <div class="stage-label"><span data-ui="stage"></span><b data-ui="stage-detail"></b></div>
           <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">H</i>`).join('')}</div>
-          <button class="star-button" data-action="accrete" aria-label="Materie akkretieren"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
+          <button class="star-button" data-action="accrete" aria-label="Materie einsammeln"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
           <div class="click-callout"><span data-ui="click-yield"></span><small data-ui="click-detail"></small></div><div class="phase-dots">${Array.from({length:8},(_, index)=>`<i data-phase="${index}"></i>`).join('')}</div>
         </section>
 
@@ -359,16 +368,16 @@ function syncProgressButton(action: string, price: number, unlocked: boolean, is
 function syncActivePanel(): void {
   if (activePanel === 'reactions') syncReactionPanel();
   if (activePanel === 'upgrades') {
-    const hasDeuterium = state.star.deuterium > 0 || state.cloud.deuterium > 0;
-    const deuteriumUnlocked = hasDeuterium && state.star.deuterium > 0 && state.temperature >= THRESHOLDS.deuteriumTemperature && state.temperature < THRESHOLDS.hydrogenTemperature;
-    const deuteriumLabel = state.upgrades.deuteriumBurning ? 'Aktiv' : !hasDeuterium ? 'Kein Deuterium' : state.temperature >= THRESHOLDS.hydrogenTemperature ? 'Phase beendet' : deuteriumUnlocked ? 'Aktivieren' : 'Ab 1 Mio. K';
-    syncProgressButton('buy-deuterium', DEUTERIUM_UPGRADE_COST, deuteriumUnlocked, state.upgrades.deuteriumBurning, deuteriumLabel, deuteriumLabel);
+    const deuteriumUnlocked = deuteriumUpgradeUnlocked();
+    const deuteriumLabel = state.upgrades.deuteriumBurning ? 'Aktiv' : state.temperature >= THRESHOLDS.hydrogenTemperature ? 'Phase beendet' : deuteriumUnlocked ? 'Aktivieren' : 'Ab 1 Mio. K';
+    if (deuteriumUpgradeVisible()) syncProgressButton('buy-deuterium', DEUTERIUM_UPGRADE_COST, deuteriumUnlocked, state.upgrades.deuteriumBurning, deuteriumLabel, deuteriumLabel);
     syncProgressButton('buy-gravity', gravityCost(state.upgrades.gravity), true, state.upgrades.gravity >= LIMITS.gravity, 'Verdichten');
     setText('gravity-multiplier', `×${formatNumber(1 + state.upgrades.gravity * .55 + state.perks.permanentGravity * .12, 2)}`);
   }
   if (activePanel === 'automation') {
     syncProgressButton('buy-accretion', accretionCost(state.automation.accretion), starMass(state) >= THRESHOLDS.protostarMass, state.automation.accretion >= LIMITS.accretion, starMass(state) >= THRESHOLDS.protostarMass ? 'Ausbauen' : 'Noch instabil');
-    syncProgressButton('buy-fusion', fusionCost(state.automation.fusion), state.manualFusions >= 5, state.automation.fusion >= LIMITS.fusion, state.manualFusions >= 5 ? 'Ausbauen' : `${state.manualFusions}/5 Reaktionen`);
+    const heliumCreated = heliumCreatedByHydrogen();
+    if (hydrogenBurningUnlocked()) syncProgressButton('buy-fusion', fusionCost(state.automation.fusion), heliumCreated >= FUSION_AUTOMATION_HELIUM, state.automation.fusion >= LIMITS.fusion, heliumCreated >= FUSION_AUTOMATION_HELIUM ? 'Ausbauen' : `${formatCompact(heliumCreated)} / ${formatNumber(FUSION_AUTOMATION_HELIUM)} He`);
   }
 }
 
@@ -456,7 +465,7 @@ function syncOverlay(): void {
   if (introNeedsDecision) {
     if (overlaySignature === 'intro') return;
     overlaySignature = 'intro';
-    root.innerHTML = `<div class="modal-backdrop intro-backdrop"><section class="intro-modal" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-description"><div class="intro-brand"><span>COSMIC</span><b>CLICKER</b></div><small>DEIN KOSMISCHES EXPERIMENT</small><span class="intro-star">${icons.spark}</span><h2 id="intro-title">Entdecke das Schicksal der Sterne.</h2><p id="intro-description">Beginne mit einer kleinen Wolke aus kaltem Wasserstoff. Sammle Materie und finde heraus, warum nicht jede Wolke einen echten Stern zünden kann.</p><div class="intro-pillars"><div><b>01</b><span>Materie sammeln</span><small>Forme aus der Urwolke einen Protostern.</small></div><div><b>02</b><span>Massengrenzen entdecken</span><small>Die Masse bestimmt den möglichen Lebensweg.</small></div><div><b>03</b><span>Kosmos erweitern</span><small>Nutze Sternenstaub für größere Wolken.</small></div></div><div class="intro-actions"><button class="primary-action" data-action="start-intro-tutorial" aria-label="Tutorial starten"><span>Tutorial starten</span><small>Kurze geführte Tour</small></button><button class="intro-secondary" data-action="skip-intro-tutorial">Ohne Tutorial starten</button></div></section></div>`;
+    root.innerHTML = `<div class="modal-backdrop intro-backdrop"><section class="intro-modal" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-description"><div class="intro-brand"><span>COSMIC</span><b>CLICKER</b></div><small>DEIN KOSMISCHES EXPERIMENT</small><span class="intro-star">${icons.spark}</span><h2 id="intro-title">Entdecke das Schicksal der Sterne.</h2><p id="intro-description">Beginne mit einer kleinen Wolke aus kaltem Wasserstoff. Sammle Materie, forme einen Protostern und beobachte, welchen Entwicklungsweg die Physik ermöglicht.</p><div class="intro-pillars"><div><b>01</b><span>Materie sammeln</span><small>Forme aus der Urwolke einen Protostern.</small></div><div><b>02</b><span>Sternentwicklung verfolgen</span><small>Masse und Temperatur bestimmen den möglichen Lebensweg.</small></div><div><b>03</b><span>Kosmos erweitern</span><small>Nutze Sternenstaub für größere Wolken.</small></div></div><div class="intro-actions"><button class="primary-action" data-action="start-intro-tutorial" aria-label="Tutorial starten"><span>Tutorial starten</span><small>Kurze geführte Tour</small></button><button class="intro-secondary" data-action="skip-intro-tutorial">Ohne Tutorial starten</button></div></section></div>`;
     return;
   }
   if (objectiveNeedsAcknowledgement && !chronicleOpen && !statsOpen && !state.summaryOpen) {
@@ -649,10 +658,10 @@ function runDebugAction(action: string): void {
     state = createInitialState(perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 }, history: state.history, cloudTier: tier, nextCloudTier: tier, discoveredOutcomes: state.discoveredOutcomes });
   }
   if (action === 'energy') state.energy += 2_000;
-  if (action === 'protostar') moveDebugMatter(2_000);
+  if (action === 'protostar') moveDebugMatter(THRESHOLDS.protostarMass);
   if (action === 'deuterium') moveDebugMatter(8_000);
   if (action === 'hydrogen') { moveDebugMatter(34_000); state.energy = Math.max(state.energy, 1_000); state = tick(state, 0); }
-  if (action === 'fusion-ready') { moveDebugMatter(34_000); state.manualFusions = Math.max(5, state.manualFusions); state.energy = Math.max(state.energy, 2_000); state = tick(state, 0); }
+  if (action === 'fusion-ready') { moveDebugMatter(34_000); state.stats.hydrogenFused = Math.max(FUSION_AUTOMATION_HELIUM / HYDROGEN_TO_HELIUM_RATIO, state.stats.hydrogenFused); state.energy = Math.max(state.energy, 2_000); state = tick(state, 0); }
   if (action === 'main' || action === 'helium' || action === 'oxygen' || action === 'complete') {
     if (state.cloudTier === 0 && action !== 'complete') {
       state = createInitialState({ ...state.perks, largerCloud: Math.max(1, state.perks.largerCloud) }, state.stardust, Math.max(2, state.run), { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 }, history: state.history, cloudTier: 1, nextCloudTier: 1, discoveredOutcomes: state.discoveredOutcomes });
@@ -710,9 +719,9 @@ function updateUI(forcePanel = false): void {
   setText('mass', formatCompact(mass)); setText('pressure', formatNumber(pressureProgress(state), 1)); setText('energy', formatCompact(state.energy)); setText('accretion-rate', formatCompact(accretionPerSecond(state))); setText('core-total', `${formatCompact(mass)} ME`);
   MATTER_KEYS.forEach((key) => {
     const percent = matterPercent(state.star[key], starTotal);
-    setWidth(`${key}-bar`, key === 'deuterium' && state.star[key] > 0 ? Math.max(1, percent) : percent);
-    setText(`${key}-value`, key === 'deuterium' ? formatNumber(state.star[key], 1) : `${formatNumber(percent, 1)}%`);
-    setText(`cloud-${key}`, key === 'deuterium' ? formatNumber(state.cloud[key], 1) : formatCompact(state.cloud[key]));
+    setWidth(`${key}-bar`, percent);
+    setText(`${key}-value`, `${formatNumber(percent, 1)}%`);
+    setText(`cloud-${key}`, formatCompact(state.cloud[key]));
     const coreElement = app.querySelector<HTMLElement>(`[data-matter="${key}"]`);
     const cloudElement = app.querySelector<HTMLElement>(`[data-cloud-matter="${key}"]`);
     const lateElementVisible = key === 'carbon' ? ['helium', 'carbonOxygen', 'massiveStar', 'supernova', 'whiteDwarf', 'neutronStar', 'blackHole'].includes(state.stage) : key === 'oxygen' && ['carbonOxygen', 'massiveStar', 'supernova', 'whiteDwarf', 'neutronStar', 'blackHole'].includes(state.stage);
@@ -728,14 +737,14 @@ function updateUI(forcePanel = false): void {
   if (star) {
     star.className = `star-button stage-${state.stage}`;
     star.dataset.action = state.completed ? 'open-summary' : 'accrete';
-    star.ariaLabel = state.completed ? 'Zyklus-Zusammenfassung öffnen' : 'Materie akkretieren';
+    star.ariaLabel = state.completed ? 'Zyklus-Zusammenfassung öffnen' : 'Materie einsammeln';
     star.disabled = !state.completed && remaining <= 0;
   }
   const chamber = app.querySelector<HTMLElement>('.star-chamber');
   chamber?.style.setProperty('--star-scale', String(Math.min(1, Math.max(.1, mass / 70_000)))); chamber?.style.setProperty('--temp-scale', String(Math.min(1, state.temperature / THRESHOLDS.heliumTemperature)));
   chamber?.style.setProperty('--auto-accretion-duration', `${Math.max(1.45, 3.2 - state.automation.accretion * .2)}s`);
   chamber?.classList.toggle('has-auto-accretion', state.automation.accretion > 0 && !state.completed && remaining > 0);
-  setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Auf den Stern klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken zum Akkretieren');
+  setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Auf den Stern klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken, um Materie einzusammeln');
   app.querySelectorAll<HTMLElement>('[data-phase]').forEach((dot) => { const normalizedStage = nodes.length <= 1 ? 7 : Math.round(stageIndex / (nodes.length - 1) * 7); dot.classList.toggle('active', Number(dot.dataset.phase) <= normalizedStage); });
   const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatCompact(remaining)} ME`); setText('cloud-initial', `von ${formatCompact(initialCloud)} ME`); app.querySelector<HTMLElement>('.gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
   const soundButton = app.querySelector<HTMLButtonElement>('[data-action="toggle-sound-menu"]'); if (soundButton) { soundButton.innerHTML = state.soundEnabled ? icons.sound : icons.soundOff; soundButton.ariaLabel = 'Audioeinstellungen öffnen'; }

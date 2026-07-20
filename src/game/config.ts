@@ -13,8 +13,8 @@ export const CLOUD_TIERS: Record<CloudTier, CloudDefinition> = {
     tier: 0,
     name: 'Kleine Urwolke',
     shortName: 'Klein',
-    description: 'Reiner Wasserstoff; zu leicht für dauerhaftes Wasserstoffbrennen.',
-    matter: { hydrogen: 12_000, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    description: 'Eine kompakte Wasserstoffwolke mit noch unbekanntem Entwicklungsweg.',
+    matter: { hydrogen: 12_000, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
   },
   1: {
     tier: 1,
@@ -37,11 +37,15 @@ export const FIRST_CLOUD_BASE = CLOUD_TIERS[0].matter;
 export const CLOUD_BASE = CLOUD_TIERS[1].matter;
 
 export const INITIAL_TEMPERATURE = 10;
+export const ACCRETION_CLICK_BASE = 48;
+export const ACCRETION_SECOND_BASE = 17;
 export const DEUTERIUM_UPGRADE_COST = 75;
 export const DEUTERIUM_TEMPERATURE_MULTIPLIER = 1.35;
+export const FUSION_AUTOMATION_HELIUM = 5_000;
+export const HYDROGEN_TO_HELIUM_RATIO = .993;
 
 export const THRESHOLDS = {
-  protostarMass: 1_500,
+  protostarMass: 2_500,
   deuteriumTemperature: 1_000_000,
   hydrogenTemperature: 10_000_000,
   heliumTemperature: 100_000_000,

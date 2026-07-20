@@ -1,7 +1,11 @@
 import {
+  ACCRETION_CLICK_BASE,
+  ACCRETION_SECOND_BASE,
   CLOUD_TIERS,
   DEUTERIUM_TEMPERATURE_MULTIPLIER,
   DEUTERIUM_UPGRADE_COST,
+  FUSION_AUTOMATION_HELIUM,
+  HYDROGEN_TO_HELIUM_RATIO,
   INITIAL_TEMPERATURE,
   LIMITS,
   MATTER_KEYS,
@@ -39,9 +43,9 @@ export const gravityMultiplier = (state: GameState): number =>
   1 + state.upgrades.gravity * 0.55 + state.perks.permanentGravity * 0.12;
 
 export const stellarFusionMultiplier = (state: GameState): number => 1 + state.perks.fusionMemory * 0.15;
-export const accretionPerClick = (state: GameState): number => 120 * gravityMultiplier(state);
+export const accretionPerClick = (state: GameState): number => ACCRETION_CLICK_BASE * gravityMultiplier(state);
 export const accretionPerSecond = (state: GameState): number =>
-  state.automation.accretion * 42 * gravityMultiplier(state);
+  state.automation.accretion * ACCRETION_SECOND_BASE * gravityMultiplier(state);
 export const fusionPerSecond = (state: GameState): number =>
   state.automation.fusion * 64 * (1 + state.automation.fusion * 0.08) * stellarFusionMultiplier(state);
 
@@ -125,15 +129,15 @@ const transferMatter = (state: GameState, requested: number): number => {
 const updatePreFusionStage = (state: GameState): void => {
   if (state.completed || !['nebula', 'protostar', 'deuterium', 'hydrogen'].includes(state.stage)) return;
   state.temperature = calculateTemperature(state);
-  if (state.cloudTier > 0 && state.temperature >= THRESHOLDS.hydrogenTemperature) {
+  if (state.temperature >= THRESHOLDS.hydrogenTemperature) {
     setStage(state, 'hydrogen', '10 Mio. K: Dauerhaftes Wasserstoffbrennen ist möglich.');
     return;
   }
-  if (state.cloudTier > 0 && state.star.deuterium > 0 && state.temperature >= THRESHOLDS.deuteriumTemperature) {
+  if (state.temperature >= THRESHOLDS.deuteriumTemperature) {
     setStage(state, 'deuterium', '1 Mio. K: Deuteriumbrennen kann aktiviert werden.');
     return;
   }
-  if (starMass(state) >= THRESHOLDS.protostarMass) setStage(state, 'protostar', 'Gravitation formt einen Protostern.');
+  if (starMass(state) >= THRESHOLDS.protostarMass) setStage(state, 'protostar', '100.000 K: Gravitation formt einen Protostern.');
 };
 
 const addDiscovery = (state: GameState, outcome: StellarOutcome): void => {
@@ -162,14 +166,15 @@ const completeRun = (state: GameState, outcome: Exclude<StellarOutcome, 'legacyM
 };
 
 const completeBrownDwarfIfNeeded = (state: GameState): void => {
-  if (!state.completed && state.cloudTier === 0 && cloudMass(state) <= 0.001) completeRun(state, 'brownDwarf');
+  const ignitionFailed = ['nebula', 'protostar', 'deuterium'].includes(state.stage);
+  if (!state.completed && ignitionFailed && cloudMass(state) <= 0.001) completeRun(state, 'brownDwarf');
 };
 
 const fuseHydrogen = (state: GameState, requested: number): number => {
   if (state.stage !== 'hydrogen' || state.temperature < THRESHOLDS.hydrogenTemperature) return 0;
   const amount = Math.min(requested, state.star.hydrogen, THRESHOLDS.mainSequenceHydrogen - state.fusedHydrogen);
   if (amount <= 0) return 0;
-  const heliumCreated = amount * 0.993;
+  const heliumCreated = amount * HYDROGEN_TO_HELIUM_RATIO;
   state.star.hydrogen -= amount;
   state.star.helium += heliumCreated;
   state.radiatedMass += amount - heliumCreated;
@@ -392,7 +397,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
       break;
     }
     case 'BUY_DEUTERIUM': {
-      if (!next.upgrades.deuteriumBurning && next.star.deuterium > 0 && next.temperature >= THRESHOLDS.deuteriumTemperature && next.temperature < THRESHOLDS.hydrogenTemperature && next.energy >= DEUTERIUM_UPGRADE_COST) {
+      if (!next.upgrades.deuteriumBurning && starMass(next) >= THRESHOLDS.protostarMass && next.temperature >= THRESHOLDS.deuteriumTemperature && next.temperature < THRESHOLDS.hydrogenTemperature && next.energy >= DEUTERIUM_UPGRADE_COST) {
         next.energy -= DEUTERIUM_UPGRADE_COST;
         next.upgrades.deuteriumBurning = true;
         next.stats.deuteriumBurns += 1;
@@ -454,7 +459,8 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
     }
     case 'BUY_FUSION': {
       const cost = fusionCost(next.automation.fusion);
-      if (next.manualFusions >= 5 && next.energy >= cost && next.automation.fusion < LIMITS.fusion) {
+      const heliumCreated = next.stats.hydrogenFused * HYDROGEN_TO_HELIUM_RATIO;
+      if (heliumCreated >= FUSION_AUTOMATION_HELIUM && next.energy >= cost && next.automation.fusion < LIMITS.fusion) {
         next.energy -= cost;
         next.automation.fusion += 1;
         next.stats.automationsPurchased += 1;
@@ -482,15 +488,15 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
 
 export const objectiveFor = (state: GameState): { id: string; eyebrow: string; title: string; progress: number; detail: string } => {
   if (state.completed) return { id: 'review-cycle', eyebrow: 'Entwicklung abgeschlossen', title: 'Runde auswerten', progress: 100, detail: 'Investiere Sternenstaub, wähle eine Wolkengröße oder beginne den nächsten Zyklus.' };
-  if (state.cloudTier === 0) return {
-    id: 'discover-mass-limit', eyebrow: 'Erste Entdeckung', title: 'Die kleine Urwolke verdichten',
-    progress: Math.min(100, (1 - cloudMass(state) / totalMatter(CLOUD_TIERS[0].matter)) * 100),
-    detail: 'Akkretiere die gesamte Wolke und finde heraus, ob ihre Masse für Wasserstoffbrennen reicht.',
+  if (state.stage === 'nebula') return {
+    id: 'form-protostar', eyebrow: 'Erstes Ziel', title: 'Protostern bilden',
+    progress: Math.min(100, starMass(state) / THRESHOLDS.protostarMass * 100),
+    detail: 'Verdichte die Materie der Urwolke im Zentrum, bis ein Protostern entsteht.',
   };
   if (state.temperature < THRESHOLDS.deuteriumTemperature) return {
     id: 'heat-protostar', eyebrow: 'Nächstes Ziel', title: 'Protostern verdichten',
     progress: Math.min(100, state.temperature / THRESHOLDS.deuteriumTemperature * 100),
-    detail: 'Akkretiere Materie, bis der Kern 1 Mio. K erreicht.',
+    detail: 'Sammle weiter Materie, bis der Kern 1 Mio. K erreicht.',
   };
   if (state.temperature < THRESHOLDS.hydrogenTemperature && ['nebula', 'protostar', 'deuterium'].includes(state.stage)) return {
     id: 'ignite-hydrogen', eyebrow: 'Nächstes Ziel', title: 'Wasserstoffkern zünden',
