@@ -109,6 +109,9 @@ Festgelegte Progression:
 - Bestehende v0.1- bis v0.2-Spielstände werden auf das neue Zustandsmodell migriert. Abgeschlossene Runden bleiben in der Historie erhalten.
 - Die Verdichtung bis zum ersten Protostern benötigt ohne Upgrades ungefähr 50 bis 60 aktive Impulse. Die erste Brauner-Zwerg-Runde zielt auf etwa 7 bis 10 Minuten; vollständige stellare Runden auf etwa 20 bis 30 Minuten und werden durch Vermächtnis-Perks schneller.
 - „Stabiles Wasserstoffbrennen“ erscheint erst nach Freischaltung des Wasserstoffbrennens und wird nach 5.000 ME durch Fusion selbst erzeugtem Helium kaufbar.
+- Im Reaktionsbereich bleiben nur der aktuelle Prozess und die unmittelbar nächste, noch gesperrte Reaktion sichtbar. So kündigt sich nach dem Wasserstoffbrennen das Heliumbrennen und danach der Alpha-Einfang zur Sauerstoffbildung an.
+- Jede manuelle Kernreaktion erhält eine eigene Automation, die erst mit der zugehörigen Reaktion sichtbar wird. Stabiles Heliumbrennen wird nach 1.500 ME selbst erzeugtem Kohlenstoff, stabiler Alpha-Einfang nach 400 ME selbst erzeugtem Sauerstoff kaufbar.
+- Die Rundenzusammenfassung ist stets das einzige sichtbare Popup. Sie schließt andere Dialoge, Menüs, Tutorialhinweise, Toasts und Ziel-Banner; Perk-Änderungen erhalten auf kleinen Bildschirmen die aktuelle Scrollposition.
 - Die Temperaturskala folgt den markanten Stufen 100.000 K für den Protostern, 1 Mio. K für Deuteriumbrennen und 10 Mio. K für Wasserstoffbrennen.
 - Verfügbare Upgrades werden vor gesperrten oder bereits abgeschlossenen Upgrades angezeigt.
 - Ab dem Protostern trägt der Sternwind pro Minute 0,25 % der ursprünglichen Wolkenmasse ab, auch während des Offline-Fortschritts. Beim Einsetzen warnt das Achievement-Banner ausdrücklich vor dem unwiederbringlichen Materieverlust.

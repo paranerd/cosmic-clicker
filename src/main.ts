@@ -1,6 +1,6 @@
 import './styles.scss';
 import { playSound, type SoundEffect } from './audio';
-import { ACCRETION_CLICK_BASE, ACCRETION_SECOND_BASE, CLOUD_TIERS, DEUTERIUM_UPGRADE_COST, FUSION_AUTOMATION_HELIUM, HYDROGEN_TO_HELIUM_RATIO, INITIAL_TEMPERATURE, LIMITS, MATTER_KEYS, OUTCOME_LABELS, STAGE_LABELS, THRESHOLDS } from './game/config';
+import { ACCRETION_CLICK_BASE, ACCRETION_SECOND_BASE, CLOUD_TIERS, DEUTERIUM_UPGRADE_COST, FUSION_AUTOMATION_CARBON, FUSION_AUTOMATION_HELIUM, FUSION_AUTOMATION_OXYGEN, HELIUM_TO_CARBON_RATIO, HYDROGEN_TO_HELIUM_RATIO, INITIAL_TEMPERATURE, LIMITS, MATTER_KEYS, OUTCOME_LABELS, STAGE_LABELS, THRESHOLDS } from './game/config';
 import {
   accretionCost,
   accretionPerClick,
@@ -16,7 +16,11 @@ import {
   fusionPerSecond,
   gravityCost,
   gravityPerkCost,
+  heliumFusionCost,
+  heliumFusionPerSecond,
   objectiveFor,
+  oxygenSynthesisCost,
+  oxygenSynthesisPerSecond,
   pressureProgress,
   reduceGame,
   starMass,
@@ -29,6 +33,7 @@ import type { CloudTier, GameAction, Stage } from './game/types';
 
 type Panel = 'reactions' | 'upgrades' | 'automation';
 type ResetMode = 'run' | 'full';
+type AutomationKind = 'accretion' | 'fusion' | 'heliumFusion' | 'oxygenSynthesis';
 interface ToastMessage { id: number; text: string; leaving: boolean }
 type Objective = ReturnType<typeof objectiveFor>;
 interface AchievementMessage { completedObjective: string; next: Objective }
@@ -129,16 +134,20 @@ const DISPLAY_MATTER_KEYS = MATTER_KEYS.filter((key) => key !== 'deuterium');
 
 const hydrogenPast = (stage: Stage): boolean => !['nebula', 'protostar', 'deuterium', 'hydrogen'].includes(stage);
 const hydrogenBurningUnlocked = (): boolean => !['nebula', 'protostar', 'deuterium', 'brownDwarf'].includes(state.stage);
+const heliumBurningUnlocked = (): boolean => ['helium', 'carbonOxygen', 'massiveStar', 'supernova', 'whiteDwarf', 'neutronStar', 'blackHole'].includes(state.stage);
+const oxygenSynthesisUnlocked = (): boolean => ['carbonOxygen', 'massiveStar', 'supernova', 'whiteDwarf', 'neutronStar', 'blackHole'].includes(state.stage);
 const deuteriumUpgradeVisible = (): boolean => state.stage !== 'nebula';
 const deuteriumUpgradeUnlocked = (): boolean => starMass(state) >= THRESHOLDS.protostarMass
   && state.temperature >= THRESHOLDS.deuteriumTemperature
   && state.temperature < THRESHOLDS.hydrogenTemperature;
 const heliumCreatedByHydrogen = (): number => state.stats.hydrogenFused * HYDROGEN_TO_HELIUM_RATIO;
+const carbonCreatedByHelium = (): number => state.stats.heliumFused * HELIUM_TO_CARBON_RATIO;
 
 function currentOpportunities(): Record<Panel, string[]> {
   const reactions: string[] = [];
   const upgrades: string[] = [];
   const automation: string[] = [];
+  if (state.completed) return { reactions, upgrades, automation };
   if (!state.completed && state.stage === 'hydrogen' && state.star.hydrogen >= 200) {
     reactions.push('reaction:hydrogen');
   }
@@ -158,6 +167,12 @@ function currentOpportunities(): Record<Panel, string[]> {
   if (hydrogenBurningUnlocked() && state.automation.fusion < LIMITS.fusion && heliumCreatedByHydrogen() >= FUSION_AUTOMATION_HELIUM && state.energy >= fusionCost(state.automation.fusion)) {
     automation.push(`fusion:${state.automation.fusion}`);
   }
+  if (heliumBurningUnlocked() && state.automation.heliumFusion < LIMITS.heliumFusion && carbonCreatedByHelium() >= FUSION_AUTOMATION_CARBON && state.energy >= heliumFusionCost(state.automation.heliumFusion)) {
+    automation.push(`helium-fusion:${state.automation.heliumFusion}`);
+  }
+  if (oxygenSynthesisUnlocked() && state.automation.oxygenSynthesis < LIMITS.oxygenSynthesis && state.stats.oxygenCreated >= FUSION_AUTOMATION_OXYGEN && state.energy >= oxygenSynthesisCost(state.automation.oxygenSynthesis)) {
+    automation.push(`oxygen-synthesis:${state.automation.oxygenSynthesis}`);
+  }
   return { reactions, upgrades, automation };
 }
 
@@ -167,19 +182,20 @@ function renderReactionPanel(): string {
   const heliumAmount = Math.round(300 * multiplier);
   const canHydrogen = state.stage === 'hydrogen' && state.star.hydrogen >= hydrogenAmount;
   const hydrogenLabel = hydrogenPast(state.stage) ? 'Phase abgeschlossen' : state.temperature < THRESHOLDS.hydrogenTemperature ? 'Ab 10 Mio. K' : `${hydrogenAmount} H fusionieren`;
-  const heliumVisible = ['redGiant', 'helium', 'carbonOxygen', 'massiveStar', 'supernova', 'whiteDwarf', 'neutronStar', 'blackHole'].includes(state.stage);
+  const hydrogenVisible = ['nebula', 'protostar', 'deuterium', 'hydrogen', 'mainSequence', 'redGiant'].includes(state.stage);
+  const heliumVisible = ['hydrogen', 'mainSequence', 'redGiant', 'helium'].includes(state.stage);
   const canHelium = state.stage === 'helium' && state.star.helium >= heliumAmount;
-  const oxygenVisible = ['carbonOxygen', 'massiveStar', 'supernova', 'whiteDwarf', 'neutronStar', 'blackHole'].includes(state.stage);
+  const oxygenVisible = ['helium', 'carbonOxygen', 'massiveStar', 'supernova', 'whiteDwarf', 'neutronStar', 'blackHole'].includes(state.stage);
   const canOxygen = state.stage === 'carbonOxygen' && state.star.carbon >= 180 && state.star.helium >= 60 && state.stats.oxygenCreated < THRESHOLDS.oxygenCore;
   const evolution = evolutionActionFor(state);
   return `<div class="reaction-grid">
-    <div class="action-card ${canHydrogen ? 'is-ready' : ''}" data-card="fusion">
+    ${hydrogenVisible ? `<div class="action-card ${canHydrogen ? 'is-ready' : ''}" data-card="fusion">
       <div class="reaction-symbol hydrogen">H</div>
       <div class="action-copy"><span class="card-kicker">Kernfusion</span><h3>Wasserstoffbrennen</h3><p>Wasserstoff verschmilzt zu Helium. Ein kleiner Massendefekt wird zu Energie.</p><div class="reaction-equation"><span>4 H</span><b>→</b><span>He + γ</span></div></div>
       <button class="primary-action compact" data-action="fuse-hydrogen" ${disabled(!canHydrogen)}><span data-button-label>${hydrogenLabel}</span><small data-button-detail>${canHydrogen ? `+${formatCompact(hydrogenAmount * .34)} Energie` : ''}</small></button>
-    </div>
-    ${heliumVisible ? `<div class="action-card ${canHelium ? 'is-ready' : ''}" data-card="helium-fusion"><div class="reaction-symbol helium">He</div><div class="action-copy"><span class="card-kicker">Triple-Alpha</span><h3>Heliumbrennen</h3><p>Drei Heliumkerne verschmelzen bei etwa 100 Mio. K zu Kohlenstoff.</p><div class="reaction-equation"><span>3 He</span><b>→</b><span>C + γ</span></div></div><button class="primary-action compact" data-action="fuse-helium" ${disabled(!canHelium)}><span>${state.stage === 'helium' ? `${heliumAmount} He fusionieren` : hydrogenPast(state.stage) && state.stage !== 'redGiant' ? 'Phase abgeschlossen' : 'Heliumkern noch inaktiv'}</span><small>Bildet Kohlenstoff</small></button></div>` : ''}
-    ${oxygenVisible ? `<div class="action-card ${canOxygen ? 'is-ready' : ''}" data-card="oxygen-fusion"><div class="reaction-symbol oxygen">O</div><div class="action-copy"><span class="card-kicker">Alpha-Einfang</span><h3>Sauerstoff bilden</h3><p>Ein Kohlenstoffkern fängt Helium ein und wächst zu Sauerstoff.</p><div class="reaction-equation"><span>C + He</span><b>→</b><span>O + γ</span></div></div><button class="primary-action compact" data-action="create-oxygen" ${disabled(!canOxygen)}><span>${state.stats.oxygenCreated >= THRESHOLDS.oxygenCore ? 'C/O-Kern vollständig' : 'Sauerstoff erzeugen'}</span><small>${formatCompact(state.stats.oxygenCreated)} / ${formatCompact(THRESHOLDS.oxygenCore)} O</small></button></div>` : ''}
+    </div>` : ''}
+    ${heliumVisible ? `<div class="action-card ${canHelium ? 'is-ready' : ''}" data-card="helium-fusion"><div class="reaction-symbol helium">He</div><div class="action-copy"><span class="card-kicker">Triple-Alpha</span><h3>Heliumbrennen</h3><p>Drei Heliumkerne verschmelzen bei etwa 100 Mio. K zu Kohlenstoff.</p><div class="reaction-equation"><span>3 He</span><b>→</b><span>C + γ</span></div></div><button class="primary-action compact" data-action="fuse-helium" ${disabled(!canHelium)}><span>${state.stage === 'helium' ? `${heliumAmount} He fusionieren` : ['hydrogen', 'mainSequence'].includes(state.stage) ? 'Später ab 100 Mio. K' : 'Heliumkern noch inaktiv'}</span><small>Bildet Kohlenstoff</small></button></div>` : ''}
+    ${oxygenVisible ? `<div class="action-card ${canOxygen ? 'is-ready' : ''}" data-card="oxygen-fusion"><div class="reaction-symbol oxygen">O</div><div class="action-copy"><span class="card-kicker">Alpha-Einfang</span><h3>Sauerstoff bilden</h3><p>Ein Kohlenstoffkern fängt Helium ein und wächst zu Sauerstoff.</p><div class="reaction-equation"><span>C + He</span><b>→</b><span>O + γ</span></div></div><button class="primary-action compact" data-action="create-oxygen" ${disabled(!canOxygen)}><span>${state.stage === 'helium' ? 'Nach dem Heliumbrennen' : state.stats.oxygenCreated >= THRESHOLDS.oxygenCore ? 'C/O-Kern vollständig' : state.stage === 'carbonOxygen' ? 'Sauerstoff erzeugen' : 'Phase abgeschlossen'}</span><small>${formatCompact(state.stats.oxygenCreated)} / ${formatCompact(THRESHOLDS.oxygenCore)} O</small></button></div>` : ''}
     ${evolution ? `<div class="action-card evolution-action ${evolution.available ? 'is-ready' : ''}" data-card="evolution"><div class="reaction-symbol evolution">✦</div><div class="action-copy"><span class="card-kicker">Stellare Entwicklung</span><h3>${evolution.label}</h3><p>${evolution.detail}</p></div><button class="primary-action compact" data-action="advance-evolution" ${disabled(!evolution.available)}><span>Entwicklung fortsetzen</span><small>${STAGE_LABELS[state.stage]}</small></button></div>` : ''}
   </div>`;
 }
@@ -209,27 +225,26 @@ function upgradeCard(): string {
     </article>`;
 }
 
-function automationCard(kind: 'accretion' | 'fusion'): string {
-  const isAccretion = kind === 'accretion';
-  const level = state.automation[kind];
-  const max = isAccretion ? LIMITS.accretion : LIMITS.fusion;
-  const price = isAccretion ? accretionCost(level) : fusionCost(level);
-  const heliumCreated = heliumCreatedByHydrogen();
-  const unlocked = isAccretion ? starMass(state) >= THRESHOLDS.protostarMass : heliumCreated >= FUSION_AUTOMATION_HELIUM;
+function automationView(kind: AutomationKind) {
+  if (kind === 'accretion') return { level: state.automation.accretion, max: LIMITS.accretion, price: accretionCost(state.automation.accretion), unlocked: starMass(state) >= THRESHOLDS.protostarMass, lockedLabel: 'Protostern erforderlich', title: 'Akkretionsstrom', icon: 'A', description: 'Zieht kontinuierlich Materie aus der Wolke. Benötigt einen ausgebildeten Protostern.', unit: 'ME/s', action: 'buy-accretion', rateAt: (level: number) => level * ACCRETION_SECOND_BASE * (accretionPerClick(state) / ACCRETION_CLICK_BASE) };
+  if (kind === 'fusion') return { level: state.automation.fusion, max: LIMITS.fusion, price: fusionCost(state.automation.fusion), unlocked: heliumCreatedByHydrogen() >= FUSION_AUTOMATION_HELIUM, lockedLabel: `${formatCompact(heliumCreatedByHydrogen())} / ${formatNumber(FUSION_AUTOMATION_HELIUM)} He`, title: 'Stabiles Wasserstoffbrennen', icon: 'H', description: `Fusioniert Wasserstoff automatisch. Wird nach ${formatNumber(FUSION_AUTOMATION_HELIUM)} ME selbst erzeugtem Helium verfügbar.`, unit: 'H/s', action: 'buy-fusion', rateAt: (level: number) => level * 64 * (1 + level * .08) * stellarFusionMultiplier(state) };
+  if (kind === 'heliumFusion') return { level: state.automation.heliumFusion, max: LIMITS.heliumFusion, price: heliumFusionCost(state.automation.heliumFusion), unlocked: carbonCreatedByHelium() >= FUSION_AUTOMATION_CARBON, lockedLabel: `${formatCompact(carbonCreatedByHelium())} / ${formatNumber(FUSION_AUTOMATION_CARBON)} C`, title: 'Stabiles Heliumbrennen', icon: 'He', description: `Verschmilzt Helium automatisch. Wird nach ${formatNumber(FUSION_AUTOMATION_CARBON)} ME selbst erzeugtem Kohlenstoff verfügbar.`, unit: 'He/s', action: 'buy-helium-fusion', rateAt: (level: number) => heliumFusionPerSecond({ ...state, automation: { ...state.automation, heliumFusion: level } }) };
+  return { level: state.automation.oxygenSynthesis, max: LIMITS.oxygenSynthesis, price: oxygenSynthesisCost(state.automation.oxygenSynthesis), unlocked: state.stats.oxygenCreated >= FUSION_AUTOMATION_OXYGEN, lockedLabel: `${formatCompact(state.stats.oxygenCreated)} / ${formatNumber(FUSION_AUTOMATION_OXYGEN)} O`, title: 'Stabiler Alpha-Einfang', icon: 'O', description: `Bildet Sauerstoff automatisch. Wird nach ${formatNumber(FUSION_AUTOMATION_OXYGEN)} ME selbst erzeugtem Sauerstoff verfügbar.`, unit: 'O/s', action: 'buy-oxygen-synthesis', rateAt: (level: number) => oxygenSynthesisPerSecond({ ...state, automation: { ...state.automation, oxygenSynthesis: level } }) };
+}
+
+function automationCard(kind: AutomationKind): string {
+  const view = automationView(kind);
+  const { level, max, price, unlocked } = view;
   const isMax = level >= max;
-  const label = isMax ? 'Maximum' : !unlocked ? (isAccretion ? 'Protostern erforderlich' : `${formatCompact(heliumCreated)} / ${formatNumber(FUSION_AUTOMATION_HELIUM)} He`) : 'Ausbauen';
-  const rateAt = (targetLevel: number) => isAccretion
-    ? targetLevel * ACCRETION_SECOND_BASE * (accretionPerClick(state) / ACCRETION_CLICK_BASE)
-    : targetLevel * 64 * (1 + targetLevel * .08) * stellarFusionMultiplier(state);
-  const currentRate = rateAt(level);
-  const nextGain = rateAt(Math.min(max, level + 1)) - currentRate;
-  const unit = isAccretion ? 'ME/s' : 'H/s';
+  const label = isMax ? 'Maximum' : unlocked ? 'Ausbauen' : view.lockedLabel;
+  const currentRate = view.rateAt(level);
+  const nextGain = view.rateAt(Math.min(max, level + 1)) - currentRate;
   return `
     <article class="upgrade-card" data-automation-card="${kind}">
-      <div class="upgrade-heading"><span class="upgrade-icon">${isAccretion ? 'A' : 'H'}</span><h3>${isAccretion ? 'Akkretionsstrom' : 'Stabiles Wasserstoffbrennen'} <b>${formatCompact(currentRate)} ${unit}</b></h3></div>
-      <p>${isAccretion ? 'Zieht kontinuierlich Materie aus der Wolke. Benötigt einen ausgebildeten Protostern.' : `Fusioniert Wasserstoff automatisch. Wird nach ${formatNumber(FUSION_AUTOMATION_HELIUM)} ME selbst erzeugtem Helium verfügbar.`}<strong>${isMax ? 'Maximum erreicht' : `Nächste Stufe: +${formatCompact(nextGain)} ${unit}`}</strong></p>
+      <div class="upgrade-heading"><span class="upgrade-icon">${view.icon}</span><h3>${view.title} <b>${formatCompact(currentRate)} ${view.unit}</b></h3></div>
+      <p>${view.description}<strong>${isMax ? 'Maximum erreicht' : `Nächste Stufe: +${formatCompact(nextGain)} ${view.unit}`}</strong></p>
       <div class="level-row">${levelPips(level, max)}</div>
-      <button class="${isMax ? 'terminal-button' : 'progress-button'}" data-action="${isAccretion ? 'buy-accretion' : 'buy-fusion'}" ${isMax ? '' : `style="--button-progress:${progress(state.energy, price, unlocked)}%"`} ${disabled(state.energy < price || !unlocked || isMax)}>${isMax ? '' : '<i></i>'}<span data-button-label>${label}</span><b data-button-cost>${isMax ? '—' : `${price} E`}</b></button>
+      <button class="${isMax ? 'terminal-button' : 'progress-button'}" data-action="${view.action}" ${isMax ? '' : `style="--button-progress:${progress(state.energy, price, unlocked)}%"`} ${disabled(state.energy < price || !unlocked || isMax)}>${isMax ? '' : '<i></i>'}<span data-button-label>${label}</span><b data-button-cost>${isMax ? '—' : `${price} E`}</b></button>
     </article>`;
 }
 
@@ -288,7 +303,11 @@ function panelMarkup(panel: Panel): string {
     const cards = orderedUpgradeCards();
     return `<div class="upgrade-grid ${cards.length === 1 ? 'single-upgrade' : ''}">${cards.map((card) => card.markup).join('')}</div>`;
   }
-  return `<div class="upgrade-grid automation-grid ${hydrogenBurningUnlocked() ? '' : 'single-upgrade'}">${automationCard('accretion')}${hydrogenBurningUnlocked() ? automationCard('fusion') : ''}</div>`;
+  const automations: AutomationKind[] = ['accretion'];
+  if (hydrogenBurningUnlocked()) automations.push('fusion');
+  if (heliumBurningUnlocked()) automations.push('heliumFusion');
+  if (oxygenSynthesisUnlocked()) automations.push('oxygenSynthesis');
+  return `<div class="upgrade-grid automation-grid ${automations.length === 1 ? 'single-upgrade' : ''}">${automations.map(automationCard).join('')}</div>`;
 }
 
 const tutorialSteps = [
@@ -402,9 +421,14 @@ function syncActivePanel(): void {
     setText('gravity-multiplier', `×${formatNumber(1 + state.upgrades.gravity * .55 + state.perks.permanentGravity * .12, 2)}`);
   }
   if (activePanel === 'automation') {
-    syncProgressButton('buy-accretion', accretionCost(state.automation.accretion), starMass(state) >= THRESHOLDS.protostarMass, state.automation.accretion >= LIMITS.accretion, starMass(state) >= THRESHOLDS.protostarMass ? 'Ausbauen' : 'Protostern erforderlich');
-    const heliumCreated = heliumCreatedByHydrogen();
-    if (hydrogenBurningUnlocked()) syncProgressButton('buy-fusion', fusionCost(state.automation.fusion), heliumCreated >= FUSION_AUTOMATION_HELIUM, state.automation.fusion >= LIMITS.fusion, heliumCreated >= FUSION_AUTOMATION_HELIUM ? 'Ausbauen' : `${formatCompact(heliumCreated)} / ${formatNumber(FUSION_AUTOMATION_HELIUM)} He`);
+    const visibleAutomations: AutomationKind[] = ['accretion'];
+    if (hydrogenBurningUnlocked()) visibleAutomations.push('fusion');
+    if (heliumBurningUnlocked()) visibleAutomations.push('heliumFusion');
+    if (oxygenSynthesisUnlocked()) visibleAutomations.push('oxygenSynthesis');
+    visibleAutomations.forEach((kind) => {
+      const view = automationView(kind);
+      syncProgressButton(view.action, view.price, view.unlocked, view.level >= view.max, view.unlocked ? 'Ausbauen' : view.lockedLabel);
+    });
   }
 }
 
@@ -511,6 +535,12 @@ function syncOverlay(): void {
   }
   const signature = `summary:${state.stardust}:${state.perks.largerCloud}:${state.perks.permanentGravity}:${state.perks.fusionMemory}:${state.pendingPerks.largerCloud}:${state.pendingPerks.permanentGravity}:${state.pendingPerks.fusionMemory}:${state.nextCloudTier}:${state.outcome}`;
   if (signature === overlaySignature) return;
+  const previousSummary = root.querySelector<HTMLElement>('.summary-modal');
+  const previousSummaryScroll = previousSummary?.scrollTop ?? 0;
+  const previousPageScroll = window.scrollY;
+  const previousAction = previousSummary?.contains(document.activeElement)
+    ? (document.activeElement as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action
+    : undefined;
   overlaySignature = signature;
   const previewPerks = effectivePerks(state);
   const cloudCost = cloudTierCost(previewPerks.largerCloud);
@@ -549,6 +579,17 @@ function syncOverlay(): void {
       <div class="summary-actions"><button class="primary-action" data-action="prestige">Mit ${CLOUD_TIERS[state.nextCloudTier].name} beginnen</button><button class="text-action" data-action="close-summary">Später entscheiden</button></div>
     </section>
   </div>`;
+  if (previousSummary) {
+    const restoredSummary = root.querySelector<HTMLElement>('.summary-modal');
+    const restoreScrollPosition = () => {
+      if (!restoredSummary?.isConnected) return;
+      restoredSummary.scrollTop = previousSummaryScroll;
+      window.scrollTo(window.scrollX, previousPageScroll);
+    };
+    restoreScrollPosition();
+    if (previousAction) root.querySelector<HTMLElement>(`[data-action="${previousAction}"]`)?.focus({ preventScroll: true });
+    window.requestAnimationFrame(restoreScrollPosition);
+  }
   summaryAttentionRun = state.run;
 }
 
@@ -713,9 +754,9 @@ function syncTutorial(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="tutorial-root"]');
   if (!root) return;
   app.querySelectorAll('.tutorial-focus').forEach((element) => element.classList.remove('tutorial-focus'));
-  if (!state.tutorial.introSeen || state.tutorial.completed) {
+  if (state.summaryOpen || !state.tutorial.introSeen || state.tutorial.completed) {
     if (root.innerHTML) root.innerHTML = '';
-    tutorialSignature = state.tutorial.introSeen ? 'completed' : 'waiting-for-intro';
+    tutorialSignature = state.summaryOpen ? 'hidden-by-summary' : state.tutorial.introSeen ? 'completed' : 'waiting-for-intro';
     return;
   }
   const step = tutorialSteps[state.tutorial.step] ?? tutorialSteps[0];
@@ -881,12 +922,12 @@ function dispatch(action: GameAction): void {
   const wasCompleted = state.completed;
   state = reduceGame(state, action);
   saveGame(state);
-  if (['BUY_DEUTERIUM', 'BUY_GRAVITY', 'BUY_ACCRETION', 'BUY_FUSION', 'BUY_PERK'].includes(action.type)) switchPanel(activePanel, false);
-  updateUI(true);
   if (!wasCompleted && state.completed) {
-    clearPrestigeConfirmation();
+    makeSummaryExclusive();
     playSound('complete', state.soundEnabled, state.volume);
   }
+  if (['BUY_DEUTERIUM', 'BUY_GRAVITY', 'BUY_ACCRETION', 'BUY_FUSION', 'BUY_HELIUM_FUSION', 'BUY_OXYGEN_SYNTHESIS', 'BUY_PERK'].includes(action.type)) switchPanel(activePanel, false);
+  updateUI(true);
 }
 
 function hasAffordableSummaryPerk(): boolean {
@@ -948,6 +989,21 @@ function dismissToast(id: number): void {
 
 function clearToasts(): void {
   toastTimers.forEach((timer) => window.clearTimeout(timer)); toastTimers.clear(); toastMessages = []; syncToast();
+}
+
+function makeSummaryExclusive(): void {
+  chronicleOpen = false;
+  statsOpen = false;
+  debugOpen = false;
+  overlaySignature = '';
+  tutorialSignature = '';
+  clearAchievements();
+  clearToasts();
+  clearPrestigeConfirmation();
+  closeResetMenu();
+  setPerksOpen(false);
+  setSoundMenuOpen(false);
+  syncDebug();
 }
 
 function exportSave(): void {
@@ -1014,7 +1070,7 @@ function playAccretionFeedback(event: MouseEvent): void {
 }
 
 function playActionFeedback(action: string, event: MouseEvent): void {
-  const sounds: Partial<Record<string, SoundEffect>> = { accrete: 'accrete', 'buy-deuterium': 'deuterium', 'fuse-hydrogen': 'fusion', 'fuse-helium': 'fusion', 'create-oxygen': 'fusion', 'advance-evolution': 'unlock', 'buy-gravity': 'purchase', 'buy-accretion': 'purchase', 'buy-fusion': 'purchase', 'buy-perk-cloud': 'purchase', 'buy-perk-gravity': 'purchase', 'buy-perk-fusion': 'purchase' };
+  const sounds: Partial<Record<string, SoundEffect>> = { accrete: 'accrete', 'buy-deuterium': 'deuterium', 'fuse-hydrogen': 'fusion', 'fuse-helium': 'fusion', 'create-oxygen': 'fusion', 'advance-evolution': 'unlock', 'buy-gravity': 'purchase', 'buy-accretion': 'purchase', 'buy-fusion': 'purchase', 'buy-helium-fusion': 'purchase', 'buy-oxygen-synthesis': 'purchase', 'buy-perk-cloud': 'purchase', 'buy-perk-gravity': 'purchase', 'buy-perk-fusion': 'purchase' };
   if (sounds[action]) playSound(sounds[action], state.soundEnabled, state.volume);
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (action === 'accrete') playAccretionFeedback(event);
@@ -1068,7 +1124,7 @@ app.addEventListener('click', (event) => {
   if (action === 'close-stats') { statsOpen = false; overlaySignature = ''; syncOverlay(); return; }
   if (action === 'open-chronicle') { chronicleOpen = true; statsOpen = false; overlaySignature = ''; syncOverlay(); advanceTutorial('open-chronicle'); return; }
   if (action === 'close-chronicle') { chronicleOpen = false; overlaySignature = ''; syncOverlay(); return; }
-  if (action === 'open-summary') { clearPrestigeConfirmation(); overlaySignature = ''; dispatch({ type: 'OPEN_SUMMARY' }); return; }
+  if (action === 'open-summary') { makeSummaryExclusive(); dispatch({ type: 'OPEN_SUMMARY' }); return; }
   if (action === 'close-summary') { clearPrestigeConfirmation(); dispatch({ type: 'CLOSE_SUMMARY' }); return; }
   if (action === 'prestige') {
     if (!hasPendingPerks() && hasAffordableSummaryPerk() && !prestigeConfirmationArmed) { armPrestigeConfirmation(); return; }
@@ -1080,7 +1136,7 @@ app.addEventListener('click', (event) => {
   if (action.startsWith('select-cloud-')) { clearPrestigeConfirmation(); dispatch({ type: 'SELECT_CLOUD_TIER', tier: Number(action.slice(-1)) as CloudTier }); return; }
   if (action.startsWith('buy-perk-') || action.startsWith('remove-perk-')) clearPrestigeConfirmation();
   const actions: Record<string, GameAction> = {
-    accrete: { type: 'ACCRETE' }, 'fuse-hydrogen': { type: 'FUSE_HYDROGEN' }, 'fuse-helium': { type: 'FUSE_HELIUM' }, 'create-oxygen': { type: 'CREATE_OXYGEN' }, 'advance-evolution': { type: 'ADVANCE_EVOLUTION' }, 'buy-deuterium': { type: 'BUY_DEUTERIUM' }, 'buy-gravity': { type: 'BUY_GRAVITY' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-fusion': { type: 'BUY_FUSION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, 'buy-perk-fusion': { type: 'BUY_PERK', perk: 'fusionMemory' }, 'remove-perk-cloud': { type: 'REMOVE_PERK', perk: 'largerCloud' }, 'remove-perk-gravity': { type: 'REMOVE_PERK', perk: 'permanentGravity' }, 'remove-perk-fusion': { type: 'REMOVE_PERK', perk: 'fusionMemory' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
+    accrete: { type: 'ACCRETE' }, 'fuse-hydrogen': { type: 'FUSE_HYDROGEN' }, 'fuse-helium': { type: 'FUSE_HELIUM' }, 'create-oxygen': { type: 'CREATE_OXYGEN' }, 'advance-evolution': { type: 'ADVANCE_EVOLUTION' }, 'buy-deuterium': { type: 'BUY_DEUTERIUM' }, 'buy-gravity': { type: 'BUY_GRAVITY' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-fusion': { type: 'BUY_FUSION' }, 'buy-helium-fusion': { type: 'BUY_HELIUM_FUSION' }, 'buy-oxygen-synthesis': { type: 'BUY_OXYGEN_SYNTHESIS' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, 'buy-perk-fusion': { type: 'BUY_PERK', perk: 'fusionMemory' }, 'remove-perk-cloud': { type: 'REMOVE_PERK', perk: 'largerCloud' }, 'remove-perk-gravity': { type: 'REMOVE_PERK', perk: 'permanentGravity' }, 'remove-perk-fusion': { type: 'REMOVE_PERK', perk: 'fusionMemory' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
   };
   if (actions[action]) { dispatch(actions[action]); playActionFeedback(action, event as MouseEvent); if (action === 'accrete') advanceTutorial('accrete'); }
   if (action === 'export') exportSave();
@@ -1115,7 +1171,14 @@ function frame(now: number): void {
   if (now - lastUiUpdate > 100) {
     const delta = Math.min(1, (now - lastFrame) / 1_000);
     lastFrame = now;
-    if (state.tutorial.introSeen) state = tick(state, delta);
+    if (state.tutorial.introSeen) {
+      const wasCompleted = state.completed;
+      state = tick(state, delta);
+      if (!wasCompleted && state.completed) {
+        makeSummaryExclusive();
+        playSound('complete', state.soundEnabled, state.volume);
+      }
+    }
     updateUI();
     lastUiUpdate = now;
   }

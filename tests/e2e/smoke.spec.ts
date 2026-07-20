@@ -310,7 +310,7 @@ test('round statistics reflect gameplay and production exposes no debug function
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
   await page.getByRole('button', { name: 'Statistik öffnen' }).click();
   const stats = page.getByRole('dialog', { name: /Statistik/ });
-  await expect(stats).toContainText('Manuelle Klicks');
+  await expect(stats).toContainText('Eingesammelte Materie');
   await expect(stats).toContainText('48 ME');
   const closeButton = page.getByRole('button', { name: 'Statistik schließen' });
   const originalCloseButton = await closeButton.elementHandle();
@@ -434,12 +434,41 @@ test('stable hydrogen burning is hidden before ignition and then tracks created 
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
   });
   await gotoGame(page);
+  await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sauerstoff bilden' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Automationen 1' }).click();
 
   const fusionAutomation = page.locator('[data-automation-card="fusion"]');
   await expect(fusionAutomation).toBeVisible();
   await expect(fusionAutomation).toContainText('0 / 5.000 He');
   await expect(fusionAutomation).not.toContainText('Reaktionen');
+  await expect(page.locator('[data-automation-card="heliumFusion"]')).toHaveCount(0);
+});
+
+test('helium burning previews oxygen and reveals only its matching new automation', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, run: 2, stage: 'helium', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 10_000, helium: 4_000, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 20_000, helium: 8_000, deuterium: 30, carbon: 1_000, oxygen: 0 },
+    temperature: 100_000_000, fusedHydrogen: 15_000, fusedHelium: 1_000,
+    energy: 1_000, stats: { hydrogenFused: 15_000, heliumFused: 1_000, oxygenCreated: 0 },
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sauerstoff bilden' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Nach dem Heliumbrennen/ })).toBeDisabled();
+
+  await page.getByRole('tab', { name: /Automationen/ }).click();
+  await expect(page.locator('[data-automation-card="fusion"]')).toBeVisible();
+  const heliumAutomation = page.locator('[data-automation-card="heliumFusion"]');
+  await expect(heliumAutomation).toBeVisible();
+  await expect(heliumAutomation).toContainText('998 / 1.500 C');
+  await expect(page.locator('[data-automation-card="oxygenSynthesis"]')).toHaveCount(0);
 });
 
 test('terminal upgrades no longer render a purchase progress bar', async ({ page }) => {
@@ -531,6 +560,32 @@ test('restart uses an inline confirmation instead of a browser dialog', async ({
   await expect(page.getByText('Ein neuer Kosmos beginnt.')).toHaveCount(0);
 });
 
+test('cycle completion closes every competing popup and hint', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, stage: 'deuterium', cloudTier: 0, nextCloudTier: 0,
+    cloud: { hydrogen: 48, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 11_952, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
+    temperature: 6_000_000,
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Tutorial starten' }).click();
+  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toBeVisible();
+  await page.getByRole('button', { name: 'Statistik öffnen' }).evaluate((button: HTMLButtonElement) => button.click());
+  await expect(page.getByRole('dialog', { name: /Statistik/ })).toBeVisible();
+  await page.locator('[data-ui="achievement-root"]').evaluate((root) => { root.innerHTML = '<aside class="achievement-banner is-visible">Alter Zielhinweis</aside>'; });
+
+  await page.getByRole('button', { name: 'Materie einsammeln' }).evaluate((button: HTMLButtonElement) => button.click());
+
+  const summary = page.getByRole('dialog', { name: 'Eine Massengrenze wird sichtbar.' });
+  await expect(summary).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toHaveCount(0);
+  await expect(page.locator('.achievement-banner')).toHaveCount(0);
+  await expect(page.locator('.toast')).toHaveCount(0);
+});
+
 test('cycle summary offers v0.3 perks and cloud selection before the next run', async ({ page }) => {
   await page.addInitScript(() => {
     const now = Date.now();
@@ -612,6 +667,32 @@ test('multiple perk levels can be staged and deselected before prestige', async 
   await expect(page.locator('[data-ui="cloud-name"]')).toHaveText('Stellare Urwolke');
 });
 
+test('perk changes preserve the summary scroll position on a small screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 700 });
+  await seedLegacyGame(page, {
+    version: 4, stage: 'brownDwarf', cloudTier: 0, nextCloudTier: 0,
+    cloud: { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 12_000, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    completed: true, outcome: 'brownDwarf', discoveredOutcomes: ['brownDwarf'], summaryOpen: true,
+    stardust: 7, perks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+    stats: { stardustEarned: 7 }, seenObjectives: [],
+  });
+  await page.goto('/');
+
+  const summary = page.locator('.summary-modal');
+  const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenwachstum' });
+  await cloudPerk.getByRole('button', { name: '+2 ✦' }).scrollIntoViewIfNeeded();
+  const beforeSelection = await summary.evaluate((element) => element.scrollTop);
+  expect(beforeSelection).toBeGreaterThan(0);
+  await cloudPerk.getByRole('button', { name: '+2 ✦' }).click();
+  await expect.poll(() => summary.evaluate((element) => element.scrollTop)).toBeCloseTo(beforeSelection, 0);
+
+  const beforeRemoval = await summary.evaluate((element) => element.scrollTop);
+  await cloudPerk.getByRole('button', { name: 'Wolkenwachstum abwählen' }).click();
+  await expect.poll(() => summary.evaluate((element) => element.scrollTop)).toBeCloseTo(beforeRemoval, 0);
+});
+
 test('the first brown dwarf reward unlocks the stellar cloud for cycle two', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, stage: 'brownDwarf', cloudTier: 0, nextCloudTier: 0,
@@ -649,8 +730,14 @@ test('carbon and oxygen reactions appear during the advanced stellar path', asyn
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'Sauerstoff bilden', level: 3 })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Sauerstoff erzeugen 0 / 1200 O' }).click();
   await expect(page.locator('[data-matter="oxygen"]')).toBeVisible();
   await expect(page.locator('[data-ui="oxygen-value"]')).not.toHaveText('0%');
+
+  await page.getByRole('tab', { name: /Automationen/ }).click();
+  await expect(page.locator('[data-automation-card="fusion"]')).toBeVisible();
+  await expect(page.locator('[data-automation-card="heliumFusion"]')).toBeVisible();
+  await expect(page.locator('[data-automation-card="oxygenSynthesis"]')).toBeVisible();
 });

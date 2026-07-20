@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLOUD_TIERS, FUSION_AUTOMATION_HELIUM, HYDROGEN_TO_HELIUM_RATIO, INITIAL_TEMPERATURE, THRESHOLDS } from '../src/game/config';
+import { CLOUD_TIERS, FUSION_AUTOMATION_CARBON, FUSION_AUTOMATION_HELIUM, FUSION_AUTOMATION_OXYGEN, HELIUM_TO_CARBON_RATIO, HYDROGEN_TO_HELIUM_RATIO, INITIAL_TEMPERATURE, THRESHOLDS } from '../src/game/config';
 import { accretionPerClick, cloudMass, createInitialState, objectiveFor, reduceGame, starMass, tick } from '../src/game/engine';
 import type { GameState } from '../src/game/types';
 
@@ -200,6 +200,37 @@ describe('stellar engine v0.3', () => {
     }
     state = reduceGame(state, { type: 'BUY_FUSION' });
     expect(state.automation.fusion).toBe(1);
+  });
+
+  it('unlocks later fusion automations only after their manual reactions and mastery thresholds', () => {
+    let helium = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
+    helium.energy = 10_000;
+    helium.stats.heliumFused = FUSION_AUTOMATION_CARBON / HELIUM_TO_CARBON_RATIO;
+    helium.stage = 'redGiant';
+    expect(reduceGame(helium, { type: 'BUY_HELIUM_FUSION' }).automation.heliumFusion).toBe(0);
+
+    helium.stage = 'helium';
+    helium.star.helium = 5_000;
+    helium = reduceGame(helium, { type: 'BUY_HELIUM_FUSION' });
+    expect(helium.automation.heliumFusion).toBe(1);
+    const heliumTick = tick(helium, 1);
+    expect(heliumTick.stats.automaticHeliumFused).toBeGreaterThan(0);
+    expect(heliumTick.star.carbon).toBeGreaterThan(0);
+
+    let oxygen = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
+    oxygen.energy = 10_000;
+    oxygen.stats.oxygenCreated = FUSION_AUTOMATION_OXYGEN;
+    oxygen.stage = 'helium';
+    expect(reduceGame(oxygen, { type: 'BUY_OXYGEN_SYNTHESIS' }).automation.oxygenSynthesis).toBe(0);
+
+    oxygen.stage = 'carbonOxygen';
+    oxygen.star.carbon = 5_000;
+    oxygen.star.helium = 5_000;
+    oxygen = reduceGame(oxygen, { type: 'BUY_OXYGEN_SYNTHESIS' });
+    expect(oxygen.automation.oxygenSynthesis).toBe(1);
+    const oxygenTick = tick(oxygen, 1);
+    expect(oxygenTick.stats.automaticOxygenCreated).toBeGreaterThan(0);
+    expect(oxygenTick.stats.oxygenCreated).toBeGreaterThan(FUSION_AUTOMATION_OXYGEN);
   });
 
   it('stellar wind starts with the protostar and removes cloud matter over time', () => {

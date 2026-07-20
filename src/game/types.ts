@@ -29,6 +29,8 @@ export interface Matter {
 export interface AutomationState {
   accretion: number;
   fusion: number;
+  heliumFusion: number;
+  oxygenSynthesis: number;
 }
 
 export interface UpgradeState {
@@ -59,7 +61,9 @@ export interface RunStatistics {
   hydrogenFused: number;
   automaticHydrogenFused: number;
   heliumFused: number;
+  automaticHeliumFused: number;
   oxygenCreated: number;
+  automaticOxygenCreated: number;
   energyGenerated: number;
   upgradesPurchased: number;
   automationsPurchased: number;
@@ -129,6 +133,8 @@ export type GameAction =
   | { type: 'BUY_DEUTERIUM' }
   | { type: 'BUY_ACCRETION' }
   | { type: 'BUY_FUSION' }
+  | { type: 'BUY_HELIUM_FUSION' }
+  | { type: 'BUY_OXYGEN_SYNTHESIS' }
   | { type: 'BUY_GRAVITY' }
   | { type: 'BUY_PERK'; perk: keyof PerkState }
   | { type: 'REMOVE_PERK'; perk: keyof PerkState }

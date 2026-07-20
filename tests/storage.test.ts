@@ -46,6 +46,8 @@ describe('save storage and v0.3 migration', () => {
     expect(migrated?.stats.hydrogenFused).toBe(4_800);
     expect(migrated?.star.carbon).toBe(0);
     expect(migrated?.perks.fusionMemory).toBe(0);
+    expect(migrated?.automation.heliumFusion).toBe(0);
+    expect(migrated?.automation.oxygenSynthesis).toBe(0);
   });
 
   it('maps a completed v3 main-sequence save to a legacy outcome', () => {

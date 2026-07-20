@@ -4,7 +4,11 @@ import {
   CLOUD_TIERS,
   DEUTERIUM_TEMPERATURE_MULTIPLIER,
   DEUTERIUM_UPGRADE_COST,
+  CARBON_TO_OXYGEN_RATIO,
+  FUSION_AUTOMATION_CARBON,
   FUSION_AUTOMATION_HELIUM,
+  FUSION_AUTOMATION_OXYGEN,
+  HELIUM_TO_CARBON_RATIO,
   HYDROGEN_TO_HELIUM_RATIO,
   INITIAL_TEMPERATURE,
   LIMITS,
@@ -49,6 +53,10 @@ export const accretionPerSecond = (state: GameState): number =>
   state.automation.accretion * ACCRETION_SECOND_BASE * gravityMultiplier(state);
 export const fusionPerSecond = (state: GameState): number =>
   state.automation.fusion * 64 * (1 + state.automation.fusion * 0.08) * stellarFusionMultiplier(state);
+export const heliumFusionPerSecond = (state: GameState): number =>
+  state.automation.heliumFusion * 48 * (1 + state.automation.heliumFusion * 0.08) * stellarFusionMultiplier(state);
+export const oxygenSynthesisPerSecond = (state: GameState): number =>
+  state.automation.oxygenSynthesis * 24 * (1 + state.automation.oxygenSynthesis * 0.08) * stellarFusionMultiplier(state);
 export const stellarWindPerSecond = (state: GameState): number => {
   if (state.completed || state.stage === 'nebula') return 0;
   return totalMatter(CLOUD_TIERS[state.cloudTier].matter) * STELLAR_WIND_FRACTION_PER_MINUTE / 60;
@@ -57,6 +65,8 @@ export const stellarWindPerSecond = (state: GameState): number => {
 export const gravityCost = (level: number): number => Math.round(45 * 2.2 ** level);
 export const accretionCost = (level: number): number => Math.round(65 * 1.85 ** level);
 export const fusionCost = (level: number): number => Math.round(280 * 1.9 ** level);
+export const heliumFusionCost = (level: number): number => Math.round(520 * 1.9 ** level);
+export const oxygenSynthesisCost = (level: number): number => Math.round(900 * 1.9 ** level);
 export const cloudTierCost = (level: number): number => level === 0 ? 2 : level === 1 ? 5 : Number.POSITIVE_INFINITY;
 export const gravityPerkCost = (level: number): number => 2 + level * 2;
 export const fusionPerkCost = (level: number): number => 3 + level * 3;
@@ -113,7 +123,9 @@ export const createRunStatistics = (): RunStatistics => ({
   hydrogenFused: 0,
   automaticHydrogenFused: 0,
   heliumFused: 0,
+  automaticHeliumFused: 0,
   oxygenCreated: 0,
+  automaticOxygenCreated: 0,
   energyGenerated: 0,
   upgradesPurchased: 0,
   automationsPurchased: 0,
@@ -209,7 +221,7 @@ const fuseHelium = (state: GameState, requested: number): number => {
   if (state.stage !== 'helium') return 0;
   const amount = Math.min(requested, state.star.helium, THRESHOLDS.heliumCore - state.fusedHelium);
   if (amount <= 0) return 0;
-  const carbonCreated = amount * 0.998;
+  const carbonCreated = amount * HELIUM_TO_CARBON_RATIO;
   state.star.helium -= amount;
   state.star.carbon += carbonCreated;
   state.radiatedMass += amount - carbonCreated;
@@ -226,7 +238,7 @@ const createOxygen = (state: GameState, requestedCarbon: number): number => {
   const carbon = Math.min(requestedCarbon, state.star.carbon, state.star.helium * 3, THRESHOLDS.oxygenCore - state.stats.oxygenCreated);
   if (carbon <= 0) return 0;
   const helium = carbon / 3;
-  const oxygen = (carbon + helium) * 0.998;
+  const oxygen = carbon * CARBON_TO_OXYGEN_RATIO;
   state.star.carbon -= carbon;
   state.star.helium -= helium;
   state.star.oxygen += oxygen;
@@ -281,7 +293,7 @@ export const createInitialState = (
     fusedHelium: 0,
     manualFusions: 0,
     manualHeliumFusions: 0,
-    automation: { accretion: 0, fusion: 0 },
+    automation: { accretion: 0, fusion: 0, heliumFusion: 0, oxygenSynthesis: 0 },
     upgrades: { gravity: 0, deuteriumBurning: false },
     stardust,
     perks,
@@ -320,6 +332,13 @@ export const tick = (state: GameState, seconds: number): GameState => {
   next.stats.hydrogenFused += fused;
   next.stats.automaticHydrogenFused += fused;
   next.stats.energyGenerated += fused * .34;
+  const fusedHelium = fuseHelium(next, heliumFusionPerSecond(next) * dt);
+  next.stats.heliumFused += fusedHelium;
+  next.stats.automaticHeliumFused += fusedHelium;
+  next.stats.energyGenerated += fusedHelium * .52;
+  const oxygen = createOxygen(next, oxygenSynthesisPerSecond(next) * dt / CARBON_TO_OXYGEN_RATIO);
+  next.stats.automaticOxygenCreated += oxygen;
+  next.stats.energyGenerated += oxygen * .68;
   next.heatBonus = Math.max(0, next.heatBonus - dt * 180);
   next.temperature = calculateTemperature(next);
   completeBrownDwarfIfNeeded(next);
@@ -476,11 +495,35 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
     case 'BUY_FUSION': {
       const cost = fusionCost(next.automation.fusion);
       const heliumCreated = next.stats.hydrogenFused * HYDROGEN_TO_HELIUM_RATIO;
-      if (heliumCreated >= FUSION_AUTOMATION_HELIUM && next.energy >= cost && next.automation.fusion < LIMITS.fusion) {
+      const reactionUnlocked = ['hydrogen', 'mainSequence', 'redGiant', 'helium', 'carbonOxygen', 'massiveStar', 'supernova'].includes(next.stage);
+      if (reactionUnlocked && heliumCreated >= FUSION_AUTOMATION_HELIUM && next.energy >= cost && next.automation.fusion < LIMITS.fusion) {
         next.energy -= cost;
         next.automation.fusion += 1;
         next.stats.automationsPurchased += 1;
         log(next, 'Stabiles Wasserstoffbrennen läuft automatisch.', 'fusion');
+      }
+      break;
+    }
+    case 'BUY_HELIUM_FUSION': {
+      const cost = heliumFusionCost(next.automation.heliumFusion);
+      const carbonCreated = next.stats.heliumFused * HELIUM_TO_CARBON_RATIO;
+      const reactionUnlocked = ['helium', 'carbonOxygen', 'massiveStar', 'supernova'].includes(next.stage);
+      if (reactionUnlocked && carbonCreated >= FUSION_AUTOMATION_CARBON && next.energy >= cost && next.automation.heliumFusion < LIMITS.heliumFusion) {
+        next.energy -= cost;
+        next.automation.heliumFusion += 1;
+        next.stats.automationsPurchased += 1;
+        log(next, 'Stabiles Heliumbrennen läuft automatisch.', 'fusion');
+      }
+      break;
+    }
+    case 'BUY_OXYGEN_SYNTHESIS': {
+      const cost = oxygenSynthesisCost(next.automation.oxygenSynthesis);
+      const reactionUnlocked = ['carbonOxygen', 'massiveStar', 'supernova'].includes(next.stage);
+      if (reactionUnlocked && next.stats.oxygenCreated >= FUSION_AUTOMATION_OXYGEN && next.energy >= cost && next.automation.oxygenSynthesis < LIMITS.oxygenSynthesis) {
+        next.energy -= cost;
+        next.automation.oxygenSynthesis += 1;
+        next.stats.automationsPurchased += 1;
+        log(next, 'Stabiler Alpha-Einfang bildet automatisch Sauerstoff.', 'fusion');
       }
       break;
     }

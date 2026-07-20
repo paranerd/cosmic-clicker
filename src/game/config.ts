@@ -42,7 +42,11 @@ export const ACCRETION_SECOND_BASE = 17;
 export const DEUTERIUM_UPGRADE_COST = 75;
 export const DEUTERIUM_TEMPERATURE_MULTIPLIER = 1.35;
 export const FUSION_AUTOMATION_HELIUM = 5_000;
+export const FUSION_AUTOMATION_CARBON = 1_500;
+export const FUSION_AUTOMATION_OXYGEN = 400;
 export const HYDROGEN_TO_HELIUM_RATIO = .993;
+export const HELIUM_TO_CARBON_RATIO = .998;
+export const CARBON_TO_OXYGEN_RATIO = 4 / 3 * .998;
 export const STELLAR_WIND_FRACTION_PER_MINUTE = .0025;
 
 export const THRESHOLDS = {
@@ -62,6 +66,8 @@ export const LIMITS = {
   gravity: 5,
   accretion: 8,
   fusion: 8,
+  heliumFusion: 8,
+  oxygenSynthesis: 8,
   permanentGravity: 5,
   fusionMemory: 5,
   cloudTier: 2,
