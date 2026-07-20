@@ -113,7 +113,7 @@ const icons = {
 const formatNumber = (value: number, maximumFractionDigits = 0): string =>
   new Intl.NumberFormat('de-DE', { maximumFractionDigits }).format(Math.max(0, value));
 
-const formatCompact = (value: number): string => value < 1_000
+const formatCompact = (value: number): string => value < 1_000_000
   ? formatNumber(value)
   : new Intl.NumberFormat('de-DE', { notation: 'compact', maximumFractionDigits: 1 }).format(Math.round(value));
 const formatMatter = (value: number): string => formatCompact(Math.round(value));

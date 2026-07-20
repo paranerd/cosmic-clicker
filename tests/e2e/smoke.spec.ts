@@ -161,7 +161,7 @@ test('chronicle expands from the persistent bottom dock', async ({ page }) => {
   const chronicle = page.getByRole('dialog', { name: 'Lebenswege der Sterne' });
   await expect(chronicle).toBeVisible();
   await expect(chronicle.locator('.timeline-node')).toHaveCount(4);
-  await expect(chronicle.locator('.evolution-branch')).toHaveCount(4);
+  await expect(chronicle.locator('.evolution-branch')).toHaveCount(6);
   await expect(chronicle).toContainText('Unterhalb der Zündmasse');
   const closeButton = page.getByRole('button', { name: 'Chronik schließen' });
   const restingBackground = await closeButton.evaluate((element) => getComputedStyle(element).backgroundColor);
@@ -430,9 +430,10 @@ test('stable hydrogen burning is hidden before ignition and then tracks created 
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
   });
   await gotoGame(page);
-  await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Alpha-Einfang' })).toHaveCount(0);
+  const reactionPanel = page.locator('.reaction-grid');
+  await expect(reactionPanel.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Alpha-Einfang' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Automationen 1' }).click();
 
   const fusionAutomation = page.locator('[data-automation-card="fusion"]');
@@ -454,10 +455,11 @@ test('helium burning keeps earlier reactions, previews carbon and reveals matchi
   });
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Alpha-Einfang' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Kohlenstoffbrennen' })).toBeVisible();
+  const reactionPanel = page.locator('.reaction-grid');
+  await expect(reactionPanel.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Alpha-Einfang' })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Kohlenstoffbrennen' })).toBeVisible();
   await expect(page.locator('[data-reaction-card="carbon"] button')).toBeDisabled();
 
   await page.getByRole('tab', { name: /Automationen/ }).click();
