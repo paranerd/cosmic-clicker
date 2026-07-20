@@ -1,10 +1,8 @@
-import { LIMITS, MATTER_KEYS } from './config';
+import { EMPTY_MATTER, LIMITS, MATTER_KEYS } from '../content';
 import { createInitialState, createRunStatistics, tick } from './engine';
 import type { CloudTier, GameState, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState } from './types';
 
 const SAVE_KEY = 'cosmic-clicker-save-v1';
-const EMPTY_MATTER: Matter = { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 };
-
 type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star' | 'perks' | 'pendingPerks' | 'history' | 'tutorial'>> & {
   version?: number;
   stage?: Stage | 'stable';

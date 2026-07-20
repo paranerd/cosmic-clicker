@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CLOUD_TIERS, FUSION_AUTOMATION_CARBON, FUSION_AUTOMATION_HELIUM, FUSION_AUTOMATION_OXYGEN, HELIUM_TO_CARBON_RATIO, HYDROGEN_TO_HELIUM_RATIO, INITIAL_TEMPERATURE, THRESHOLDS } from '../src/game/config';
-import { accretionPerClick, cloudMass, createInitialState, objectiveFor, reduceGame, starMass, tick } from '../src/game/engine';
+import { CLOUD_TIERS, EMPTY_MATTER, FUSION_AUTOMATION_CARBON, FUSION_AUTOMATION_HELIUM, FUSION_AUTOMATION_OXYGEN, HELIUM_TO_CARBON_RATIO, HYDROGEN_TO_HELIUM_RATIO, INITIAL_TEMPERATURE, THRESHOLDS } from '../src/content';
+import { accretionPerClick, calculateTemperature, cloudMass, createInitialState, objectiveFor, reduceGame, starMass, tick } from '../src/game/engine';
 import type { GameState } from '../src/game/types';
 
 const accreteUntil = (initial: GameState, targetMass: number, guardLimit = 2_000): GameState => {
@@ -242,6 +242,22 @@ describe('stellar engine v0.3', () => {
     const afterMinute = tick(protostar, 60);
     expect(afterMinute.stats.matterLostToWind).toBeCloseTo(30.05, 1);
     expect(cloudMass(afterMinute)).toBeCloseTo(cloudBefore - 30.05, 1);
+  });
+
+  it('stops compression heating when the cloud is empty but still permits fusion heating', () => {
+    const exhausted = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
+    exhausted.stage = 'hydrogen';
+    exhausted.cloud = { ...EMPTY_MATTER };
+    exhausted.star = { ...EMPTY_MATTER, hydrogen: 60_000 };
+    exhausted.automation.accretion = 8;
+    exhausted.temperature = calculateTemperature(exhausted);
+
+    const withoutFusion = tick(exhausted, 120);
+    expect(withoutFusion.temperature).toBeCloseTo(exhausted.temperature, 5);
+    expect(withoutFusion.stats.automaticMatterAccreted).toBe(0);
+
+    const withFusion = reduceGame(exhausted, { type: 'FUSE_HYDROGEN' });
+    expect(withFusion.temperature).toBeGreaterThan(exhausted.temperature);
   });
 
   it('forms carbon and oxygen before ending a stellar cloud as a white dwarf', () => {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LIMITS } from '../src/game/config';
+import { LIMITS } from '../src/content';
 import { createInitialState } from '../src/game/engine';
 import { loadGame, normalizeGameState, saveGame } from '../src/game/storage';
 
