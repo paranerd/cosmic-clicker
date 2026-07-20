@@ -127,6 +127,27 @@ describe('data-driven stellar engine v0.4', () => {
     expect(result.stardust).toBe(4);
   });
 
+  it('waits for residual cloud hydrogen before contracting or settling', () => {
+    const state = reactionState('hydrogen', 0);
+    state.star = { ...EMPTY_MATTER, helium: 60_000 };
+    state.cloud = { ...EMPTY_MATTER, hydrogen: 5_000 };
+    const waiting = tick(state, 1);
+    expect(waiting.completed).toBe(false);
+    expect(waiting.stage).not.toBe('redGiant');
+    waiting.cloud = { ...EMPTY_MATTER };
+    const settled = tick(waiting, 0);
+    expect(settled.outcome).toBe('heliumWhiteDwarf');
+  });
+
+  it('settles a star without any heavier core fuel as a white dwarf', () => {
+    const state = reactionState('helium', 0);
+    state.unlockedReactions.push('alphaCapture');
+    state.star = { ...EMPTY_MATTER };
+    const result = tick(state, 0);
+    expect(result.completed).toBe(true);
+    expect(result.outcome).toBe('whiteDwarf');
+  });
+
   it('contracts a sufficiently massive hydrogen-exhausted star to helium ignition', () => {
     const state = reactionState('hydrogen', 0);
     state.star = { ...EMPTY_MATTER, helium: 150_000 };

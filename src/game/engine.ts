@@ -276,14 +276,23 @@ const nextHeavyFuel = (state: GameState): ReactionId | null => {
   return null;
 };
 
-const contractionTarget = (state: GameState): ReactionId | null => {
-  if (!state.unlockedReactions.includes('hydrogen')) return null;
-  if (!state.unlockedReactions.includes('helium')) return state.star.hydrogen <= .001 ? 'helium' : null;
-  if (!state.unlockedReactions.includes('carbon') && state.star.helium <= .001) return nextHeavyFuel(state);
-  if (state.unlockedReactions.includes('carbon') && state.star.carbon <= .001 && !state.unlockedReactions.includes('neon')) return nextHeavyFuel(state);
-  if (state.unlockedReactions.includes('neon') && state.star.neon <= .001 && !state.unlockedReactions.includes('oxygen')) return nextHeavyFuel(state);
-  if (state.unlockedReactions.includes('oxygen') && state.star.oxygen <= .001 && !state.unlockedReactions.includes('silicon')) return nextHeavyFuel(state);
-  return null;
+// A fuel only counts as exhausted once neither the core nor the residual
+// cloud can still supply it; otherwise accretion could flip the stage back.
+const fuelDepleted = (state: GameState, key: keyof Matter): boolean => state.star[key] + state.cloud[key] <= .001;
+
+type ContractionDecision = { kind: 'ignite'; next: ReactionId } | { kind: 'settle' } | null;
+
+const contractionDecision = (state: GameState): ContractionDecision => {
+  const unlocked = (id: ReactionId): boolean => state.unlockedReactions.includes(id);
+  if (!unlocked('hydrogen')) return null;
+  if (!unlocked('helium')) return fuelDepleted(state, 'hydrogen') ? { kind: 'ignite', next: 'helium' } : null;
+  const stageDepleted = (!unlocked('carbon') && fuelDepleted(state, 'helium'))
+    || (unlocked('carbon') && !unlocked('neon') && fuelDepleted(state, 'carbon'))
+    || (unlocked('neon') && !unlocked('oxygen') && fuelDepleted(state, 'neon'))
+    || (unlocked('oxygen') && !unlocked('silicon') && fuelDepleted(state, 'oxygen'));
+  if (!stageDepleted) return null;
+  const next = nextHeavyFuel(state);
+  return next ? { kind: 'ignite', next } : { kind: 'settle' };
 };
 
 const evaluateEvolution = (state: GameState): void => {
@@ -299,23 +308,28 @@ const evaluateEvolution = (state: GameState): void => {
     completeRun(state, starMass(state) >= THRESHOLDS.blackHoleMass ? 'blackHole' : 'neutronStar');
     return;
   }
-  const target = contractionTarget(state);
-  if (!target) return;
-  const definition = REACTIONS[target];
+  const decision = contractionDecision(state);
+  if (!decision) return;
+  if (decision.kind === 'settle') {
+    if (!state.unlockedReactions.includes('carbon')) completeRun(state, 'whiteDwarf');
+    else completeRun(state, 'oxygenNeonWhiteDwarf');
+    return;
+  }
+  const definition = REACTIONS[decision.next];
   if (starMass(state) >= definition.minimumMass) {
-    if (target === 'helium') setStage(state, 'redGiant', 'Der wasserstoffarme Kern kontrahiert; die Hülle wächst zum Roten Riesen.');
+    if (decision.next === 'helium') setStage(state, 'redGiant', 'Der wasserstoffarme Kern kontrahiert; die Hülle wächst zum Roten Riesen.');
     else setStage(state, 'massiveStar', `Der Kern kontrahiert in Richtung ${definition.title}.`);
     return;
   }
-  if (target === 'helium') completeRun(state, 'heliumWhiteDwarf');
+  if (decision.next === 'helium') completeRun(state, 'heliumWhiteDwarf');
   else if (!state.unlockedReactions.includes('carbon')) completeRun(state, 'whiteDwarf');
   else completeRun(state, 'oxygenNeonWhiteDwarf');
 };
 
 const applyContraction = (state: GameState, seconds: number): void => {
-  const target = contractionTarget(state);
-  if (!target) return;
-  const definition = REACTIONS[target];
+  const decision = contractionDecision(state);
+  if (decision?.kind !== 'ignite') return;
+  const definition = REACTIONS[decision.next];
   if (starMass(state) < definition.minimumMass) return;
   const needed = Math.max(0, definition.ignitionTemperature - calculateTemperature(state));
   if (needed <= 0) return;
@@ -472,10 +486,10 @@ export const objectiveFor = (state: GameState): { id: string; eyebrow: string; t
   if (state.completed) return { id: 'review-cycle', eyebrow: 'Entwicklung abgeschlossen', title: 'Runde auswerten', progress: 100, detail: 'Investiere Sternenstaub oder beginne den nächsten Zyklus.' };
   if (state.stage === 'nebula') return { id: 'form-protostar', eyebrow: 'Erstes Ziel', title: 'Protostern bilden', progress: Math.min(100, starMass(state) / THRESHOLDS.protostarMass * 100), detail: 'Verdichte die Materie der Urwolke im Zentrum.' };
   if (!state.unlockedReactions.includes('hydrogen')) return { id: 'ignite-hydrogen', eyebrow: 'Nächstes Ziel', title: 'Wasserstoffkern zünden', progress: Math.min(100, state.temperature / THRESHOLDS.hydrogenTemperature * 100), detail: 'Erreiche 10 Mio. K durch weitere Verdichtung.' };
-  const target = contractionTarget(state);
-  if (target) {
-    const reaction = REACTIONS[target];
-    return { id: `ignite-${target}`, eyebrow: 'Kernkontraktion', title: `${reaction.title} zünden`, progress: Math.min(100, state.temperature / reaction.ignitionTemperature * 100), detail: `Der erschöpfte Kern kontrahiert bis ${reaction.ignitionTemperature.toLocaleString('de-DE')} K.` };
+  const decision = contractionDecision(state);
+  if (decision?.kind === 'ignite') {
+    const reaction = REACTIONS[decision.next];
+    return { id: `ignite-${decision.next}`, eyebrow: 'Kernkontraktion', title: `${reaction.title} zünden`, progress: Math.min(100, state.temperature / reaction.ignitionTemperature * 100), detail: `Der erschöpfte Kern kontrahiert bis ${reaction.ignitionTemperature.toLocaleString('de-DE')} K.` };
   }
   const active = [...REACTION_ORDER].reverse().find((id) => reactionAvailable(state, id)) ?? 'hydrogen';
   const definition = REACTIONS[active];

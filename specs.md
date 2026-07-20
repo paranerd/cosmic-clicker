@@ -189,6 +189,12 @@ Implementierte manuelle Reaktionen:
 - Nach Erschöpfung eines Brennstoffs prüft der Spielkern automatisch:
   erreichte Temperatur, verbleibende Kernzusammensetzung und relevante
   Massengrenze.
+- Ein Brennstoff gilt erst dann als erschöpft, wenn ihn weder der Kern noch
+  die Restwolke liefern können. Solange die Urwolke das Element noch enthält,
+  wartet der Stern mit Kontraktion und Endzustand.
+- Ist eine Brennstufe erschöpft und im Kern kein schwererer Brennstoff mehr
+  vorhanden, schließt der Stern sofort als zusammensetzungsabhängiger
+  Weißer Zwerg ab, statt in einem Zwischenzustand zu verharren.
 - Geht Wasserstoff vor 100 Mio. K aus, kontrahiert ein ausreichend massereicher
   Stern automatisch weiter und wächst zum Roten Riesen. Ein zu leichter Kern
   endet als Helium-Weißer-Zwerg.
