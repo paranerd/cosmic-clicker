@@ -147,17 +147,10 @@ export interface GameState {
 
 export type GameAction =
   | { type: 'ACCRETE' }
-  | { type: 'FUSE_HYDROGEN' }
-  | { type: 'FUSE_HELIUM' }
-  | { type: 'CREATE_OXYGEN' }
   | { type: 'RUN_REACTION'; reaction: ReactionId }
   | { type: 'BUY_REACTION_AUTOMATION'; reaction: ReactionId }
-  | { type: 'ADVANCE_EVOLUTION' }
   | { type: 'BUY_DEUTERIUM' }
   | { type: 'BUY_ACCRETION' }
-  | { type: 'BUY_FUSION' }
-  | { type: 'BUY_HELIUM_FUSION' }
-  | { type: 'BUY_OXYGEN_SYNTHESIS' }
   | { type: 'BUY_GRAVITY' }
   | { type: 'BUY_PERK'; perk: keyof PerkState }
   | { type: 'REMOVE_PERK'; perk: keyof PerkState }

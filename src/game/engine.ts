@@ -71,9 +71,6 @@ export const reactionAutomationPerSecond = (state: GameState, reaction: Reaction
   const kind = REACTIONS[reaction].automation;
   return automationRate(kind, state.automation[kind]) * stellarFusionMultiplier(state);
 };
-export const fusionPerSecond = (state: GameState): number => reactionAutomationPerSecond(state, 'hydrogen');
-export const heliumFusionPerSecond = (state: GameState): number => reactionAutomationPerSecond(state, 'helium');
-export const oxygenSynthesisPerSecond = (state: GameState): number => reactionAutomationPerSecond(state, 'alphaCapture');
 
 export const stellarWindPerSecond = (state: GameState): number => {
   if (state.completed || state.stage === 'nebula') return 0;
@@ -85,10 +82,6 @@ export const automationCost = (kind: AutomationKind, level: number): number => {
   return Math.round(definition.baseCost * definition.costGrowth ** level);
 };
 export const gravityCost = (level: number): number => Math.round(UPGRADES.gravity.cost.base * UPGRADES.gravity.cost.growth ** level);
-export const accretionCost = (level: number): number => automationCost('accretion', level);
-export const fusionCost = (level: number): number => automationCost('fusion', level);
-export const heliumFusionCost = (level: number): number => automationCost('heliumFusion', level);
-export const oxygenSynthesisCost = (level: number): number => automationCost('oxygenSynthesis', level);
 export const cloudTierCost = PRESTIGE_PERKS.largerCloud.cost;
 export const gravityPerkCost = PRESTIGE_PERKS.permanentGravity.cost;
 export const fusionPerkCost = PRESTIGE_PERKS.fusionMemory.cost;
@@ -395,8 +388,6 @@ export const tick = (state: GameState, seconds: number): GameState => {
   return next;
 };
 
-export const evolutionActionFor = (_state: GameState): { label: string; detail: string; available: boolean } | null => null;
-
 const reactionMastery = (state: GameState, reaction: ReactionId): number => primaryOutputAmount(reaction, state.reactionTotals[reaction]);
 const buyAutomation = (state: GameState, kind: AutomationKind): void => {
   const definition = AUTOMATIONS[kind];
@@ -466,18 +457,9 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
     if (next.energy >= cost && next.upgrades.gravity < LIMITS.gravity) { next.energy -= cost; next.upgrades.gravity += 1; next.stats.upgradesPurchased += 1; }
   } else if (action.type === 'RUN_REACTION') {
     runReaction(next, action.reaction, REACTIONS[action.reaction].manualAmount * stellarFusionMultiplier(next), false);
-  } else if (action.type === 'FUSE_HYDROGEN') {
-    runReaction(next, 'hydrogen', REACTIONS.hydrogen.manualAmount * stellarFusionMultiplier(next), false);
-  } else if (action.type === 'FUSE_HELIUM') {
-    runReaction(next, 'helium', REACTIONS.helium.manualAmount * stellarFusionMultiplier(next), false);
-  } else if (action.type === 'CREATE_OXYGEN') {
-    runReaction(next, 'alphaCapture', REACTIONS.alphaCapture.manualAmount * stellarFusionMultiplier(next), false);
   } else if (action.type === 'BUY_REACTION_AUTOMATION') {
     buyAutomation(next, REACTIONS[action.reaction].automation);
   } else if (action.type === 'BUY_ACCRETION') buyAutomation(next, 'accretion');
-  else if (action.type === 'BUY_FUSION') buyAutomation(next, 'fusion');
-  else if (action.type === 'BUY_HELIUM_FUSION') buyAutomation(next, 'heliumFusion');
-  else if (action.type === 'BUY_OXYGEN_SYNTHESIS') buyAutomation(next, 'oxygenSynthesis');
 
   next.temperature = calculateTemperature(next);
   updateFormationStage(next);
