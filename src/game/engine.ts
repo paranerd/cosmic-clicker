@@ -9,6 +9,7 @@ import {
   INITIAL_TEMPERATURE,
   LIMITS,
   MATTER_KEYS,
+  STELLAR_WIND_FRACTION_PER_MINUTE,
   THRESHOLDS,
 } from './config';
 import type {
@@ -48,6 +49,10 @@ export const accretionPerSecond = (state: GameState): number =>
   state.automation.accretion * ACCRETION_SECOND_BASE * gravityMultiplier(state);
 export const fusionPerSecond = (state: GameState): number =>
   state.automation.fusion * 64 * (1 + state.automation.fusion * 0.08) * stellarFusionMultiplier(state);
+export const stellarWindPerSecond = (state: GameState): number => {
+  if (state.completed || state.stage === 'nebula') return 0;
+  return totalMatter(CLOUD_TIERS[state.cloudTier].matter) * STELLAR_WIND_FRACTION_PER_MINUTE / 60;
+};
 
 export const gravityCost = (level: number): number => Math.round(45 * 2.2 ** level);
 export const accretionCost = (level: number): number => Math.round(65 * 1.85 ** level);
@@ -65,6 +70,9 @@ export const pressureProgress = (state: GameState): number =>
   Math.min(100, (starMass(state) / 34_000) ** 1.18 * 100);
 
 const stageTemperatureFloor = (stage: Stage): number => {
+  if (stage === 'protostar') return THRESHOLDS.protostarTemperature;
+  if (stage === 'deuterium') return THRESHOLDS.deuteriumTemperature;
+  if (stage === 'hydrogen' || stage === 'mainSequence') return THRESHOLDS.hydrogenTemperature;
   if (stage === 'redGiant' || stage === 'helium') return THRESHOLDS.heliumTemperature;
   if (stage === 'carbonOxygen') return 180_000_000;
   if (stage === 'massiveStar') return THRESHOLDS.lateBurningTemperature;
@@ -74,7 +82,7 @@ const stageTemperatureFloor = (stage: Stage): number => {
 };
 
 export const calculateTemperature = (state: GameState): number => {
-  const compression = (starMass(state) / 32_000) ** 1.5 * 9_500_000;
+  const compression = (starMass(state) / THRESHOLDS.protostarMass) ** 1.5 * (THRESHOLDS.protostarTemperature - INITIAL_TEMPERATURE);
   const normalTemperature = INITIAL_TEMPERATURE + compression + state.heatBonus;
   const compressedTemperature = state.upgrades.deuteriumBurning && normalTemperature < THRESHOLDS.hydrogenTemperature
     ? INITIAL_TEMPERATURE + compression * DEUTERIUM_TEMPERATURE_MULTIPLIER + state.heatBonus
@@ -101,6 +109,7 @@ export const createRunStatistics = (): RunStatistics => ({
   manualHeliumActions: 0,
   matterAccreted: 0,
   automaticMatterAccreted: 0,
+  matterLostToWind: 0,
   hydrogenFused: 0,
   automaticHydrogenFused: 0,
   heliumFused: 0,
@@ -126,6 +135,15 @@ const transferMatter = (state: GameState, requested: number): number => {
   return amount;
 };
 
+const disperseCloudMatter = (state: GameState, requested: number): number => {
+  const available = cloudMass(state);
+  const amount = Math.min(requested, available);
+  if (amount <= 0) return 0;
+  const ratio = amount / available;
+  MATTER_KEYS.forEach((key) => { state.cloud[key] -= state.cloud[key] * ratio; });
+  return amount;
+};
+
 const updatePreFusionStage = (state: GameState): void => {
   if (state.completed || !['nebula', 'protostar', 'deuterium', 'hydrogen'].includes(state.stage)) return;
   state.temperature = calculateTemperature(state);
@@ -137,7 +155,7 @@ const updatePreFusionStage = (state: GameState): void => {
     setStage(state, 'deuterium', '1 Mio. K: Deuteriumbrennen kann aktiviert werden.');
     return;
   }
-  if (starMass(state) >= THRESHOLDS.protostarMass) setStage(state, 'protostar', '100.000 K: Gravitation formt einen Protostern.');
+  if (state.temperature >= THRESHOLDS.protostarTemperature) setStage(state, 'protostar', '100.000 K: Ein Protostern entsteht und sein Sternwind beginnt, die Urwolke abzutragen.');
 };
 
 const addDiscovery = (state: GameState, outcome: StellarOutcome): void => {
@@ -290,6 +308,8 @@ export const tick = (state: GameState, seconds: number): GameState => {
   next.lastTick = Date.now();
   if (next.completed) return next;
 
+  const dispersed = disperseCloudMatter(next, stellarWindPerSecond(next) * dt);
+  next.stats.matterLostToWind += dispersed;
   const accreted = transferMatter(next, accretionPerSecond(next) * dt);
   next.stats.matterAccreted += accreted;
   next.stats.automaticMatterAccreted += accreted;
@@ -345,10 +365,6 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
   if (action.type === 'CLOSE_SUMMARY') { next.summaryOpen = false; return next; }
   if (action.type === 'OPEN_SUMMARY') {
     if (next.completed) next.summaryOpen = true;
-    return next;
-  }
-  if (action.type === 'ACKNOWLEDGE_OBJECTIVE') {
-    if (!next.seenObjectives.includes(action.objective)) next.seenObjectives.push(action.objective);
     return next;
   }
   if (action.type === 'SELECT_CLOUD_TIER') {

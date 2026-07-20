@@ -76,9 +76,10 @@ Festgelegte Ausprägung für den Prototyp:
 - Das Tutorial ist überspringbar und kann über die Hilfe erneut gestartet werden.
 - Ein vollständig neuer Spielstand beginnt mit einem kurzen Intro, das Spielziel und Ablauf erklärt und die Wahl zwischen einer geführten Tour und einem direkten Start anbietet.
 - Das Intro zeigt den Namen „Cosmic Clicker“ und erscheint mit einer kurzen, bei reduzierter Bewegung deaktivierten Animation. „Ein neuer Kosmos beginnt.“ wird erst nach der Bestätigung des ersten Ziels angezeigt.
-- Beim Start der geführten Tour erscheint das erste Ziel-Popup erst nach Abschluss oder Überspringen des Tutorials; beim direkten Start erscheint es unmittelbar nach dem Intro.
-- Jeder neue Zielabschnitt wird einmalig als zu bestätigendes Popup gezeigt.
+- Das erste Ziel steht nach dem Intro direkt in der Missionsleiste. Zielwechsel unterbrechen den Spielfluss nicht mit modalen Dialogen.
+- Beim Erreichen eines Ziels gleitet ein horizontal zentriertes, nicht blockierendes Achievement-Banner ruhig von unten herein. Es nennt den Erfolg und das nächste Ziel, bleibt bis zum manuellen Schließen sichtbar und stellt mehrere Erfolge in einer Warteschlange nacheinander dar.
 - Das Tutorial dunkelt nicht relevante Bildschirmbereiche ab, scrollt auf Mobilgeräten zum Fokus und zeigt seine Erklärung dort horizontal zentriert.
+- Nach Abschluss oder Überspringen des Tutorials wird wieder der Tab „Reaktionen“ ausgewählt.
 - In der Oberfläche werden nur chemische Elemente ausgewiesen, keine Isotope. Deuterium ist implizit in jeder Wasserstoffwolke vorhanden.
 - Das Deuteriumbrennen wird ab dem Protostern angezeigt und ist in jeder Runde ab 1 Mio. K als einmaliges Upgrade verfügbar: Es kostet 75 Energie und verstärkt die Erwärmung um 35 %, jedoch nicht über die Schwelle des Wasserstoffbrennens hinaus.
 - Die Proton-Proton-Kette wird in der Spieleroberfläche verständlich als Wasserstoffbrennen bezeichnet.
@@ -104,10 +105,14 @@ Festgelegte Progression:
 - Neon-, Sauerstoff- und Siliziumbrennen werden in v0.3 bewusst als „Späte Brennphasen“ zusammengefasst.
 - Der bestehende Sternenstaub bleibt die einzige Prestige-Währung. Der Vermächtnis-Baum erhält die Äste Wolkenwachstum, Akkretion und Fusion.
 - Eine interaktive Entwicklungsübersicht in der Chronik zeigt den aktuellen Pfad, bekannte Endzustände und noch nicht entdeckte Abzweigungen.
-- Echte Wendepunkte werden weiterhin einmalig als Ziel-Popup erklärt; Detailwissen bleibt freiwillig in Reaktionskarten und Chronik.
+- Echte Wendepunkte werden weiterhin einmalig im schließbaren Ziel-Banner erklärt; Detailwissen bleibt freiwillig in Reaktionskarten und Chronik.
 - Bestehende v0.1- bis v0.2-Spielstände werden auf das neue Zustandsmodell migriert. Abgeschlossene Runden bleiben in der Historie erhalten.
 - Die Verdichtung bis zum ersten Protostern benötigt ohne Upgrades ungefähr 50 bis 60 aktive Impulse. Die erste Brauner-Zwerg-Runde zielt auf etwa 7 bis 10 Minuten; vollständige stellare Runden auf etwa 20 bis 30 Minuten und werden durch Vermächtnis-Perks schneller.
 - „Stabiles Wasserstoffbrennen“ erscheint erst nach Freischaltung des Wasserstoffbrennens und wird nach 5.000 ME durch Fusion selbst erzeugtem Helium kaufbar.
+- Die Temperaturskala folgt den markanten Stufen 100.000 K für den Protostern, 1 Mio. K für Deuteriumbrennen und 10 Mio. K für Wasserstoffbrennen.
+- Verfügbare Upgrades werden vor gesperrten oder bereits abgeschlossenen Upgrades angezeigt.
+- Ab dem Protostern trägt der Sternwind pro Minute 0,25 % der ursprünglichen Wolkenmasse ab, auch während des Offline-Fortschritts. Beim Einsetzen warnt das Achievement-Banner ausdrücklich vor dem unwiederbringlichen Materieverlust.
+- Die Kernzusammensetzung zeigt absolute Materieeinheiten pro Element; die redundante Gesamtmasse bleibt ausschließlich in den Kerndaten.
 
 ### Meilenstein v0.4 – detaillierte Sternphysik und neue Systeme
 

@@ -21,6 +21,7 @@ import {
   reduceGame,
   starMass,
   stellarFusionMultiplier,
+  stellarWindPerSecond,
   tick,
 } from './game/engine';
 import { clearSave, loadGame, normalizeGameState, saveGame } from './game/storage';
@@ -29,6 +30,8 @@ import type { CloudTier, GameAction, Stage } from './game/types';
 type Panel = 'reactions' | 'upgrades' | 'automation';
 type ResetMode = 'run' | 'full';
 interface ToastMessage { id: number; text: string; leaving: boolean }
+type Objective = ReturnType<typeof objectiveFor>;
+interface AchievementMessage { completedObjective: string; next: Objective }
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 if (!app) throw new Error('App root missing');
@@ -41,6 +44,7 @@ let lastUiUpdate = 0;
 let lastStage = state.stage;
 let lastLogSignature = '';
 let lastOpportunitySignature = '';
+let lastUpgradeOrderSignature = '';
 let notificationsInitialized = false;
 const offlineToast = loaded.offlineSeconds >= 60
   ? `Während deiner Abwesenheit liefen ${formatDuration(loaded.offlineSeconds)} Simulation.`
@@ -63,6 +67,11 @@ let tutorialSpotlightFrame = 0;
 let prestigeConfirmationArmed = false;
 let prestigeConfirmationTimer = 0;
 let summaryAttentionRun = 0;
+let lastObjectiveId = objectiveFor(state).id;
+let lastObjectiveRun = state.run;
+let activeAchievement: AchievementMessage | null = null;
+let achievementQueue: AchievementMessage[] = [];
+let achievementTransitionTimer = 0;
 
 const icons = {
   spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></svg>',
@@ -100,7 +109,7 @@ const disabled = (condition: boolean): string => condition ? 'disabled aria-disa
 const progress = (value: number, cost: number, unlocked = true): number => unlocked ? Math.min(100, value / cost * 100) : 0;
 
 function temperatureScale(value: number): { max: number; label: string; progress: number } {
-  const stops = [1_000_000, 10_000_000, 25_000_000, 100_000_000, 1_000_000_000];
+  const stops = [100_000, 1_000_000, 10_000_000, 25_000_000, 100_000_000, 1_000_000_000];
   const max = stops.find((stop) => value <= stop) ?? 10 ** Math.ceil(Math.log10(value));
   return { max, label: formatTemperature(max), progress: Math.min(100, value / max * 100) };
 }
@@ -208,7 +217,7 @@ function automationCard(kind: 'accretion' | 'fusion'): string {
   const heliumCreated = heliumCreatedByHydrogen();
   const unlocked = isAccretion ? starMass(state) >= THRESHOLDS.protostarMass : heliumCreated >= FUSION_AUTOMATION_HELIUM;
   const isMax = level >= max;
-  const label = isMax ? 'Maximum' : !unlocked ? (isAccretion ? 'Noch instabil' : `${formatCompact(heliumCreated)} / ${formatNumber(FUSION_AUTOMATION_HELIUM)} He`) : 'Ausbauen';
+  const label = isMax ? 'Maximum' : !unlocked ? (isAccretion ? 'Protostern erforderlich' : `${formatCompact(heliumCreated)} / ${formatNumber(FUSION_AUTOMATION_HELIUM)} He`) : 'Ausbauen';
   const rateAt = (targetLevel: number) => isAccretion
     ? targetLevel * ACCRETION_SECOND_BASE * (accretionPerClick(state) / ACCRETION_CLICK_BASE)
     : targetLevel * 64 * (1 + targetLevel * .08) * stellarFusionMultiplier(state);
@@ -257,9 +266,28 @@ function logMarkup(limit = 5): string {
   return state.log.slice(0, limit).map((entry) => `<div class="log-entry ${entry.kind}"><i></i><p>${entry.text}</p></div>`).join('');
 }
 
+function orderedUpgradeCards(): { id: string; markup: string; priority: number }[] {
+  const gravityPrice = gravityCost(state.upgrades.gravity);
+  const gravityMax = state.upgrades.gravity >= LIMITS.gravity;
+  return [
+    { id: 'gravity', markup: upgradeCard(), priority: gravityMax ? 2 : state.energy >= gravityPrice ? 0 : 1 },
+    ...(deuteriumUpgradeVisible() ? [{
+      id: 'deuterium',
+      markup: deuteriumUpgradeCard(),
+      priority: state.upgrades.deuteriumBurning || state.temperature >= THRESHOLDS.hydrogenTemperature
+        ? 2 : deuteriumUpgradeUnlocked() ? state.energy >= DEUTERIUM_UPGRADE_COST ? 0 : 1 : 3,
+    }] : []),
+  ].sort((a, b) => a.priority - b.priority);
+}
+
+const upgradeOrderSignature = (): string => orderedUpgradeCards().map((card) => `${card.id}:${card.priority}`).join('|');
+
 function panelMarkup(panel: Panel): string {
   if (panel === 'reactions') return renderReactionPanel();
-  if (panel === 'upgrades') return `<div class="upgrade-grid ${deuteriumUpgradeVisible() ? '' : 'single-upgrade'}">${deuteriumUpgradeVisible() ? deuteriumUpgradeCard() : ''}${upgradeCard()}</div>`;
+  if (panel === 'upgrades') {
+    const cards = orderedUpgradeCards();
+    return `<div class="upgrade-grid ${cards.length === 1 ? 'single-upgrade' : ''}">${cards.map((card) => card.markup).join('')}</div>`;
+  }
   return `<div class="upgrade-grid automation-grid ${hydrogenBurningUnlocked() ? '' : 'single-upgrade'}">${automationCard('accretion')}${hydrogenBurningUnlocked() ? automationCard('fusion') : ''}</div>`;
 }
 
@@ -275,16 +303,15 @@ const tutorialSteps = [
 function statsEntries(): [string, string, string][] {
   const stats = state.stats;
   return [
-    ['clicks', 'Manuelle Klicks', formatNumber(stats.manualClicks)],
-    ['matter', 'Akkretiert', `${formatCompact(stats.matterAccreted)} ME`],
+    ['matter', 'Eingesammelte Materie', `${formatCompact(stats.matterAccreted)} ME`],
     ['automatic-matter', 'Davon automatisch', `${formatCompact(stats.automaticMatterAccreted)} ME`],
+    ['stellar-wind', 'Durch Sternwind verloren', `${formatCompact(stats.matterLostToWind)} ME`],
     ['fusion', 'Manuelle Fusionen', formatNumber(stats.manualFusionActions)],
     ['hydrogen', 'Wasserstoff fusioniert', `${formatCompact(stats.hydrogenFused)} H`],
     ['helium', 'Helium fusioniert', `${formatCompact(stats.heliumFused)} He`],
     ['oxygen', 'Sauerstoff erzeugt', `${formatCompact(stats.oxygenCreated)} O`],
     ['energy', 'Energie erzeugt', formatCompact(stats.energyGenerated)],
     ['purchases', 'Käufe', formatNumber(stats.upgradesPurchased + stats.automationsPurchased)],
-    ['offline', 'Offline-Simulation', formatDuration(stats.offlineSeconds)],
   ];
 }
 
@@ -314,8 +341,8 @@ function renderShell(): void {
           <div class="panel-heading"><span class="index">01</span><div><small>Echtzeitdaten</small><h2>Stellarer Kern</h2></div></div>
           <div class="primary-reading"><span>Kerntemperatur</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>${formatTemperature(INITIAL_TEMPERATURE)}</span><span data-ui="temperature-max"></span></small></div>
           <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric energy-metric"><span>Energie</span><b data-ui="energy"></b><small>verfügbar</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
-          <div class="composition"><div class="section-label"><span>Kernzusammensetzung</span><small data-ui="core-total"></small></div>${DISPLAY_MATTER_KEYS.map((key) => `<div class="composition-row" data-matter="${key}"><span class="element ${MATTER_META[key].className}">${MATTER_META[key].symbol}</span><div><b>${MATTER_META[key].label}</b><div class="mini-track"><i data-ui="${key}-bar"></i></div></div><strong data-ui="${key}-value"></strong></div>`).join('')}</div>
-          <div class="cloud-stats"><div class="section-label"><span data-ui="cloud-name">Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="cloud-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-cloud-matter="${key}"><span class="element ${MATTER_META[key].className}">${MATTER_META[key].symbol}</span><p><b>${MATTER_META[key].label}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
+          <div class="composition"><div class="section-label"><span>Kernzusammensetzung</span></div>${DISPLAY_MATTER_KEYS.map((key) => `<div class="composition-row" data-matter="${key}"><span class="element ${MATTER_META[key].className}">${MATTER_META[key].symbol}</span><div><b>${MATTER_META[key].label}</b><div class="mini-track"><i data-ui="${key}-bar"></i></div></div><strong data-ui="${key}-value"></strong></div>`).join('')}</div>
+          <div class="cloud-stats"><div class="section-label"><span data-ui="cloud-name">Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="wind-status" data-ui="wind-status"><span>Sternwind</span><b data-ui="wind-rate">inaktiv</b><small>trägt Materie aus der Urwolke ab</small></div><div class="cloud-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-cloud-matter="${key}"><span class="element ${MATTER_META[key].className}">${MATTER_META[key].symbol}</span><p><b>${MATTER_META[key].label}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
         </aside>
 
         <section class="star-chamber">
@@ -336,7 +363,7 @@ function renderShell(): void {
     </main>
 
     <footer><span>COSMIC CLICKER · PROTOTYP 0.3</span><p>Wissenschaftlich plausibel · spielerisch komprimiert</p><button data-action="import">Spielstand importieren</button><input id="save-import" type="file" accept="application/json" hidden /></footer>
-    <div data-ui="overlay-root"></div><div data-ui="tutorial-root"></div><div data-ui="debug-root"></div><div data-ui="toast-root"></div>`;
+    <div data-ui="overlay-root"></div><div data-ui="tutorial-root"></div><div data-ui="achievement-root"></div><div data-ui="debug-root"></div><div data-ui="toast-root"></div>`;
 
   switchPanel(activePanel, false);
   updateUI(true);
@@ -375,7 +402,7 @@ function syncActivePanel(): void {
     setText('gravity-multiplier', `×${formatNumber(1 + state.upgrades.gravity * .55 + state.perks.permanentGravity * .12, 2)}`);
   }
   if (activePanel === 'automation') {
-    syncProgressButton('buy-accretion', accretionCost(state.automation.accretion), starMass(state) >= THRESHOLDS.protostarMass, state.automation.accretion >= LIMITS.accretion, starMass(state) >= THRESHOLDS.protostarMass ? 'Ausbauen' : 'Noch instabil');
+    syncProgressButton('buy-accretion', accretionCost(state.automation.accretion), starMass(state) >= THRESHOLDS.protostarMass, state.automation.accretion >= LIMITS.accretion, starMass(state) >= THRESHOLDS.protostarMass ? 'Ausbauen' : 'Protostern erforderlich');
     const heliumCreated = heliumCreatedByHydrogen();
     if (hydrogenBurningUnlocked()) syncProgressButton('buy-fusion', fusionCost(state.automation.fusion), heliumCreated >= FUSION_AUTOMATION_HELIUM, state.automation.fusion >= LIMITS.fusion, heliumCreated >= FUSION_AUTOMATION_HELIUM ? 'Ausbauen' : `${formatCompact(heliumCreated)} / ${formatNumber(FUSION_AUTOMATION_HELIUM)} He`);
   }
@@ -458,21 +485,12 @@ function syncLiveStats(root: HTMLElement): void {
 function syncOverlay(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="overlay-root"]');
   if (!root) return;
-  const objective = objectiveFor(state);
   const introNeedsDecision = !state.tutorial.introSeen;
-  const objectiveNeedsAcknowledgement = state.tutorial.completed && !state.completed && !state.seenObjectives.includes(objective.id);
-  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !introNeedsDecision && !objectiveNeedsAcknowledgement) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
+  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !introNeedsDecision) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
   if (introNeedsDecision) {
     if (overlaySignature === 'intro') return;
     overlaySignature = 'intro';
     root.innerHTML = `<div class="modal-backdrop intro-backdrop"><section class="intro-modal" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-description"><div class="intro-brand"><span>COSMIC</span><b>CLICKER</b></div><small>DEIN KOSMISCHES EXPERIMENT</small><span class="intro-star">${icons.spark}</span><h2 id="intro-title">Entdecke das Schicksal der Sterne.</h2><p id="intro-description">Beginne mit einer kleinen Wolke aus kaltem Wasserstoff. Sammle Materie, forme einen Protostern und beobachte, welchen Entwicklungsweg die Physik ermöglicht.</p><div class="intro-pillars"><div><b>01</b><span>Materie sammeln</span><small>Forme aus der Urwolke einen Protostern.</small></div><div><b>02</b><span>Sternentwicklung verfolgen</span><small>Masse und Temperatur bestimmen den möglichen Lebensweg.</small></div><div><b>03</b><span>Kosmos erweitern</span><small>Nutze Sternenstaub für größere Wolken.</small></div></div><div class="intro-actions"><button class="primary-action" data-action="start-intro-tutorial" aria-label="Tutorial starten"><span>Tutorial starten</span><small>Kurze geführte Tour</small></button><button class="intro-secondary" data-action="skip-intro-tutorial">Ohne Tutorial starten</button></div></section></div>`;
-    return;
-  }
-  if (objectiveNeedsAcknowledgement && !chronicleOpen && !statsOpen && !state.summaryOpen) {
-    const objectiveSignature = `objective:${state.run}:${objective.id}`;
-    if (objectiveSignature === overlaySignature) return;
-    overlaySignature = objectiveSignature;
-    root.innerHTML = `<div class="modal-backdrop objective-backdrop"><section class="objective-modal" role="dialog" aria-modal="true" aria-labelledby="objective-title"><small>${objective.eyebrow}</small><span class="objective-mark">${icons.spark}</span><h2 id="objective-title">${objective.title}</h2><p>${objective.detail}</p><button class="primary-action" data-action="acknowledge-objective">Okay</button></section></div>`;
     return;
   }
   if (chronicleOpen && !state.summaryOpen) {
@@ -562,8 +580,96 @@ function syncToast(): void {
   if (entering.length) window.requestAnimationFrame(() => entering.forEach((element) => element.classList.remove('is-entering')));
 }
 
+const ACHIEVEMENT_TITLES: Record<string, string> = {
+  'form-protostar': 'Protostern gebildet',
+  'heat-protostar': '1 Mio. Kelvin erreicht',
+  'ignite-hydrogen': 'Wasserstoffbrennen freigeschaltet',
+  'stabilize-star': 'Hauptreihe erreicht',
+  'leave-main-sequence': 'Hauptreihe abgeschlossen',
+  'ignite-helium': 'Heliumkern gezündet',
+  'build-carbon-core': 'Kohlenstoffkern gebildet',
+  'build-oxygen-core': 'Kohlenstoff-Sauerstoff-Kern vollendet',
+  'collapse-core': 'Kernkollaps ausgelöst',
+  'observe-remnant': 'Stellarer Rest entdeckt',
+};
+
+function markCurrentObjectiveSeen(): void {
+  const objective = objectiveFor(state);
+  lastObjectiveId = objective.id;
+  lastObjectiveRun = state.run;
+  if (!state.seenObjectives.includes(objective.id)) state.seenObjectives.push(objective.id);
+}
+
+function displayNextAchievement(): void {
+  const root = app.querySelector<HTMLElement>('[data-ui="achievement-root"]');
+  if (!root || activeAchievement) return;
+  activeAchievement = achievementQueue.shift() ?? null;
+  if (!activeAchievement) { root.innerHTML = ''; return; }
+  const title = ACHIEVEMENT_TITLES[activeAchievement.completedObjective];
+  if (!title) { activeAchievement = null; displayNextAchievement(); return; }
+  const windWarning = activeAchievement.completedObjective === 'form-protostar'
+    ? '<div class="achievement-warning"><b>Sternwind setzt ein</b><span>Er trägt fortan stetig Materie aus der Urwolke ab. Diese Materie kann nicht mehr eingesammelt werden.</span></div>'
+    : '';
+  root.innerHTML = `<aside class="achievement-banner" role="region" aria-labelledby="achievement-title"><button class="achievement-close" data-action="dismiss-achievement" aria-label="Zielhinweis schließen">×</button><div class="achievement-announcement" role="status" aria-live="polite" aria-atomic="true"><small>ZIEL ERREICHT</small><h2 id="achievement-title">${title}</h2></div>${windWarning}<div class="achievement-next"><span>Als Nächstes</span><b>${activeAchievement.next.title}</b><p>${activeAchievement.next.detail}</p></div></aside>`;
+  const banner = root.querySelector<HTMLElement>('.achievement-banner');
+  window.requestAnimationFrame(() => banner?.classList.add('is-visible'));
+  playSound('unlock', state.soundEnabled, state.volume);
+}
+
+function showAchievement(completedObjective: string, next: Objective): void {
+  if (!ACHIEVEMENT_TITLES[completedObjective]) return;
+  achievementQueue.push({ completedObjective, next });
+  displayNextAchievement();
+}
+
+function dismissAchievement(): void {
+  if (!activeAchievement) return;
+  const root = app.querySelector<HTMLElement>('[data-ui="achievement-root"]');
+  const banner = root?.querySelector<HTMLElement>('.achievement-banner');
+  window.clearTimeout(achievementTransitionTimer);
+  banner?.classList.add('is-leaving');
+  banner?.classList.remove('is-visible');
+  achievementTransitionTimer = window.setTimeout(() => {
+    if (root?.contains(banner ?? null)) root.innerHTML = '';
+    activeAchievement = null;
+    displayNextAchievement();
+  }, 340);
+}
+
+function clearAchievements(): void {
+  window.clearTimeout(achievementTransitionTimer);
+  achievementQueue = [];
+  activeAchievement = null;
+  const root = app.querySelector<HTMLElement>('[data-ui="achievement-root"]');
+  if (root) root.innerHTML = '';
+}
+
+function syncObjectiveAchievement(objective: Objective): void {
+  if (state.run !== lastObjectiveRun) {
+    markCurrentObjectiveSeen();
+    saveGame(state);
+    return;
+  }
+  if (objective.id === lastObjectiveId) return;
+  const completedObjective = lastObjectiveId;
+  lastObjectiveId = objective.id;
+  if (!state.seenObjectives.includes(objective.id)) state.seenObjectives.push(objective.id);
+  saveGame(state);
+  if (state.tutorial.completed && !state.completed) showAchievement(completedObjective, objective);
+}
+
+function finishOnboarding(): void {
+  switchPanel('reactions', false);
+  markCurrentObjectiveSeen();
+  if (state.tutorial.cosmosToastPending) {
+    state.tutorial.cosmosToastPending = false;
+    showToast('Ein neuer Kosmos beginnt.');
+  }
+}
+
 function setTutorial(step: number, completed = false): void {
   state.tutorial = { ...state.tutorial, step: Math.max(0, Math.min(tutorialSteps.length - 1, step)), completed };
+  if (completed) finishOnboarding();
   saveGame(state);
   syncTutorial();
   overlaySignature = '';
@@ -572,6 +678,7 @@ function setTutorial(step: number, completed = false): void {
 
 function resolveIntro(startTutorial: boolean): void {
   state.tutorial = { ...state.tutorial, introSeen: true, completed: !startTutorial, step: 0 };
+  if (!startTutorial) finishOnboarding();
   saveGame(state);
   overlaySignature = '';
   tutorialSignature = '';
@@ -715,12 +822,13 @@ function updateUI(forcePanel = false): void {
 
   setText('run', `ZYKLUS ${state.run.toString().padStart(2, '0')}`); setText('stardust', formatNumber(state.stardust)); setText('elapsed', formatDuration(state.elapsed)); setText('cloud-perk-name', CLOUD_TIERS[state.perks.largerCloud as CloudTier].name); setText('gravity-perk-level', String(state.perks.permanentGravity)); setText('fusion-perk-level', String(state.perks.fusionMemory));
   setText('objective-eyebrow', objective.eyebrow); setText('objective-title', objective.title); setText('objective-detail', objective.detail); setText('objective-percent', `${formatNumber(objective.progress, 1)}%`); setWidth('objective-bar', objective.progress);
+  syncObjectiveAchievement(objective);
   setText('temperature', formatTemperature(state.temperature)); setText('temperature-max', scale.label); app.querySelector<HTMLElement>('[data-ui="temperature-bar"]')?.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
-  setText('mass', formatCompact(mass)); setText('pressure', formatNumber(pressureProgress(state), 1)); setText('energy', formatCompact(state.energy)); setText('accretion-rate', formatCompact(accretionPerSecond(state))); setText('core-total', `${formatCompact(mass)} ME`);
-  MATTER_KEYS.forEach((key) => {
+  setText('mass', formatCompact(mass)); setText('pressure', formatNumber(pressureProgress(state), 1)); setText('energy', formatCompact(state.energy)); setText('accretion-rate', formatCompact(accretionPerSecond(state)));
+  DISPLAY_MATTER_KEYS.forEach((key) => {
     const percent = matterPercent(state.star[key], starTotal);
     setWidth(`${key}-bar`, percent);
-    setText(`${key}-value`, `${formatNumber(percent, 1)}%`);
+    setText(`${key}-value`, `${formatNumber(state.star[key], 1)} ME`);
     setText(`cloud-${key}`, formatCompact(state.cloud[key]));
     const coreElement = app.querySelector<HTMLElement>(`[data-matter="${key}"]`);
     const cloudElement = app.querySelector<HTMLElement>(`[data-cloud-matter="${key}"]`);
@@ -747,10 +855,15 @@ function updateUI(forcePanel = false): void {
   setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Auf den Stern klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken, um Materie einzusammeln');
   app.querySelectorAll<HTMLElement>('[data-phase]').forEach((dot) => { const normalizedStage = nodes.length <= 1 ? 7 : Math.round(stageIndex / (nodes.length - 1) * 7); dot.classList.toggle('active', Number(dot.dataset.phase) <= normalizedStage); });
   const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatCompact(remaining)} ME`); setText('cloud-initial', `von ${formatCompact(initialCloud)} ME`); app.querySelector<HTMLElement>('.gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
+  const windRate = stellarWindPerSecond(state);
+  setText('wind-rate', windRate > 0 ? `−${formatNumber(windRate, 2)} ME/s` : 'inaktiv');
+  app.querySelector<HTMLElement>('[data-ui="wind-status"]')?.classList.toggle('is-active', windRate > 0);
   const soundButton = app.querySelector<HTMLButtonElement>('[data-action="toggle-sound-menu"]'); if (soundButton) { soundButton.innerHTML = state.soundEnabled ? icons.sound : icons.soundOff; soundButton.ariaLabel = 'Audioeinstellungen öffnen'; }
   const volumeInput = app.querySelector<HTMLInputElement>('[data-action="set-volume"]'); if (volumeInput && Number(volumeInput.value) !== Math.round(state.volume * 100)) volumeInput.value = String(Math.round(state.volume * 100));
   setText('volume-label', `${Math.round(state.volume * 100)}%`); setText('mute-label', state.soundEnabled ? 'Ton stummschalten' : 'Ton einschalten');
-  if (forcePanel || stageChanged) { const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(activePanel); lastStage = state.stage; }
+  const currentUpgradeOrder = activePanel === 'upgrades' ? upgradeOrderSignature() : '';
+  const upgradeOrderChanged = activePanel === 'upgrades' && currentUpgradeOrder !== lastUpgradeOrderSignature;
+  if (forcePanel || stageChanged || upgradeOrderChanged) { const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(activePanel); lastStage = state.stage; lastUpgradeOrderSignature = currentUpgradeOrder; }
   syncNotifications(); syncActivePanel(); syncChronicleDock(); syncOverlay(); syncTutorial(); syncToast();
   if (import.meta.hot) syncDebug();
 }
@@ -867,6 +980,7 @@ function armFullReset(): void {
 function performReset(mode: ResetMode): void {
   closeResetMenu();
   clearPrestigeConfirmation();
+  clearAchievements();
   summaryAttentionRun = 0;
   if (mode === 'full') { clearSave(); state = createInitialState(); clearToasts(); }
   else state = createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: state.tutorial, history: state.history, cloudTier: state.cloudTier, nextCloudTier: state.nextCloudTier, discoveredOutcomes: state.discoveredOutcomes });
@@ -941,15 +1055,10 @@ app.addEventListener('click', (event) => {
   const action = button.dataset.action; if (!action) return;
   if (action === 'start-intro-tutorial') { resolveIntro(true); return; }
   if (action === 'skip-intro-tutorial') { resolveIntro(false); return; }
-  if (action === 'acknowledge-objective') {
-    const celebrateNewCosmos = state.tutorial.cosmosToastPending;
-    dispatch({ type: 'ACKNOWLEDGE_OBJECTIVE', objective: objectiveFor(state).id });
-    if (celebrateNewCosmos) { state.tutorial.cosmosToastPending = false; saveGame(state); showToast('Ein neuer Kosmos beginnt.'); }
-    overlaySignature = ''; syncOverlay(); return;
-  }
   if (action === 'tutorial-next') { advanceTutorial('next'); return; }
   if (action === 'skip-tutorial') { setTutorial(state.tutorial.step, true); showToast('Tutorial übersprungen. Über ? kannst du es erneut starten.'); return; }
   if (action === 'replay-tutorial') { setTutorial(0, false); showToast('Tutorial neu gestartet.'); return; }
+  if (action === 'dismiss-achievement') { dismissAchievement(); return; }
   if (action === 'reset-menu') { toggleResetMenu(); return; }
   if (action === 'reset-run') { performReset('run'); return; }
   if (action === 'reset-full') { if (fullResetArmed) performReset('full'); else armFullReset(); return; }
@@ -991,7 +1100,7 @@ app.addEventListener('change', async (event) => {
   try {
     const imported = normalizeGameState(JSON.parse(await input.files[0].text()));
     if (!imported) throw new Error('Invalid save');
-    state = { ...imported, lastTick: Date.now() }; saveGame(state); updateUI(true); showToast('Spielstand erfolgreich importiert.');
+    clearAchievements(); state = { ...imported, lastTick: Date.now() }; saveGame(state); updateUI(true); showToast('Spielstand erfolgreich importiert.');
   } catch { showToast('Diese Datei ist kein gültiger Spielstand.'); }
 });
 

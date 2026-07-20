@@ -55,6 +55,7 @@ export interface RunStatistics {
   manualHeliumActions: number;
   matterAccreted: number;
   automaticMatterAccreted: number;
+  matterLostToWind: number;
   hydrogenFused: number;
   automaticHydrogenFused: number;
   heliumFused: number;
@@ -135,6 +136,5 @@ export type GameAction =
   | { type: 'PRESTIGE' }
   | { type: 'OPEN_SUMMARY' }
   | { type: 'CLOSE_SUMMARY' }
-  | { type: 'ACKNOWLEDGE_OBJECTIVE'; objective: string }
   | { type: 'TOGGLE_SOUND' }
   | { type: 'SET_VOLUME'; volume: number };

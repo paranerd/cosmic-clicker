@@ -43,9 +43,11 @@ export const DEUTERIUM_UPGRADE_COST = 75;
 export const DEUTERIUM_TEMPERATURE_MULTIPLIER = 1.35;
 export const FUSION_AUTOMATION_HELIUM = 5_000;
 export const HYDROGEN_TO_HELIUM_RATIO = .993;
+export const STELLAR_WIND_FRACTION_PER_MINUTE = .0025;
 
 export const THRESHOLDS = {
-  protostarMass: 2_500,
+  protostarMass: 2_544,
+  protostarTemperature: 100_000,
   deuteriumTemperature: 1_000_000,
   hydrogenTemperature: 10_000_000,
   heliumTemperature: 100_000_000,

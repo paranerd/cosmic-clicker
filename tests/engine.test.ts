@@ -13,7 +13,7 @@ const accreteUntil = (initial: GameState, targetMass: number, guardLimit = 2_000
   return state;
 };
 
-const reachMainSequence = (initial: GameState, targetMass = 40_000): GameState => {
+const reachMainSequence = (initial: GameState, targetMass = 60_000): GameState => {
   let state = accreteUntil(initial, targetMass);
   let guard = 0;
   while (state.stage === 'hydrogen' && guard < 1_000) {
@@ -23,7 +23,7 @@ const reachMainSequence = (initial: GameState, targetMass = 40_000): GameState =
   return state;
 };
 
-const reachCarbonOxygenCore = (initial: GameState, targetMass = 45_000): GameState => {
+const reachCarbonOxygenCore = (initial: GameState, targetMass = 60_000): GameState => {
   let state = reachMainSequence(initial, targetMass);
   state = reduceGame(state, { type: 'ADVANCE_EVOLUTION' });
   state = reduceGame(state, { type: 'ADVANCE_EVOLUTION' });
@@ -52,6 +52,12 @@ describe('stellar engine v0.3', () => {
   it('starts every new cloud at ten kelvin', () => {
     expect(createInitialState().temperature).toBe(INITIAL_TEMPERATURE);
     expect(INITIAL_TEMPERATURE).toBe(10);
+  });
+
+  it('forms the protostar at one hundred thousand kelvin', () => {
+    const state = accreteUntil(createInitialState(), THRESHOLDS.protostarMass);
+    expect(state.stage).toBe('protostar');
+    expect(state.temperature).toBeCloseTo(THRESHOLDS.protostarTemperature, 5);
   });
 
   it('starts every cloud with the objective of forming a protostar', () => {
@@ -169,7 +175,7 @@ describe('stellar engine v0.3', () => {
 
   it('allows deuterium burning in the first cycle once the protostar exceeds one million kelvin', () => {
     let state = createInitialState();
-    state = accreteUntil(state, 8_000);
+    state = accreteUntil(state, 11_900);
     state.energy = 100;
     const normalTemperature = state.temperature;
     const upgraded = reduceGame(state, { type: 'BUY_DEUTERIUM' });
@@ -182,7 +188,7 @@ describe('stellar engine v0.3', () => {
 
   it('unlocks stable hydrogen burning only after five thousand helium was created by fusion', () => {
     let state = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    state = accreteUntil(state, 40_000);
+    state = accreteUntil(state, 60_000);
     state.energy = 10_000;
     while (state.stats.hydrogenFused * HYDROGEN_TO_HELIUM_RATIO < FUSION_AUTOMATION_HELIUM) {
       const beforeThreshold = state.stats.hydrogenFused * HYDROGEN_TO_HELIUM_RATIO < FUSION_AUTOMATION_HELIUM;
@@ -194,6 +200,17 @@ describe('stellar engine v0.3', () => {
     }
     state = reduceGame(state, { type: 'BUY_FUSION' });
     expect(state.automation.fusion).toBe(1);
+  });
+
+  it('stellar wind starts with the protostar and removes cloud matter over time', () => {
+    const nebula = accreteUntil(createInitialState(), THRESHOLDS.protostarMass - 100);
+    expect(tick(nebula, 60).stats.matterLostToWind).toBe(0);
+
+    const protostar = accreteUntil(createInitialState(), THRESHOLDS.protostarMass);
+    const cloudBefore = cloudMass(protostar);
+    const afterMinute = tick(protostar, 60);
+    expect(afterMinute.stats.matterLostToWind).toBeCloseTo(30.05, 1);
+    expect(cloudMass(afterMinute)).toBeCloseTo(cloudBefore - 30.05, 1);
   });
 
   it('forms carbon and oxygen before ending a stellar cloud as a white dwarf', () => {
