@@ -1,5 +1,5 @@
-import { EMPTY_MATTER, LIMITS, MATTER_KEYS } from '../content';
-import { createInitialState, createRunStatistics, tick } from './engine';
+import { EMPTY_MATTER, LIMITS, MATTER_KEYS, REACTIONS, REACTION_ORDER } from '../content';
+import { compressionHeat, createInitialState, createRunStatistics, tick } from './engine';
 import type { CloudTier, GameState, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState } from './types';
 
 const SAVE_KEY = 'cosmic-clicker-save-v1';
@@ -26,14 +26,14 @@ const inferCloudTier = (cloud: Matter, star: Matter): CloudTier => {
 };
 
 const normalizeOutcome = (value: unknown, legacyCompleted: boolean): StellarOutcome | null => {
-  if (value === 'brownDwarf' || value === 'whiteDwarf' || value === 'neutronStar' || value === 'blackHole' || value === 'legacyMainSequence') return value;
+  if (value === 'brownDwarf' || value === 'heliumWhiteDwarf' || value === 'whiteDwarf' || value === 'oxygenNeonWhiteDwarf' || value === 'neutronStar' || value === 'blackHole' || value === 'legacyMainSequence') return value;
   return legacyCompleted ? 'legacyMainSequence' : null;
 };
 
 export const normalizeGameState = (value: unknown): GameState | null => {
   if (!value || typeof value !== 'object') return null;
   const parsed = value as SavedState;
-  if (![1, 2, 3, 4].includes(parsed.version ?? 0) || !parsed.cloud || !parsed.star) return null;
+  if (![1, 2, 3, 4, 5].includes(parsed.version ?? 0) || !parsed.cloud || !parsed.star) return null;
 
   const cloud = normalizeMatter(parsed.cloud);
   const star = normalizeMatter(parsed.star);
@@ -74,11 +74,18 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     ? parsed.discoveredOutcomes.filter((entry): entry is StellarOutcome => normalizeOutcome(entry, false) !== null)
     : outcome ? [outcome] : [];
   if (outcome && !discoveredOutcomes.includes(outcome)) discoveredOutcomes.push(outcome);
+  const unlockedReactions = Array.isArray(parsed.unlockedReactions)
+    ? parsed.unlockedReactions.filter((id): id is keyof typeof REACTIONS => id in REACTIONS)
+    : REACTION_ORDER.filter((id) => (parsed.temperature ?? fallback.temperature) >= REACTIONS[id].ignitionTemperature);
+  const reactionTotals = { ...fallback.reactionTotals, ...parsed.reactionTotals };
+  reactionTotals.hydrogen = Math.max(reactionTotals.hydrogen, stats.hydrogenFused);
+  reactionTotals.helium = Math.max(reactionTotals.helium, stats.heliumFused);
+  reactionTotals.alphaCapture = Math.max(reactionTotals.alphaCapture, stats.oxygenCreated / (Object.values(REACTIONS.alphaCapture.outputs)[0] ?? 1));
 
-  return {
+  const normalized = {
     ...fallback,
     ...parsed,
-    version: 4,
+    version: 5,
     stage,
     cloudTier,
     nextCloudTier,
@@ -90,6 +97,13 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     upgrades: { ...fallback.upgrades, ...parsed.upgrades },
     tutorial: migratedTutorial,
     stats,
+    contractionHeat: typeof parsed.contractionHeat === 'number' ? parsed.contractionHeat : 0,
+    deuteriumIgnitionCompression: typeof parsed.deuteriumIgnitionCompression === 'number'
+      ? parsed.deuteriumIgnitionCompression
+      : null,
+    unlockedReactions,
+    reactionTotals,
+    automaticReactionTotals: { ...fallback.automaticReactionTotals, ...parsed.automaticReactionTotals },
     history,
     outcome,
     discoveredOutcomes,
@@ -100,6 +114,10 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     seenObjectives: Array.isArray(parsed.seenObjectives) ? parsed.seenObjectives : [],
     log: Array.isArray(parsed.log) ? parsed.log : fallback.log,
   } as GameState;
+  if (normalized.upgrades.deuteriumBurning && normalized.deuteriumIgnitionCompression === null) {
+    normalized.deuteriumIgnitionCompression = compressionHeat(normalized);
+  }
+  return normalized;
 };
 
 export const loadGame = (): { state: GameState; offlineSeconds: number } => {

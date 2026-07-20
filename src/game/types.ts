@@ -9,21 +9,33 @@ export type Stage =
   | 'redGiant'
   | 'helium'
   | 'carbonOxygen'
+  | 'carbonBurning'
+  | 'neonBurning'
+  | 'oxygenBurning'
+  | 'siliconBurning'
+  | 'ironCore'
   | 'massiveStar'
   | 'supernova'
   | 'brownDwarf'
+  | 'heliumWhiteDwarf'
   | 'whiteDwarf'
+  | 'oxygenNeonWhiteDwarf'
   | 'neutronStar'
   | 'blackHole';
 
-export type StellarOutcome = 'brownDwarf' | 'whiteDwarf' | 'neutronStar' | 'blackHole' | 'legacyMainSequence';
+export type StellarOutcome = 'brownDwarf' | 'heliumWhiteDwarf' | 'whiteDwarf' | 'oxygenNeonWhiteDwarf' | 'neutronStar' | 'blackHole' | 'legacyMainSequence';
+
+export type ReactionId = 'hydrogen' | 'helium' | 'alphaCapture' | 'carbon' | 'neon' | 'oxygen' | 'silicon';
 
 export interface Matter {
   hydrogen: number;
   helium: number;
   deuterium: number;
   carbon: number;
+  neon: number;
   oxygen: number;
+  silicon: number;
+  iron: number;
 }
 
 export interface AutomationState {
@@ -31,6 +43,10 @@ export interface AutomationState {
   fusion: number;
   heliumFusion: number;
   oxygenSynthesis: number;
+  carbonFusion: number;
+  neonFusion: number;
+  oxygenFusion: number;
+  siliconFusion: number;
 }
 
 export interface UpgradeState {
@@ -87,7 +103,7 @@ export interface TutorialState {
 }
 
 export interface GameState {
-  version: 4;
+  version: 5;
   run: number;
   startedAt: number;
   lastTick: number;
@@ -101,6 +117,11 @@ export interface GameState {
   energy: number;
   temperature: number;
   heatBonus: number;
+  contractionHeat: number;
+  deuteriumIgnitionCompression: number | null;
+  unlockedReactions: ReactionId[];
+  reactionTotals: Record<ReactionId, number>;
+  automaticReactionTotals: Record<ReactionId, number>;
   fusedHydrogen: number;
   fusedHelium: number;
   manualFusions: number;
@@ -129,6 +150,8 @@ export type GameAction =
   | { type: 'FUSE_HYDROGEN' }
   | { type: 'FUSE_HELIUM' }
   | { type: 'CREATE_OXYGEN' }
+  | { type: 'RUN_REACTION'; reaction: ReactionId }
+  | { type: 'BUY_REACTION_AUTOMATION'; reaction: ReactionId }
   | { type: 'ADVANCE_EVOLUTION' }
   | { type: 'BUY_DEUTERIUM' }
   | { type: 'BUY_ACCRETION' }

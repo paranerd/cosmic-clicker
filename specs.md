@@ -10,6 +10,267 @@ Das Setting ist die Entwicklung von der Gaswolke bis zum Stern, später vielleic
 
 Das Spiel soll sich, soweit es die Spielbarkeit zulässt, möglichst nahe an der Realität halten, damit der Spieler etwas über Astrophysik lernen kann.
 
+## Verbindliche Produktspezifikation
+
+Dieser Abschnitt beschreibt den aktuellen Stand und das unmittelbar angestrebte
+Zielbild. Bei Widersprüchen mit älteren Roadmap-Texten gilt die jeweils neuere,
+konkretere Festlegung in diesem Abschnitt.
+
+### Produkt und Plattform
+
+- Cosmic Clicker ist ein responsives, deutschsprachiges Browser-Spiel auf Basis
+  von HTML, TypeScript, SCSS und Vite.
+- Desktop und kleine Smartphone-Bildschirme werden unterstützt. Es darf kein
+  horizontaler Seitenüberlauf entstehen.
+- Der Spielstand wird automatisch im Browser gespeichert und kann als JSON
+  exportiert und importiert werden.
+- Offline-Fortschritt wird bis maximal acht Stunden simuliert.
+- Die deterministischen Spielregeln werden mit Vitest, die vollständigen
+  Nutzerabläufe mit Playwright abgesichert.
+- Nur der Entwicklungs-Build stellt `cosmicDebug()` und das Balance-Panel bereit.
+  Diese Hilfen dürfen im Produktions-Build nicht vorkommen.
+
+### Leitprinzipien
+
+- Eine Runde beginnt mit einer endlichen Urwolke bei 10 K und grundsätzlich
+  offenem Ausgang.
+- Masse, Temperatur, Zusammensetzung, verfügbarer Brennstoff und Kernreaktionen
+  bestimmen die Entwicklung. Wolkenstufe oder Rundennummer dürfen einen Ausgang
+  nicht künstlich erzwingen.
+- Die Darstellung ist wissenschaftlich plausibel, darf Zeit, Masse und
+  Reaktionsnetze zugunsten eines verständlichen Spiels aber komprimieren.
+- Ein Sternstadium beschreibt den strukturellen Zustand des Sterns und ist
+  nicht gleichzeitig die alleinige Freischaltbedingung für Reaktionen.
+- Eine einmal gezündete Reaktion bleibt verfügbar, solange ihr Brennstoff im
+  Kern vorhanden ist und der Stern noch nicht als kompakter Rest abgeschlossen
+  wurde.
+- Scheitert die Zündung der nächsten Brennstufe, entscheidet die Kern- bzw.
+  Sternmasse anhand konfigurierter, realitätsnaher Grenzwerte über Kontraktion,
+  nächste Entwicklungsphase oder stellaren Rest.
+- Braune und Weiße Zwerge sind erfolgreiche Entdeckungen, keine Niederlagen.
+
+### Einheiten und sichtbare Ressourcen
+
+- `ME` bedeutet Materieeinheiten und ist die abstrakte Massen- und
+  Brennstoffeinheit des Prototyps.
+- Alle ME-Werte werden in der Benutzeroberfläche auf ganze Zahlen gerundet.
+  Interne Berechnungen dürfen weiterhin mit Dezimalzahlen arbeiten.
+- Sichtbare Kernelemente sind Wasserstoff (H), Helium (He), Kohlenstoff (C),
+  Neon (Ne), Sauerstoff (O), Silizium (Si) und Eisen (Fe).
+- Deuterium ist implizit in jeder Wasserstoffwolke vorhanden. Isotope werden in
+  der Zusammensetzung nicht separat ausgewiesen.
+- Die Kernzusammensetzung zeigt für jedes vorhandene Element die absolute Menge
+  in ME und zusätzlich ihren relativen Balkenanteil.
+- Die Gesamtmasse des Sterns erscheint nur in den Kerndaten und wird in der
+  Zusammensetzung nicht wiederholt.
+- Der Spielkern bilanziert zusätzlich abgestrahlte Masse, Energie und durch
+  Sternwind verlorene Materie.
+
+### Aktuelle Urwolken
+
+| Stufe | Name | Ausgangsmaterie | Spielerischer Zweck |
+| --- | --- | --- | --- |
+| 0 | Kleine Urwolke | 10.490 H, implizit 10 D = 0,07 M☉ | Reicht ohne künstliche Rundengrenze nicht bis zum Wasserstoffbrennen; entdeckt typischerweise den Braunen Zwerg |
+| 1 | Stellare Urwolke | 105.000 H, 44.800 He, implizit 200 D = 1 M☉ | Sonnenähnlicher Entwicklungsweg und Weißer Zwerg |
+| 2 | Massereiche Urwolke | 2.625.000 H, 1.123.000 He, implizit 2.000 D = 25 M☉ | Vollständige schwere Brennkette, Supernova und kompakter Rest |
+
+- Jede neue Runde startet mit einer vom Spieler bereits freigeschalteten
+  Wolkengröße. Freigeschaltete kleinere Wolken bleiben auswählbar.
+- Der Sternwind setzt mit der Bildung des Protosterns ein und entfernt pro
+  Minute 0,25 % der ursprünglichen Wolkenmasse. Der Verlust gilt auch offline
+  und ist nicht rückgängig zu machen.
+- 150.000 ME entsprechen im Modell einer Sonnenmasse. Die UI darf zusätzlich
+  zur ME-Anzeige an Entwicklungsschwellen das Symbol M☉ erläutern.
+- Bis zur ersten Wasserstoffzündung bleibt die Akkretionsmenge bei allen Wolken
+  klein und gut beobachtbar. Danach skalieren manuelle und automatische
+  Akkretion mit der Wolkengröße, damit große Sterne ohne tausende monotone
+  Eingaben spielbar bleiben.
+- Beim ersten Einsetzen des Sternwinds erklärt das Ziel-Banner Wirkung und
+  Konsequenz ausdrücklich.
+- Sobald keine Materie mehr in der Urwolke vorhanden ist, endet die Erwärmung
+  durch weitere Akkretion bzw. Kompression. Fusion und spätere strukturelle
+  Kontraktion dürfen die Temperatur weiterhin erhöhen.
+
+### Temperatur und frühe Sternentstehung
+
+- Markante Temperaturschwellen sind 100.000 K für den Protostern, 1 Mio. K für
+  Deuteriumbrennen, 10 Mio. K für Wasserstoffbrennen, 100 Mio. K für
+  Heliumbrennen, 600 Mio. K für Kohlenstoffbrennen, 1,2 Mrd. K für
+  Neonbrennen, 1,5 Mrd. K für Sauerstoffbrennen und 2,7 Mrd. K für
+  Siliziumbrennen.
+- Ohne Upgrades benötigt der Protostern ungefähr 50 bis 60 aktive
+  Akkretionsimpulse.
+- Die aktuelle Kompressionskurve verwendet einen Exponenten von 3 bezogen auf
+  2.544 ME Protosternmasse.
+- Akkretion liefert pro Klick 48 ME und erzeugt 0,018 Energie je gebundener ME.
+- Gravitative Verdichtung erhöht manuelle und automatische Akkretion pro Stufe
+  um 55 %. Gravitatives Gedächtnis addiert dauerhaft 12 % pro Perk-Stufe.
+- Deuteriumbrennen kostet 75 Energie, wird ab dem Protostern angezeigt und ist
+  zwischen 1 Mio. und 10 Mio. K einmalig aktivierbar.
+- Die Aktivierung verändert die Temperatur im Kaufmoment nicht sprunghaft. Der
+  Faktor 1,35 gilt nur für zusätzliche Kompressionswärme nach der Zündung des
+  Deuteriumbrennens; die beim Kauf erreichte Kompression wird als Basiswert
+  gespeichert.
+
+### Reaktionen und Energie
+
+Implementierte manuelle Reaktionen:
+
+| Reaktion | Manuelle Menge | Umwandlung | Energie |
+| --- | ---: | --- | ---: |
+| Wasserstoffbrennen | 200 H | H → He mit Faktor 0,993 | 0,34 je eingesetzter H-ME |
+| Heliumbrennen | 300 He | He → C mit Faktor 0,998 | 0,52 je eingesetzter He-ME |
+| Alpha-Einfang | 180 C + 60 He | C + He → O mit Faktor `4/3 × 0,998` | 0,68 je erzeugter O-ME |
+| Kohlenstoffbrennen | 150 C | C → Ne mit Faktor 0,997 | 0,82 je eingesetzter C-ME |
+| Neonbrennen | 140 Ne | Ne → O mit Faktor 0,996 | 0,94 je eingesetzter Ne-ME |
+| Sauerstoffbrennen | 120 O | O → Si mit Faktor 0,995 | 1,08 je eingesetzter O-ME |
+| Siliziumbrennen | 100 Si | Si → Fe-Gruppe mit Faktor 0,994 | 1,20 je eingesetzter Si-ME |
+
+- Jede Fusion setzt Energie frei. Energie wird für normale Upgrades und
+  Automationen ausgegeben.
+- Fusionsgedächtnis erhöht manuelle und automatische Fusionsmengen dauerhaft um
+  15 % pro Perk-Stufe.
+- Im Kontrollzentrum sollen Reaktionskarten vollständig aus zentralen
+  Definitionen erzeugt werden. Eine neue Reaktion darf keine eigene
+  Renderfunktion benötigen.
+- Verfügbarkeit, Brennstoffe, Temperatur, Beschriftungen, Gleichung,
+  Energieertrag und nächster Prozess gehören in die Reaktionsdefinition; die
+  Oberfläche verwendet eine gemeinsame Kartenkomponente.
+- Die feste Grenze von 15.000 fusionierten H-ME markiert nur die stabilisierte
+  Hauptreihe und beendet niemals die Möglichkeit zum Wasserstoffbrennen.
+  Wasserstoff kann bis zur Erschöpfung des Kernvorrats fusioniert werden.
+- Höhere Brennstufen sperren frühere, weiterhin mit Brennstoff versorgte
+  Reaktionen nicht. Mehrere Reaktionen können deshalb gleichzeitig verfügbar
+  sein.
+
+### Automationen
+
+- Akkretionsstrom wird ab dem Protostern kaufbar, besitzt acht Stufen, startet
+  mit 17 ME/s je Stufe und kostet anfangs 65 Energie bei Kostenfaktor 1,85.
+- Stabiles Wasserstoffbrennen wird erst zusammen mit der manuellen Reaktion
+  sichtbar und nach 5.000 selbst erzeugten He-ME kaufbar. Basisrate 64 H/s,
+  Anfangskosten 280 Energie, acht Stufen, Kostenfaktor 1,9.
+- Stabiles Heliumbrennen wird erst zusammen mit der manuellen Reaktion sichtbar
+  und nach 1.500 selbst erzeugten C-ME kaufbar. Basisrate 48 He/s,
+  Anfangskosten 520 Energie, acht Stufen, Kostenfaktor 1,9.
+- Stabiler Alpha-Einfang wird erst zusammen mit der manuellen Reaktion sichtbar
+  und nach 400 selbst erzeugten O-ME kaufbar. Basisrate 24 O/s,
+  Anfangskosten 900 Energie, acht Stufen, Kostenfaktor 1,9.
+- Stabiles Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen werden ebenfalls
+  erst mit ihrer jeweiligen manuellen Reaktion sichtbar. Sie benötigen 900 Ne,
+  700 O, 550 Si beziehungsweise 400 Fe eigener Reaktionsleistung und besitzen
+  je acht Stufen.
+- Produktionsraten wachsen zusätzlich um 8 % je Automationsstufe.
+- Alle Automationskarten werden aus derselben datengetriebenen Definitions- und
+  Renderpipeline erzeugt.
+
+### Upgrades und zentrale Inhalte
+
+- Normale Upgrades werden in `src/content/upgrades.ts` definiert und durch eine
+  gemeinsame `upgradeView()`-/`upgradeCard()`-Pipeline dargestellt.
+- Eine Definition enthält Modus, Kostenkurve, Sichtbarkeit, Voraussetzungen,
+  Statusanzeige, Beschreibung, Stufenzahl und Buttontexte.
+- Verfügbare Upgrades stehen vor noch gesperrten; abgeschlossene oder nicht mehr
+  relevante Upgrades stehen dahinter.
+- Neue Upgrades benötigen keine eigene Renderfunktion. Neue Zustandsfelder und
+  Wirkungen können weiterhin eine Erweiterung des Spielkerns erfordern.
+- Deklarative Namen, Texte, Kosten, Schwellenwerte, Raten und Sichtbarkeiten
+  liegen nach Fachgebiet in `src/content/`: Ressourcen, Wolken, Reaktionen,
+  Automationen, Upgrades, Fortschritt, Prestige und Tutorial.
+- `src/game/engine.ts` enthält Berechnungen und Zustandsänderungen;
+  `src/main.ts` verbindet den Zustand mit der Benutzeroberfläche.
+
+### Aktueller Lebenszyklus und Physikmodell
+
+- Der bestehende Spielstand unterscheidet Urwolke, Protostern,
+  Deuteriumphase, Wasserstoffbrennen, Hauptreihe, Roten Riesen,
+  Heliumbrennen, C/O-Kern, massereichen Stern, Supernova und stellare Reste.
+- Gezündete Reaktionen werden separat vom strukturellen Sternstadium gespeichert.
+- Nach Erschöpfung eines Brennstoffs prüft der Spielkern automatisch:
+  erreichte Temperatur, verbleibende Kernzusammensetzung und relevante
+  Massengrenze.
+- Geht Wasserstoff vor 100 Mio. K aus, kontrahiert ein ausreichend massereicher
+  Stern automatisch weiter und wächst zum Roten Riesen. Ein zu leichter Kern
+  endet als Helium-Weißer-Zwerg.
+- Der Richtwert für die Abzweigung zum Helium-Weißen-Zwerg ist 0,5
+  Sonnenmassen beziehungsweise 75.000 ME.
+- Entsprechende masseabhängige Abzweigungen gelten auch beim Scheitern späterer
+  Brennstufen.
+- Die vollständige spielbare Brennkette bis zum Eisenkern umfasst
+  Wasserstoffbrennen, Heliumbrennen, Alpha-Einfang,
+  Kohlenstoffbrennen, Neonbrennen, Sauerstoffbrennen und Siliziumbrennen.
+- Vereinfachte Zündtemperaturen sind 10 Mio. K (H), 100 Mio. K (He),
+  600 Mio. K (C), 1,2 Mrd. K (Ne), 1,5 Mrd. K (O) und 2,7 Mrd. K (Si).
+- Kohlenstoffbrennen und alle folgenden zentralen Brennstufen verlangen einen
+  massereichen Stern von mindestens ungefähr 8 M☉. Erreicht ein leichterer
+  Stern diese Stufe nicht, bleibt abhängig von der Zusammensetzung ein C/O- oder
+  O/Ne-Weißer-Zwerg zurück.
+
+### Rundenabschluss, Sternenstaub und Perks
+
+- Endzustände sind Brauner Zwerg, Helium-Weißer-Zwerg, C/O-Weißer-Zwerg,
+  O/Ne-Weißer-Zwerg, Neutronenstern und Schwarzes Loch. Ältere
+  Hauptreihenabschlüsse bleiben als Legacy-Eintrag migrierbar.
+- Belohnungen: Brauner Zwerg 2, Helium-Weißer-Zwerg 4, C/O-Weißer-Zwerg 5,
+  O/Ne-Weißer-Zwerg 6, Neutronenstern 8 und Schwarzes Loch 10 Sternenstaub.
+- Permanente Perks sind Wolkenwachstum, Gravitatives Gedächtnis und
+  Fusionsgedächtnis. Käufe werden in der Rundenzusammenfassung zunächst
+  vorgemerkt und können vor Beginn der nächsten Runde wieder entfernt werden.
+- Die Rundenzusammenfassung ist das einzige sichtbare Popup und erhält auf
+  kleinen Bildschirmen beim Ändern von Perks ihre Scrollposition.
+
+### Tutorial und Rückmeldungen
+
+- Neue Spielstände zeigen ein Intro mit Wahl zwischen Tutorial und direktem
+  Start. Das Tutorial ist überspringbar und über die Hilfe wiederholbar.
+- Die sechs Schritte erklären Akkretion, Kerndaten, Energie, Sternenstaub,
+  Kontrolltabs und Chronik.
+- Nach Abschluss oder Überspringen ist der Tab „Reaktionen“ aktiv.
+- Zielwechsel verwenden ein gut sichtbares, nicht blockierendes und manuell
+  schließbares Banner, das horizontal zentriert von unten hereingleitet.
+- Mehrere Ziel-Banner werden nacheinander in einer Warteschlange gezeigt.
+- Kurzmeldungen werden als gestapelte, automatisch verschwindende Toasts von
+  oben eingeblendet.
+- Die Chronik zeigt den aktuellen Entwicklungspfad, bekannte Endzustände und
+  ein Sternenlogbuch.
+- Ton, Lautstärke, Tutorialstatus, bekannte Ergebnisse, Statistiken und
+  Rundenhistorie werden gespeichert.
+
+### Statistiken und Qualitätssicherung
+
+- Erfasst werden manuelle Klicks und Reaktionen, gesamte und automatische
+  Akkretion, Sternwindverlust, fusionierter Wasserstoff und Helium, erzeugter
+  Sauerstoff, erzeugte Energie, Käufe, Offline-Zeit, Rundendauer und
+  Sternenstaub.
+- Speicherstände der Versionen 1 bis 5 werden normalisiert. Version 5 speichert
+  Reaktionsfreischaltungen, Reaktionssummen, Kontraktionswärme, schwere
+  Elemente und die zusätzlichen Automationen und Endzustände.
+- Jeder neue Reaktions- oder Entwicklungspfad benötigt Engine-Tests für
+  Brennstoffverbrauch, Massenerhaltung, Energie, Freischaltungen und Endzustand.
+- Sichtbarkeit, Sortierung, gerundete ME-Anzeigen, mobile Darstellung,
+  Tutorial, Popup-Exklusivität und vollständige Runden werden mit Browser-Tests
+  abgesichert.
+
+### Wissenschaftliche Referenzen und Modellgrenzen
+
+- Die Zündtemperaturen sind spielerisch gerundete Richtwerte. Als fachliche
+  Grundlage dienen NASAs Übersichten zur [Sternentstehung und
+  Wasserstoffzündung](https://science.nasa.gov/exoplanets/resources/life-and-death/chapter-1/),
+  zur [masseabhängigen Sternentwicklung](https://science.nasa.gov/universe/stories/quick-reads/the-lives-times-and-deaths-of-stars/)
+  und zur [Kernbrennfolge bis zur
+  Eisengruppe](https://solarsystem.nasa.gov/genesismission/educate/scimodule/PlanetaryDiversity/plandiv_pdf/SupermarketST.pdf).
+- Die Größenordnung von etwa 100 Mio. K für Heliumbrennen sowie die höheren
+  Temperaturen für Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen folgen
+  dem NASA-Bericht [Stellar Evolution: A
+  Survey](https://ntrs.nasa.gov/api/citations/19660024135/downloads/19660024135.pdf).
+- Die Grenzwerte 0,5 M☉, 8 M☉, 9 M☉ und 20 M☉ sind bewusst vereinfachte
+  Gameplay-Schwellen. Reale Endzustände hängen zusätzlich unter anderem von
+  Metallizität, Rotation, Massenverlust, Binärentwicklung und der tatsächlichen
+  Kernmasse ab.
+- Das Reaktionsnetz bildet dominante Entwicklungsrichtungen ab, keine
+  vollständige Nukleosynthese. Insbesondere werden Nebenkanäle und mehrere
+  gleichzeitig entstehende Isotope beziehungsweise Elemente zusammengefasst.
+
 ## Spielablauf
 
 Der Spieler beginnt mit einer Gaswolke mit festem Vorrat an Wasserstoff. Mit jedem Klick wird ein Wasserstoff gebunden und erhöht somit die Masse, damit den Gravitationsdruck und damit die Temperatur des künftigen Sterns.
@@ -100,16 +361,16 @@ Festgelegte Progression:
 - Der Braune Zwerg gilt als erste erfolgreiche Entdeckung, nicht als Niederlage. Er gewährt garantiert genug Sternenstaub für die nächste Wolkenstufe.
 - Der permanente Perk „Wolkenwachstum“ schaltet nacheinander eine stellare und eine massereiche Urwolke frei. Bereits freigeschaltete Größen bleiben für spätere Zyklen auswählbar.
 - Die stellare Urwolke ermöglicht den Pfad über Wasserstoffbrennen, Hauptreihe, Roten Riesen, Heliumbrennen und einen Kohlenstoff-Sauerstoff-Kern bis zum Weißen Zwerg.
-- Die massereiche Urwolke führt nach den detaillierten Wasserstoff- und Heliumphasen über zusammengefasste späte Brennphasen zur Supernova. Die akkretierte Endmasse entscheidet zwischen Neutronenstern und Schwarzem Loch.
+- Die massereiche Urwolke führt nach den detaillierten Wasserstoff- und Heliumphasen über Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen zur Supernova. Die akkretierte Endmasse entscheidet zwischen Neutronenstern und Schwarzem Loch.
 - Heliumbrennen wird als Triple-Alpha-Prozess umgesetzt. Kohlenstoff und Sauerstoff sind sichtbare, gespeicherte Kernressourcen; Sauerstoff entsteht durch Alpha-Einfang an Kohlenstoff.
-- Neon-, Sauerstoff- und Siliziumbrennen werden in v0.3 bewusst als „Späte Brennphasen“ zusammengefasst.
+- Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen besitzen eigene Ressourcen, Reaktionskarten und Automationen.
 - Der bestehende Sternenstaub bleibt die einzige Prestige-Währung. Der Vermächtnis-Baum erhält die Äste Wolkenwachstum, Akkretion und Fusion.
 - Eine interaktive Entwicklungsübersicht in der Chronik zeigt den aktuellen Pfad, bekannte Endzustände und noch nicht entdeckte Abzweigungen.
 - Echte Wendepunkte werden weiterhin einmalig im schließbaren Ziel-Banner erklärt; Detailwissen bleibt freiwillig in Reaktionskarten und Chronik.
 - Bestehende v0.1- bis v0.2-Spielstände werden auf das neue Zustandsmodell migriert. Abgeschlossene Runden bleiben in der Historie erhalten.
 - Die Verdichtung bis zum ersten Protostern benötigt ohne Upgrades ungefähr 50 bis 60 aktive Impulse. Die erste Brauner-Zwerg-Runde zielt auf etwa 7 bis 10 Minuten; vollständige stellare Runden auf etwa 20 bis 30 Minuten und werden durch Vermächtnis-Perks schneller.
 - „Stabiles Wasserstoffbrennen“ erscheint erst nach Freischaltung des Wasserstoffbrennens und wird nach 5.000 ME durch Fusion selbst erzeugtem Helium kaufbar.
-- Im Reaktionsbereich bleiben nur der aktuelle Prozess und die unmittelbar nächste, noch gesperrte Reaktion sichtbar. So kündigt sich nach dem Wasserstoffbrennen das Heliumbrennen und danach der Alpha-Einfang zur Sauerstoffbildung an.
+- Im Reaktionsbereich bleiben alle bereits freigeschalteten Prozesse sowie die unmittelbar nächste, noch gesperrte Reaktion sichtbar. So kündigt sich jede folgende Brennstufe an, ohne frühere nutzbare Brennstoffe zu verstecken.
 - Jede manuelle Kernreaktion erhält eine eigene Automation, die erst mit der zugehörigen Reaktion sichtbar wird. Stabiles Heliumbrennen wird nach 1.500 ME selbst erzeugtem Kohlenstoff, stabiler Alpha-Einfang nach 400 ME selbst erzeugtem Sauerstoff kaufbar.
 - Die Rundenzusammenfassung ist stets das einzige sichtbare Popup. Sie schließt andere Dialoge, Menüs, Tutorialhinweise, Toasts und Ziel-Banner; Perk-Änderungen erhalten auf kleinen Bildschirmen die aktuelle Scrollposition.
 - Die Temperaturskala folgt den markanten Stufen 100.000 K für den Protostern, 1 Mio. K für Deuteriumbrennen und 10 Mio. K für Wasserstoffbrennen.
@@ -117,18 +378,18 @@ Festgelegte Progression:
 - Ab dem Protostern trägt der Sternwind pro Minute 0,25 % der ursprünglichen Wolkenmasse ab, auch während des Offline-Fortschritts. Beim Einsetzen warnt das Achievement-Banner ausdrücklich vor dem unwiederbringlichen Materieverlust.
 - Die Kernzusammensetzung zeigt absolute Materieeinheiten pro Element; die redundante Gesamtmasse bleibt ausschließlich in den Kerndaten.
 
-### Meilenstein v0.4 – detaillierte Sternphysik und neue Systeme
+### Weitere Vertiefungen nach der vollständigen Brennkette
 
-Nach dem vollständigen v0.3-Lebenszyklus können folgende Vertiefungen umgesetzt werden:
+Nach dem aktuellen Lebenszyklus können folgende Vertiefungen umgesetzt werden:
 
-- Einzelne Reaktionen und Ressourcen für Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen bis zum Eisenkern
-- Physikalisch kalibrierte Massen in Sonnen- und Jupitermassen statt ausschließlich abstrakter Materieeinheiten
+- Zusätzliche Reaktionskanäle und Zwischenprodukte innerhalb der bereits spielbaren Brennstufen
+- Ergänzende Anzeigen in Sonnen- und Jupitermassen neben den auf 150.000 ME pro Sonnenmasse kalibrierten Materieeinheiten
 - Metallizität, unterschiedliche chemische Zusammensetzungen und weitere Typen von Sternentstehungswolken
 - Detailliertere Brauner-Zwerg-Entwicklung einschließlich Deuterium- und gegebenenfalls Lithiumbrennen
 - Zeitabhängige Hauptreihen- und Abkühlphasen mit stärkerer Offline-Progression
 - Weitere masseabhängige Unterklassen von Weißen Zwergen, Supernovae, Neutronensternen und Schwarzen Löchern
 - Rotation, Magnetfelder, Masseverlust und stellare Winde als neue Einflussgrößen
 - Binärsterne, Massentransfer und alternative Supernova-Pfade
-- Ausgebaute Automationen für Helium- und schwere Brennphasen
+- Weitere Balance- und Komfortstufen für die bereits vorhandenen Automationen der schweren Brennphasen
 - Entdeckungsarchiv mit wissenschaftlichen Kurzartikeln zu allen beobachteten Entwicklungsstufen
 - Erste planetare Systeme und die Abhängigkeit ihrer Entstehung von Sternmasse und Metallizität

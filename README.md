@@ -1,13 +1,14 @@
 # Cosmic Clicker
 
-Ein responsiver Browser-Prototyp über die Entstehung eines Sterns – von der Urwolke bis zum stabilen Wasserstoffbrennen.
+Ein responsives Browser-Spiel über die Entstehung und Entwicklung eines Sterns – von der Urwolke bis zum kompakten Sternrest.
 
 ## Enthalten
 
-- Vereinfachte erste Urwolke aus reinem Wasserstoff, ab Zyklus 2 mit kosmischer Elementmischung
+- Physikalisch neu kalibrierte Urwolken von 0,07 bis 25 Sonnenmassen
 - Aktive und automatische Akkretion
 - Temperatur- und Druckentwicklung durch gravitative Kontraktion
-- Deuteriumbrennen als zeitlich begrenztes Upgrade und verständlich erklärtes Wasserstoffbrennen
+- Deuteriumbrennen als zeitlich begrenztes Upgrade sowie eine konfigurationsgetriebene Brennkette von Wasserstoff bis zur Eisengruppe
+- Massenabhängige Entwicklung zu Braunem Zwerg, mehreren Weißer-Zwerg-Typen, Neutronenstern oder Schwarzem Loch
 - Upgrades, Automationen und ein permanentes Prestige-System
 - Wissenschaftliche Kurzinfos und Sternenlogbuch
 - Automatische Speicherung, bis zu acht Stunden Offline-Fortschritt sowie Import/Export
@@ -40,9 +41,10 @@ Nur im Dev-Server steht in der Browser-Konsole `cosmicDebug()` zur Verfügung. D
 ## Aufbau
 
 - `src/game/engine.ts` enthält die deterministischen Spielregeln.
-- `src/game/config.ts` bündelt Schwellenwerte und Limits.
+- `src/content/` bündelt Reaktionen, Upgrades, Automationen, Wolken, Ressourcen, Progression und Prestige-Inhalte.
+- `src/game/config.ts` stellt die zentralen Inhalte für ältere Importe gesammelt bereit.
 - `src/game/storage.ts` verwaltet Browser-Speicherung und Offline-Fortschritt.
 - `src/main.ts` rendert die Oberfläche und verbindet Interaktionen mit der Engine.
 - `src/styles.scss` enthält das responsive visuelle System und die Sternanimation.
 
-Der Vertical Slice endet beim hydrostatischen Gleichgewicht eines Hauptreihensterns. C-, O-, Ne-, Si- und Fe-Brennen sind im Entwicklungsbaum vorbereitet, aber bewusst noch nicht spielbar.
+Die spielbare Brennkette umfasst Wasserstoff-, Helium-, Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen bis zum Eisenkern. Welche Endstufe erreicht wird, hängt von Brennstoff, Temperatur und Sternmasse ab.

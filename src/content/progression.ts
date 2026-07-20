@@ -3,16 +3,25 @@ import type { Stage } from '../game/types';
 export const INITIAL_TEMPERATURE = 10;
 
 export const THRESHOLDS = {
+  matterPerSolarMass: 150_000,
   protostarMass: 2_544,
   protostarTemperature: 100_000,
   deuteriumTemperature: 1_000_000,
   hydrogenTemperature: 10_000_000,
   heliumTemperature: 100_000_000,
+  carbonTemperature: 600_000_000,
+  neonTemperature: 1_200_000_000,
+  oxygenTemperature: 1_500_000_000,
+  siliconTemperature: 2_700_000_000,
   lateBurningTemperature: 600_000_000,
   mainSequenceHydrogen: 15_000,
   heliumCore: 4_500,
   oxygenCore: 1_200,
-  blackHoleMass: 105_000,
+  hydrogenIgnitionMass: 12_000,
+  heliumIgnitionMass: 75_000,
+  carbonIgnitionMass: 1_200_000,
+  advancedBurningMass: 1_350_000,
+  blackHoleMass: 3_000_000,
 } as const;
 
 export const LIMITS = {
@@ -21,6 +30,10 @@ export const LIMITS = {
   fusion: 8,
   heliumFusion: 8,
   oxygenSynthesis: 8,
+  carbonFusion: 8,
+  neonFusion: 8,
+  oxygenFusion: 8,
+  siliconFusion: 8,
   permanentGravity: 5,
   fusionMemory: 5,
   cloudTier: 2,
@@ -38,10 +51,11 @@ export const ACCRETION = {
 } as const;
 
 export const TEMPERATURE_MODEL = {
-  compressionExponent: 1.5,
+  compressionExponent: 3,
   deuteriumMultiplier: 1.35,
   fusionHeatPerHydrogen: 2.4,
   heatLossPerSecond: 180,
+  contractionSecondsPerStage: 90,
 } as const;
 
 export const STELLAR_WIND = {
@@ -66,13 +80,20 @@ export const STAGES: Record<Stage, StageDefinition> = {
   deuterium: { label: 'Deuteriumphase', detail: 'Frühe Kernheizung', temperatureFloor: THRESHOLDS.deuteriumTemperature },
   hydrogen: { label: 'Wasserstoffbrennen', detail: 'Wasserstoff wird zu Helium', temperatureFloor: THRESHOLDS.hydrogenTemperature },
   mainSequence: { label: 'Hauptreihenstern', detail: 'Hydrostatisches Gleichgewicht', temperatureFloor: THRESHOLDS.hydrogenTemperature },
-  redGiant: { label: 'Roter Riese', detail: 'Hülle expandiert', temperatureFloor: THRESHOLDS.heliumTemperature },
+  redGiant: { label: 'Roter Riese', detail: 'Hülle expandiert', temperatureFloor: THRESHOLDS.hydrogenTemperature },
   helium: { label: 'Heliumbrennen', detail: 'Triple-Alpha-Prozess', temperatureFloor: THRESHOLDS.heliumTemperature },
-  carbonOxygen: { label: 'Kohlenstoff-Sauerstoff-Kern', detail: 'Entarteter C/O-Kern', temperatureFloor: 180_000_000 },
+  carbonOxygen: { label: 'Kohlenstoff-Sauerstoff-Kern', detail: 'Entarteter C/O-Kern', temperatureFloor: THRESHOLDS.heliumTemperature },
+  carbonBurning: { label: 'Kohlenstoffbrennen', detail: 'Kohlenstoff wird zu Neon', temperatureFloor: THRESHOLDS.carbonTemperature },
+  neonBurning: { label: 'Neonbrennen', detail: 'Neon wird zu Sauerstoff', temperatureFloor: THRESHOLDS.neonTemperature },
+  oxygenBurning: { label: 'Sauerstoffbrennen', detail: 'Sauerstoff wird zu Silizium', temperatureFloor: THRESHOLDS.oxygenTemperature },
+  siliconBurning: { label: 'Siliziumbrennen', detail: 'Silizium wird zur Eisengruppe', temperatureFloor: THRESHOLDS.siliconTemperature },
+  ironCore: { label: 'Eisenkern', detail: 'Fusion liefert keine Energie mehr', temperatureFloor: THRESHOLDS.siliconTemperature },
   massiveStar: { label: 'Massereicher Stern', detail: 'Späte Brennphasen', temperatureFloor: THRESHOLDS.lateBurningTemperature },
   supernova: { label: 'Supernova', detail: 'Explosiver Kernkollaps', temperatureFloor: 1_000_000_000 },
   brownDwarf: { label: 'Brauner Zwerg', detail: 'Unterhalb der Zündmasse', temperatureFloor: INITIAL_TEMPERATURE },
+  heliumWhiteDwarf: { label: 'Helium-Weißer-Zwerg', detail: 'Heliumkern unterhalb der Zündmasse', temperatureFloor: THRESHOLDS.hydrogenTemperature },
   whiteDwarf: { label: 'Weißer Zwerg', detail: 'Freigelegter C/O-Kern', temperatureFloor: 120_000_000 },
+  oxygenNeonWhiteDwarf: { label: 'O/Ne-Weißer-Zwerg', detail: 'Entarteter Sauerstoff-Neon-Kern', temperatureFloor: THRESHOLDS.carbonTemperature },
   neutronStar: { label: 'Neutronenstern', detail: 'Entartete Neutronenmaterie', temperatureFloor: 1_000_000_000 },
   blackHole: { label: 'Schwarzes Loch', detail: 'Ereignishorizont', temperatureFloor: 1_000_000_000 },
 };
@@ -92,6 +113,18 @@ export const ACHIEVEMENT_TITLES: Record<string, string> = {
   'build-oxygen-core': 'Kohlenstoff-Sauerstoff-Kern vollendet',
   'collapse-core': 'Kernkollaps ausgelöst',
   'observe-remnant': 'Stellarer Rest entdeckt',
+  'ignite-alphaCapture': 'Alpha-Einfang freigeschaltet',
+  'ignite-carbon': 'Kohlenstoffbrennen freigeschaltet',
+  'ignite-neon': 'Neonbrennen freigeschaltet',
+  'ignite-oxygen': 'Sauerstoffbrennen freigeschaltet',
+  'ignite-silicon': 'Siliziumbrennen freigeschaltet',
+  'burn-hydrogen': 'Wasserstoffbrennen abgeschlossen',
+  'burn-helium': 'Heliumbrennen abgeschlossen',
+  'burn-alphaCapture': 'Alpha-Einfang abgeschlossen',
+  'burn-carbon': 'Kohlenstoffbrennen abgeschlossen',
+  'burn-neon': 'Neonbrennen abgeschlossen',
+  'burn-oxygen': 'Sauerstoffbrennen abgeschlossen',
+  'burn-silicon': 'Siliziumbrennen abgeschlossen',
 };
 
 export const PROTOSTAR_WIND_WARNING = {

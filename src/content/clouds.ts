@@ -6,6 +6,8 @@ export interface CloudDefinition {
   shortName: string;
   description: string;
   expectedOutcome: string;
+  solarMasses: number;
+  matureAccretionMultiplier: number;
   matter: Matter;
 }
 
@@ -16,7 +18,9 @@ export const CLOUD_TIERS: Record<CloudTier, CloudDefinition> = {
     shortName: 'Klein',
     description: 'Eine kompakte Wasserstoffwolke mit noch unbekanntem Entwicklungsweg.',
     expectedOutcome: 'Brauner Zwerg',
-    matter: { hydrogen: 12_000, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
+    solarMasses: .07,
+    matureAccretionMultiplier: 1,
+    matter: { hydrogen: 10_490, helium: 0, deuterium: 10, carbon: 0, neon: 0, oxygen: 0, silicon: 0, iron: 0 },
   },
   1: {
     tier: 1,
@@ -24,7 +28,9 @@ export const CLOUD_TIERS: Record<CloudTier, CloudDefinition> = {
     shortName: 'Stellar',
     description: 'Genug Materie für einen sonnenähnlichen Stern und einen Weißen Zwerg.',
     expectedOutcome: 'Weißer Zwerg',
-    matter: { hydrogen: 56_000, helium: 18_900, deuterium: 100, carbon: 0, oxygen: 0 },
+    solarMasses: 1,
+    matureAccretionMultiplier: 6.25,
+    matter: { hydrogen: 105_000, helium: 44_800, deuterium: 200, carbon: 0, neon: 0, oxygen: 0, silicon: 0, iron: 0 },
   },
   2: {
     tier: 2,
@@ -32,7 +38,9 @@ export const CLOUD_TIERS: Record<CloudTier, CloudDefinition> = {
     shortName: 'Massereich',
     description: 'Öffnet Supernovae und kompakte Sternreste.',
     expectedOutcome: 'Supernova',
-    matter: { hydrogen: 112_000, helium: 37_800, deuterium: 200, carbon: 0, oxygen: 0 },
+    solarMasses: 25,
+    matureAccretionMultiplier: 187.5,
+    matter: { hydrogen: 2_625_000, helium: 1_123_000, deuterium: 2_000, carbon: 0, neon: 0, oxygen: 0, silicon: 0, iron: 0 },
   },
 };
 

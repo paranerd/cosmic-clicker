@@ -82,29 +82,25 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await expect(page.locator('[data-ui="wind-rate"]')).toContainText('ME/s');
 });
 
-test('achievement banners queue until the player closes them', async ({ page }) => {
+test('hydrogen burning remains usable after the main-sequence milestone', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, stage: 'mainSequence', cloudTier: 1, nextCloudTier: 1,
     cloud: { hydrogen: 22_000, helium: 8_000, deuterium: 20, carbon: 0, oxygen: 0 },
     star: { hydrogen: 24_000, helium: 12_000, deuterium: 30, carbon: 0, oxygen: 0 },
     temperature: 25_000_000,
+    fusedHydrogen: 14_900, stats: { hydrogenFused: 14_900 },
     perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
-    seenObjectives: ['leave-main-sequence'],
+    seenObjectives: ['sustain-hydrogen'],
   });
   await page.goto('/');
 
-  await page.getByRole('button', { name: /Entwicklung fortsetzen/ }).click();
-  const achievement = page.locator('.achievement-banner');
-  await expect(achievement).toContainText('Hauptreihe abgeschlossen');
-  await page.getByRole('button', { name: /Entwicklung fortsetzen/ }).click();
-  await expect(achievement).toContainText('Hauptreihe abgeschlossen');
-  await expect(achievement).not.toContainText('Heliumkern gezündet');
-
-  await page.getByRole('button', { name: 'Zielhinweis schließen' }).click();
-  await expect(achievement).toContainText('Heliumkern gezündet');
-  await page.getByRole('button', { name: 'Zielhinweis schließen' }).click();
-  await expect(achievement).toHaveCount(0);
+  const hydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
+  await hydrogenCard.getByRole('button', { name: /H fusionieren/ }).click();
+  await expect(hydrogenCard).toBeVisible();
+  await expect(hydrogenCard.getByRole('button', { name: /H fusionieren/ })).toBeEnabled();
+  await expect(page.getByText('Hauptreihe verlassen', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Phase abgeschlossen', { exact: true })).toHaveCount(0);
 });
 
 test('desktop cockpit fits and exposes the separated control tabs', async ({ page }) => {
@@ -120,7 +116,7 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByText('Automatische Akkretion', { exact: true })).toHaveCount(0);
   await expect(page.locator('.left-panel .cloud-stats')).toContainText('Urwolke');
   await expect(page.locator('.cloud-mini-gauge [data-ui="cloud-percent"]')).toHaveText('100%');
-  await expect(page.locator('[data-cloud-matter="hydrogen"]')).toContainText('12.000');
+  await expect(page.locator('[data-cloud-matter="hydrogen"]')).toContainText('10.490');
   await expect(page.locator('[data-cloud-matter="helium"]')).toBeHidden();
   await expect(page.locator('[data-cloud-matter="deuterium"]')).toBeHidden();
   await expect(page.locator('.chronicle-dock')).toBeVisible();
@@ -365,7 +361,7 @@ test('active accretion automation continuously streams particles into the star',
 
 test('upgrade and automation cards use compact heading rows', async ({ page }) => {
   await gotoGame(page);
-  await expect(page.locator('[data-card="fusion"]')).toContainText('Wasserstoffbrennen');
+  await expect(page.locator('[data-reaction-card="hydrogen"]')).toContainText('Wasserstoffbrennen');
   await expect(page.getByRole('button', { name: /Zünden/ })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Upgrades' }).click();
   const upgradeHeading = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' }).locator('.upgrade-heading');
@@ -436,7 +432,7 @@ test('stable hydrogen burning is hidden before ignition and then tracks created 
   await gotoGame(page);
   await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Sauerstoff bilden' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Alpha-Einfang' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Automationen 1' }).click();
 
   const fusionAutomation = page.locator('[data-automation-card="fusion"]');
@@ -446,7 +442,7 @@ test('stable hydrogen burning is hidden before ignition and then tracks created 
   await expect(page.locator('[data-automation-card="heliumFusion"]')).toHaveCount(0);
 });
 
-test('helium burning previews oxygen and reveals only its matching new automation', async ({ page }) => {
+test('helium burning keeps earlier reactions, previews carbon and reveals matching automations', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, run: 2, stage: 'helium', cloudTier: 1, nextCloudTier: 1,
     cloud: { hydrogen: 10_000, helium: 4_000, deuterium: 20, carbon: 0, oxygen: 0 },
@@ -458,17 +454,19 @@ test('helium burning previews oxygen and reveals only its matching new automatio
   });
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Sauerstoff bilden' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Nach dem Heliumbrennen/ })).toBeDisabled();
+  await expect(page.getByRole('heading', { name: 'Alpha-Einfang' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Kohlenstoffbrennen' })).toBeVisible();
+  await expect(page.locator('[data-reaction-card="carbon"] button')).toBeDisabled();
 
   await page.getByRole('tab', { name: /Automationen/ }).click();
   await expect(page.locator('[data-automation-card="fusion"]')).toBeVisible();
   const heliumAutomation = page.locator('[data-automation-card="heliumFusion"]');
   await expect(heliumAutomation).toBeVisible();
   await expect(heliumAutomation).toContainText('998 / 1.500 C');
-  await expect(page.locator('[data-automation-card="oxygenSynthesis"]')).toHaveCount(0);
+  await expect(page.locator('[data-automation-card="oxygenSynthesis"]')).toBeVisible();
+  await expect(page.locator('[data-automation-card="carbonFusion"]')).toHaveCount(0);
 });
 
 test('terminal upgrades no longer render a purchase progress bar', async ({ page }) => {
@@ -564,7 +562,7 @@ test('cycle completion closes every competing popup and hint', async ({ page }) 
   await seedLegacyGame(page, {
     version: 4, stage: 'deuterium', cloudTier: 0, nextCloudTier: 0,
     cloud: { hydrogen: 48, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
-    star: { hydrogen: 11_952, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 10_442, helium: 0, deuterium: 10, carbon: 0, oxygen: 0 },
     temperature: 6_000_000,
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
   });
@@ -717,7 +715,7 @@ test('the first brown dwarf reward unlocks the stellar cloud for cycle two', asy
   await expect(page.locator('[data-cloud-matter="deuterium"]')).toHaveCount(0);
 });
 
-test('carbon and oxygen reactions appear during the advanced stellar path', async ({ page }) => {
+test('the full ordered reaction path keeps available fuel visible and previews carbon burning', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, run: 2, stage: 'carbonOxygen', cloudTier: 1, nextCloudTier: 1,
     cloud: { hydrogen: 10_000, helium: 4_000, deuterium: 20, carbon: 0, oxygen: 0 },
@@ -729,10 +727,12 @@ test('carbon and oxygen reactions appear during the advanced stellar path', asyn
   });
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Sauerstoff bilden', level: 3 })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Sauerstoff erzeugen 0 / 1200 O' }).click();
+  await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Alpha-Einfang', level: 3 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Kohlenstoffbrennen', level: 3 })).toBeVisible();
+  await expect(page.locator('[data-reaction-card="carbon"] button')).toBeDisabled();
+  await page.locator('[data-reaction-card="alphaCapture"] button').click();
   await expect(page.locator('[data-matter="oxygen"]')).toBeVisible();
   await expect(page.locator('[data-ui="oxygen-value"]')).not.toHaveText('0%');
 
@@ -740,4 +740,5 @@ test('carbon and oxygen reactions appear during the advanced stellar path', asyn
   await expect(page.locator('[data-automation-card="fusion"]')).toBeVisible();
   await expect(page.locator('[data-automation-card="heliumFusion"]')).toBeVisible();
   await expect(page.locator('[data-automation-card="oxygenSynthesis"]')).toBeVisible();
+  await expect(page.locator('[data-automation-card="carbonFusion"]')).toHaveCount(0);
 });

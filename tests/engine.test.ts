@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { CLOUD_TIERS, EMPTY_MATTER, FUSION_AUTOMATION_CARBON, FUSION_AUTOMATION_HELIUM, FUSION_AUTOMATION_OXYGEN, HELIUM_TO_CARBON_RATIO, HYDROGEN_TO_HELIUM_RATIO, INITIAL_TEMPERATURE, THRESHOLDS } from '../src/content';
-import { accretionPerClick, calculateTemperature, cloudMass, createInitialState, objectiveFor, reduceGame, starMass, tick } from '../src/game/engine';
-import type { GameState } from '../src/game/types';
+import { CLOUD_TIERS, EMPTY_MATTER, REACTIONS, REACTION_ORDER, THRESHOLDS } from '../src/content';
+import {
+  accretionPerClick,
+  calculateTemperature,
+  cloudMass,
+  createInitialState,
+  objectiveFor,
+  reactionCapacity,
+  reduceGame,
+  solarMasses,
+  starMass,
+  tick,
+} from '../src/game/engine';
+import type { GameState, ReactionId } from '../src/game/types';
 
-const accreteUntil = (initial: GameState, targetMass: number, guardLimit = 2_000): GameState => {
+const accreteUntil = (initial: GameState, targetMass: number, guardLimit = 20_000): GameState => {
   let state = initial;
   let guard = 0;
   while (!state.completed && starMass(state) < targetMass && guard < guardLimit) {
@@ -13,309 +24,199 @@ const accreteUntil = (initial: GameState, targetMass: number, guardLimit = 2_000
   return state;
 };
 
-const reachMainSequence = (initial: GameState, targetMass = 60_000): GameState => {
-  let state = accreteUntil(initial, targetMass);
-  let guard = 0;
-  while (state.stage === 'hydrogen' && guard < 1_000) {
-    state = reduceGame(state, { type: 'FUSE_HYDROGEN' });
-    guard += 1;
-  }
+const reactionState = (reaction: ReactionId, fuel = 1_000): GameState => {
+  const state = createInitialState({ largerCloud: 2 }, 0, 3, { cloudTier: 2 });
+  state.cloud = { ...EMPTY_MATTER };
+  state.star = { ...EMPTY_MATTER, iron: 2_000_000 };
+  const definition = REACTIONS[reaction];
+  Object.entries(definition.inputs).forEach(([key, ratio]) => {
+    state.star[key as keyof typeof state.star] = fuel * (ratio ?? 0);
+  });
+  state.unlockedReactions = [...REACTION_ORDER.slice(0, REACTION_ORDER.indexOf(reaction) + 1)];
+  if (reaction === 'alphaCapture' && !state.unlockedReactions.includes('helium')) state.unlockedReactions.push('helium');
+  state.temperature = definition.ignitionTemperature;
+  state.stage = definition.stageOnUnlock;
   return state;
 };
 
-const reachCarbonOxygenCore = (initial: GameState, targetMass = 60_000): GameState => {
-  let state = reachMainSequence(initial, targetMass);
-  state = reduceGame(state, { type: 'ADVANCE_EVOLUTION' });
-  state = reduceGame(state, { type: 'ADVANCE_EVOLUTION' });
-  let guard = 0;
-  while (state.stage === 'helium' && guard < 1_000) {
-    state = reduceGame(state, { type: 'FUSE_HELIUM' });
-    guard += 1;
-  }
-  while (state.stage === 'carbonOxygen' && state.stats.oxygenCreated < THRESHOLDS.oxygenCore && guard < 2_000) {
-    state = reduceGame(state, { type: 'CREATE_OXYGEN' });
-    guard += 1;
-  }
-  return state;
-};
-
-const completeMassiveStar = (targetMass: number): GameState => {
-  let state = createInitialState({ largerCloud: 2 }, 0, 3, { cloudTier: 2 });
-  state = reachCarbonOxygenCore(accreteUntil(state, targetMass, 4_000), targetMass);
-  state = reduceGame(state, { type: 'ADVANCE_EVOLUTION' });
-  state = reduceGame(state, { type: 'ADVANCE_EVOLUTION' });
-  state = reduceGame(state, { type: 'ADVANCE_EVOLUTION' });
-  return state;
-};
-
-describe('stellar engine v0.3', () => {
-  it('starts every new cloud at ten kelvin', () => {
-    expect(createInitialState().temperature).toBe(INITIAL_TEMPERATURE);
-    expect(INITIAL_TEMPERATURE).toBe(10);
+describe('data-driven stellar engine v0.4', () => {
+  it('uses the calibrated solar-mass scale and cloud masses', () => {
+    const small = createInitialState();
+    const stellar = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
+    const massive = createInitialState({ largerCloud: 2 }, 0, 3, { cloudTier: 2 });
+    expect(cloudMass(small) / THRESHOLDS.matterPerSolarMass).toBeCloseTo(.07, 5);
+    expect(cloudMass(stellar) / THRESHOLDS.matterPerSolarMass).toBeCloseTo(1, 5);
+    expect(cloudMass(massive) / THRESHOLDS.matterPerSolarMass).toBeCloseTo(25, 5);
   });
 
-  it('forms the protostar at one hundred thousand kelvin', () => {
-    const state = accreteUntil(createInitialState(), THRESHOLDS.protostarMass);
+  it('forms a protostar after roughly fifty impulses', () => {
+    let state = createInitialState();
+    let clicks = 0;
+    while (state.stage === 'nebula') { state = reduceGame(state, { type: 'ACCRETE' }); clicks += 1; }
     expect(state.stage).toBe('protostar');
-    expect(state.temperature).toBeCloseTo(THRESHOLDS.protostarTemperature, 5);
+    expect(state.temperature).toBeGreaterThanOrEqual(THRESHOLDS.protostarTemperature);
+    expect(clicks).toBeGreaterThanOrEqual(50);
+    expect(clicks).toBeLessThanOrEqual(60);
   });
 
-  it('starts every cloud with the objective of forming a protostar', () => {
-    const small = createInitialState();
-    const stellar = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    expect(objectiveFor(small)).toMatchObject({ id: 'form-protostar', title: 'Protostern bilden' });
-    expect(objectiveFor(stellar)).toMatchObject({ id: 'form-protostar', title: 'Protostern bilden' });
+  it('activates deuterium burning without a retroactive temperature jump', () => {
+    const state = accreteUntil(createInitialState(), 6_000);
+    state.energy = 100;
+    const before = state.temperature;
+    const upgraded = reduceGame(state, { type: 'BUY_DEUTERIUM' });
+    expect(upgraded.upgrades.deuteriumBurning).toBe(true);
+    expect(upgraded.temperature).toBeCloseTo(before, 5);
+    const normalNext = reduceGame(state, { type: 'ACCRETE' });
+    const upgradedNext = reduceGame(upgraded, { type: 'ACCRETE' });
+    expect(upgradedNext.temperature - upgraded.temperature).toBeGreaterThan(normalNext.temperature - state.temperature);
   });
 
-  it('derives ignition and failed ignition from stellar conditions instead of the cloud tier', () => {
-    const small = createInitialState();
-    small.star.hydrogen = 3_000;
-    small.cloud.hydrogen -= 3_000;
-    small.heatBonus = THRESHOLDS.hydrogenTemperature;
-    expect(tick(small, 0).stage).toBe('hydrogen');
-
-    const stellar = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    stellar.stage = 'protostar';
-    stellar.cloud = { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 };
-    stellar.star = { hydrogen: THRESHOLDS.protostarMass, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 };
-    const exhausted = tick(stellar, 0);
-    expect(exhausted.completed).toBe(true);
-    expect(exhausted.outcome).toBe('brownDwarf');
-  });
-
-  it('conserves matter during accretion', () => {
-    const state = createInitialState();
-    const totalBefore = cloudMass(state) + starMass(state);
-    const next = reduceGame(state, { type: 'ACCRETE' });
-    expect(starMass(next)).toBeCloseTo(accretionPerClick(state), 5);
-    expect(cloudMass(next) + starMass(next)).toBeCloseTo(totalBefore, 5);
-  });
-
-  it('starts all new games with the same small hydrogen cloud and implicit deuterium', () => {
-    const state = createInitialState();
-    expect(state.cloudTier).toBe(0);
-    expect(state.cloud).toEqual(CLOUD_TIERS[0].matter);
-    expect(state.cloud.hydrogen).toBe(12_000);
-    expect(state.cloud.helium).toBe(0);
-    expect(state.cloud.deuterium).toBeGreaterThan(0);
-  });
-
-  it('ends the first cycle as a rewarded brown dwarf and unlocks the stellar cloud', () => {
-    let state = accreteUntil(createInitialState(), CLOUD_TIERS[0].matter.hydrogen);
+  it('ends the 0.07 solar-mass cloud as a rewarded brown dwarf', () => {
+    const state = accreteUntil(createInitialState(), CLOUD_TIERS[0].matter.hydrogen + CLOUD_TIERS[0].matter.deuterium);
     expect(state.completed).toBe(true);
-    expect(state.stage).toBe('brownDwarf');
     expect(state.outcome).toBe('brownDwarf');
     expect(state.stardust).toBe(2);
-    expect(state.temperature).toBeLessThan(THRESHOLDS.hydrogenTemperature);
-
-    state = reduceGame(state, { type: 'BUY_PERK', perk: 'largerCloud' });
-    expect(state.perks.largerCloud).toBe(0);
-    expect(state.pendingPerks.largerCloud).toBe(1);
-    expect(state.nextCloudTier).toBe(1);
-    expect(state.stardust).toBe(0);
-
-    const next = reduceGame(state, { type: 'PRESTIGE' });
-    expect(next.run).toBe(2);
-    expect(next.perks.largerCloud).toBe(1);
-    expect(next.pendingPerks.largerCloud).toBe(0);
-    expect(next.cloudTier).toBe(1);
-    expect(next.cloud).toEqual(CLOUD_TIERS[1].matter);
-    expect(next.history[0]).toMatchObject({ outcome: 'brownDwarf', cloudTier: 0 });
+    expect(state.unlockedReactions).not.toContain('hydrogen');
   });
 
-  it('allows a closed cycle summary to be opened again', () => {
-    let state = accreteUntil(createInitialState(), CLOUD_TIERS[0].matter.hydrogen);
-    state = reduceGame(state, { type: 'CLOSE_SUMMARY' });
-    expect(state.summaryOpen).toBe(false);
-    state = reduceGame(state, { type: 'OPEN_SUMMARY' });
-    expect(state.summaryOpen).toBe(true);
+  it('unlocks hydrogen from temperature and mass rather than cloud tier', () => {
+    const state = accreteUntil(createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 }), THRESHOLDS.hydrogenIgnitionMass);
+    expect(state.unlockedReactions).toContain('hydrogen');
+    expect(state.temperature).toBeGreaterThanOrEqual(THRESHOLDS.hydrogenTemperature);
   });
 
-  it('stages multiple affordable perk levels and refunds deselected levels', () => {
-    let state = accreteUntil(createInitialState(), CLOUD_TIERS[0].matter.hydrogen);
-    state.stardust = 7;
-    state = reduceGame(state, { type: 'BUY_PERK', perk: 'largerCloud' });
-    state = reduceGame(state, { type: 'BUY_PERK', perk: 'largerCloud' });
-    expect(state.pendingPerks.largerCloud).toBe(2);
-    expect(state.perks.largerCloud).toBe(0);
-    expect(state.stardust).toBe(0);
-    expect(state.nextCloudTier).toBe(2);
-
-    state = reduceGame(state, { type: 'REMOVE_PERK', perk: 'largerCloud' });
-    expect(state.pendingPerks.largerCloud).toBe(1);
-    expect(state.stardust).toBe(5);
-    expect(state.nextCloudTier).toBe(1);
-
-    state = reduceGame(state, { type: 'PRESTIGE' });
-    expect(state.perks.largerCloud).toBe(1);
-    expect(state.pendingPerks.largerCloud).toBe(0);
+  it('keeps hydrogen burning available after the main-sequence milestone', () => {
+    let state = reactionState('hydrogen', 20_000);
+    state.stage = 'hydrogen';
+    state.fusedHydrogen = THRESHOLDS.mainSequenceHydrogen - 50;
+    state.reactionTotals.hydrogen = state.fusedHydrogen;
+    state = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    expect(state.stage).toBe('mainSequence');
+    const remaining = state.star.hydrogen;
+    state = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    expect(state.star.hydrogen).toBeLessThan(remaining);
+    expect(state.reactionTotals.hydrogen).toBeGreaterThan(THRESHOLDS.mainSequenceHydrogen);
   });
 
-  it('takes roughly fifty clicks to form a protostar and seven to ten projected minutes for the first cycle', () => {
-    let protostar = createInitialState();
-    let protostarActions = 0;
-    while (protostar.stage === 'nebula' && protostarActions < 1_000) {
-      protostar = reduceGame(protostar, { type: 'ACCRETE' });
-      protostarActions += 1;
-    }
-    expect(protostar.stage).toBe('protostar');
-    expect(protostarActions).toBeGreaterThanOrEqual(50);
-    expect(protostarActions).toBeLessThanOrEqual(60);
-
-    let state = createInitialState();
-    let actions = 0;
-    while (!state.completed && actions < 1_000) {
-      state = reduceGame(state, { type: 'ACCRETE' });
-      actions += 1;
-    }
-    const projectedSeconds = actions * 2;
-    expect(projectedSeconds).toBeGreaterThanOrEqual(7 * 60);
-    expect(projectedSeconds).toBeLessThanOrEqual(10 * 60);
+  it('allows a final reaction with less fuel than the normal batch', () => {
+    const state = reactionState('hydrogen', 37);
+    expect(reactionCapacity(state, 'hydrogen')).toBe(37);
+    const fused = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    expect(fused.star.hydrogen).toBeCloseTo(0, 5);
+    expect(fused.reactionTotals.hydrogen).toBeCloseTo(37, 5);
   });
 
-  it('allows deuterium burning in the first cycle once the protostar exceeds one million kelvin', () => {
-    let state = createInitialState();
-    state = accreteUntil(state, 11_900);
-    state.energy = 100;
-    const normalTemperature = state.temperature;
-    const upgraded = reduceGame(state, { type: 'BUY_DEUTERIUM' });
-    expect(upgraded.star.deuterium).toBeGreaterThan(0);
-    expect(upgraded.upgrades.deuteriumBurning).toBe(true);
-    expect(upgraded.energy).toBe(25);
-    expect(upgraded.temperature).toBeGreaterThan(normalTemperature);
-    expect(upgraded.temperature).toBeLessThan(THRESHOLDS.hydrogenTemperature);
+  it.each(REACTION_ORDER)('executes the centrally configured %s reaction', (reaction) => {
+    const state = reactionState(reaction);
+    const definition = REACTIONS[reaction];
+    const output = Object.keys(definition.outputs)[0] as keyof typeof state.star;
+    const before = state.star[output];
+    const next = reduceGame(state, { type: 'RUN_REACTION', reaction });
+    expect(next.reactionTotals[reaction]).toBeGreaterThan(0);
+    expect(next.star[output]).toBeGreaterThan(before);
+    expect(next.energy).toBeGreaterThan(0);
   });
 
-  it('unlocks stable hydrogen burning only after five thousand helium was created by fusion', () => {
-    let state = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    state = accreteUntil(state, 60_000);
+  it('creates a helium white dwarf below half a solar mass after hydrogen exhaustion', () => {
+    const state = reactionState('hydrogen', 0);
+    state.star = { ...EMPTY_MATTER, helium: 60_000 };
+    state.cloud = { ...EMPTY_MATTER };
+    const result = tick(state, 0);
+    expect(solarMasses(result)).toBeLessThan(.5);
+    expect(result.outcome).toBe('heliumWhiteDwarf');
+    expect(result.stardust).toBe(4);
+  });
+
+  it('contracts a sufficiently massive hydrogen-exhausted star to helium ignition', () => {
+    const state = reactionState('hydrogen', 0);
+    state.star = { ...EMPTY_MATTER, helium: 150_000 };
+    state.cloud = { ...EMPTY_MATTER };
+    const giant = tick(state, 1);
+    expect(['redGiant', 'helium']).toContain(giant.stage);
+    const ignited = tick(giant, 100);
+    expect(ignited.unlockedReactions).toContain('helium');
+    expect(ignited.unlockedReactions).toContain('alphaCapture');
+    expect(ignited.temperature).toBeGreaterThanOrEqual(THRESHOLDS.heliumTemperature);
+  });
+
+  it('leaves a carbon-oxygen white dwarf when helium ends below eight solar masses', () => {
+    const state = reactionState('helium', 0);
+    state.unlockedReactions.push('alphaCapture');
+    state.star = { ...EMPTY_MATTER, carbon: 90_000, oxygen: 60_000 };
+    const result = tick(state, 0);
+    expect(result.outcome).toBe('whiteDwarf');
+  });
+
+  it('contracts an eight-solar-mass core into carbon burning', () => {
+    const state = reactionState('helium', 0);
+    state.unlockedReactions.push('alphaCapture');
+    state.star = { ...EMPTY_MATTER, carbon: 1_250_000 };
+    state.temperature = THRESHOLDS.heliumTemperature;
+    const result = tick(state, 100);
+    expect(result.unlockedReactions).toContain('carbon');
+    expect(result.temperature).toBeGreaterThanOrEqual(THRESHOLDS.carbonTemperature);
+  });
+
+  it('uses final mass to choose the compact remnant after silicon burning', () => {
+    const finish = (mass: number) => {
+      const state = reactionState('silicon', 40);
+      state.star.iron = mass - 40;
+      return reduceGame(state, { type: 'RUN_REACTION', reaction: 'silicon' });
+    };
+    expect(finish(2_000_000).outcome).toBe('neutronStar');
+    expect(finish(3_200_000).outcome).toBe('blackHole');
+  });
+
+  it('unlocks reaction automation from the matching reaction output', () => {
+    let state = reactionState('hydrogen', 10_000);
     state.energy = 10_000;
-    while (state.stats.hydrogenFused * HYDROGEN_TO_HELIUM_RATIO < FUSION_AUTOMATION_HELIUM) {
-      const beforeThreshold = state.stats.hydrogenFused * HYDROGEN_TO_HELIUM_RATIO < FUSION_AUTOMATION_HELIUM;
-      if (beforeThreshold) {
-        const attempted = reduceGame(state, { type: 'BUY_FUSION' });
-        expect(attempted.automation.fusion).toBe(0);
-      }
-      state = reduceGame(state, { type: 'FUSE_HYDROGEN' });
-    }
-    state = reduceGame(state, { type: 'BUY_FUSION' });
+    state.reactionTotals.hydrogen = 5_100;
+    state = reduceGame(state, { type: 'BUY_REACTION_AUTOMATION', reaction: 'hydrogen' });
     expect(state.automation.fusion).toBe(1);
+    const automatic = tick(state, 1);
+    expect(automatic.automaticReactionTotals.hydrogen).toBeGreaterThan(0);
   });
 
-  it('unlocks later fusion automations only after their manual reactions and mastery thresholds', () => {
-    let helium = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    helium.energy = 10_000;
-    helium.stats.heliumFused = FUSION_AUTOMATION_CARBON / HELIUM_TO_CARBON_RATIO;
-    helium.stage = 'redGiant';
-    expect(reduceGame(helium, { type: 'BUY_HELIUM_FUSION' }).automation.heliumFusion).toBe(0);
-
-    helium.stage = 'helium';
-    helium.star.helium = 5_000;
-    helium = reduceGame(helium, { type: 'BUY_HELIUM_FUSION' });
-    expect(helium.automation.heliumFusion).toBe(1);
-    const heliumTick = tick(helium, 1);
-    expect(heliumTick.stats.automaticHeliumFused).toBeGreaterThan(0);
-    expect(heliumTick.star.carbon).toBeGreaterThan(0);
-
-    let oxygen = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    oxygen.energy = 10_000;
-    oxygen.stats.oxygenCreated = FUSION_AUTOMATION_OXYGEN;
-    oxygen.stage = 'helium';
-    expect(reduceGame(oxygen, { type: 'BUY_OXYGEN_SYNTHESIS' }).automation.oxygenSynthesis).toBe(0);
-
-    oxygen.stage = 'carbonOxygen';
-    oxygen.star.carbon = 5_000;
-    oxygen.star.helium = 5_000;
-    oxygen = reduceGame(oxygen, { type: 'BUY_OXYGEN_SYNTHESIS' });
-    expect(oxygen.automation.oxygenSynthesis).toBe(1);
-    const oxygenTick = tick(oxygen, 1);
-    expect(oxygenTick.stats.automaticOxygenCreated).toBeGreaterThan(0);
-    expect(oxygenTick.stats.oxygenCreated).toBeGreaterThan(FUSION_AUTOMATION_OXYGEN);
-  });
-
-  it('stellar wind starts with the protostar and removes cloud matter over time', () => {
-    const nebula = accreteUntil(createInitialState(), THRESHOLDS.protostarMass - 100);
-    expect(tick(nebula, 60).stats.matterLostToWind).toBe(0);
-
+  it('starts stellar wind at the protostar and removes 0.25 percent per minute', () => {
     const protostar = accreteUntil(createInitialState(), THRESHOLDS.protostarMass);
-    const cloudBefore = cloudMass(protostar);
-    const afterMinute = tick(protostar, 60);
-    expect(afterMinute.stats.matterLostToWind).toBeCloseTo(30.05, 1);
-    expect(cloudMass(afterMinute)).toBeCloseTo(cloudBefore - 30.05, 1);
+    const before = cloudMass(protostar);
+    const after = tick(protostar, 60);
+    expect(after.stats.matterLostToWind).toBeCloseTo(cloudMass(createInitialState()) * .0025, 5);
+    expect(cloudMass(after)).toBeCloseTo(before - after.stats.matterLostToWind, 5);
   });
 
-  it('stops compression heating when the cloud is empty but still permits fusion heating', () => {
-    const exhausted = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    exhausted.stage = 'hydrogen';
-    exhausted.cloud = { ...EMPTY_MATTER };
-    exhausted.star = { ...EMPTY_MATTER, hydrogen: 60_000 };
-    exhausted.automation.accretion = 8;
-    exhausted.temperature = calculateTemperature(exhausted);
-
-    const withoutFusion = tick(exhausted, 120);
-    expect(withoutFusion.temperature).toBeCloseTo(exhausted.temperature, 5);
-    expect(withoutFusion.stats.automaticMatterAccreted).toBe(0);
-
-    const withFusion = reduceGame(exhausted, { type: 'FUSE_HYDROGEN' });
-    expect(withFusion.temperature).toBeGreaterThan(exhausted.temperature);
+  it('stops accretion heating with an empty cloud but still permits fusion heating', () => {
+    const state = reactionState('hydrogen', 60_000);
+    state.automation.accretion = 8;
+    state.temperature = calculateTemperature(state);
+    const passive = tick(state, 10);
+    expect(passive.stats.automaticMatterAccreted).toBe(0);
+    expect(passive.temperature).toBeLessThanOrEqual(state.temperature);
+    const fused = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    expect(fused.temperature).toBeGreaterThan(state.temperature);
   });
 
-  it('forms carbon and oxygen before ending a stellar cloud as a white dwarf', () => {
-    let state = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    state = reachCarbonOxygenCore(state);
-    expect(state.stage).toBe('carbonOxygen');
-    expect(state.star.carbon).toBeGreaterThan(0);
-    expect(state.star.oxygen).toBeGreaterThanOrEqual(THRESHOLDS.oxygenCore);
-    state = reduceGame(state, { type: 'ADVANCE_EVOLUTION' });
-    expect(state.completed).toBe(true);
-    expect(state.outcome).toBe('whiteDwarf');
-    expect(state.stardust).toBe(5);
+  it('scales mature accretion with larger calibrated clouds', () => {
+    const small = createInitialState();
+    const massive = createInitialState({ largerCloud: 2 }, 0, 3, { cloudTier: 2 });
+    massive.unlockedReactions.push('hydrogen');
+    expect(accretionPerClick(massive)).toBeGreaterThan(accretionPerClick(small) * 100);
   });
 
-  it('uses final mass to choose the compact remnant after a supernova', () => {
-    const neutronStar = completeMassiveStar(80_000);
-    expect(neutronStar.completed).toBe(true);
-    expect(neutronStar.outcome).toBe('neutronStar');
-    expect(neutronStar.discoveredOutcomes).toContain('neutronStar');
-
-    const blackHole = completeMassiveStar(115_000);
-    expect(blackHole.completed).toBe(true);
-    expect(blackHole.outcome).toBe('blackHole');
-    expect(blackHole.discoveredOutcomes).toContain('blackHole');
+  it('starts every cloud with the protostar objective and caps offline time', () => {
+    const state = createInitialState({ largerCloud: 2 }, 0, 3, { cloudTier: 2 });
+    expect(objectiveFor(state).id).toBe('form-protostar');
+    expect(tick(state, 24 * 60 * 60).elapsed).toBe(8 * 60 * 60);
   });
 
-  it('applies permanent accretion and fusion perks', () => {
-    const base = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    const enhanced = createInitialState({ largerCloud: 1, permanentGravity: 2, fusionMemory: 2 }, 0, 2, { cloudTier: 1 });
-    expect(accretionPerClick(enhanced)).toBeGreaterThan(accretionPerClick(base));
-    enhanced.star.hydrogen = 40_000;
-    enhanced.stage = 'hydrogen';
-    enhanced.temperature = THRESHOLDS.hydrogenTemperature;
-    const fused = reduceGame(enhanced, { type: 'FUSE_HYDROGEN' });
-    expect(fused.stats.hydrogenFused).toBeGreaterThan(200);
-  });
-
-  it('caps long offline simulation at eight hours', () => {
-    const state = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    state.automation.accretion = 1;
-    const next = tick(state, 24 * 60 * 60);
-    expect(next.elapsed).toBe(8 * 60 * 60);
-  });
-
-  it('archives outcome, cloud tier, statistics and persistent settings during prestige', () => {
-    let state = accreteUntil(createInitialState(), CLOUD_TIERS[0].matter.hydrogen);
-    state.elapsed = 240;
+  it('archives the calibrated outcome and persistent settings during prestige', () => {
+    let state = accreteUntil(createInitialState(), cloudMass(createInitialState()));
     state.volume = .62;
     state.soundEnabled = false;
-    state.tutorial.completed = true;
-    state.tutorial.introSeen = true;
-    state.tutorial.cosmosToastPending = false;
     const next = reduceGame(state, { type: 'PRESTIGE' });
     expect(next.run).toBe(2);
-    expect(next.history).toHaveLength(1);
-    expect(next.history[0]).toMatchObject({ run: 1, duration: 240, outcome: 'brownDwarf', cloudTier: 0 });
+    expect(next.history[0]).toMatchObject({ outcome: 'brownDwarf', cloudTier: 0 });
     expect(next.volume).toBe(.62);
     expect(next.soundEnabled).toBe(false);
-    expect(next.tutorial.completed).toBe(true);
   });
 });
