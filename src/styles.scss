@@ -332,7 +332,14 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .level-pip { height: 3px; flex: 1; background: rgba(255,255,255,.08); }
 .level-pip.is-filled { background: $cyan; box-shadow: 0 0 6px rgba($cyan,.5); }
 .upgrade-card button, .perk-card button { width: 100%; min-height: 36px; padding: 0 11px; display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba($cyan,.25); background: rgba($cyan,.05); color: #badce0; font-size: 9px; cursor: pointer; }
-.upgrade-card button:disabled, .perk-card button:disabled { color: #4f5a68; border-color: $line; background: transparent; }
+// :not(.tile-action-button) ist hier zwingend: die generische Regel hat
+// dieselbe Spezifität wie ".upgrade-card .tile-action-button" (Zeile weiter
+// unten), gewinnt aber durch das zusätzliche Element (button) und würde den
+// Fill-Verlauf des Eck-Ausbaubuttons im deaktivierten Zustand (gesperrt oder
+// gerade nicht bezahlbar) mit background:transparent überschreiben — der
+// Button soll sich dort exakt wie bei Reaktionen verhalten, wo diese Regel
+// gar nicht erst greift (.action-card ist hier bewusst nicht gelistet).
+.upgrade-card button:disabled:not(.tile-action-button), .perk-card button:disabled { color: #4f5a68; border-color: $line; background: transparent; }
 .upgrade-card button b { font-family: ui-monospace,monospace; font-weight: 400; }
 
 // Punkt 1: Aktuelle Produktionsrate/aktueller Multiplikator und der Wert der

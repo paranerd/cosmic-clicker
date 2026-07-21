@@ -489,6 +489,12 @@ test('locked and not-yet-affordable upgrades/automations show a fractional progr
   const deuteriumButton = page.locator('.deuterium-upgrade .tile-action-button');
   expect(await deuteriumButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('10%');
   await expect(deuteriumButton.locator('.tile-action-icon svg rect')).toHaveCount(1);
+  // Der Fill-Wert allein reicht nicht: eine generische ".upgrade-card
+  // button:disabled"-Regel hat einmal den Fill-Verlauf dieses (deaktivierten,
+  // weil gesperrten) Buttons mit background:transparent überschrieben, obwohl
+  // --tile-fill korrekt gesetzt war. Deshalb hier zusätzlich den tatsächlich
+  // gerenderten Hintergrund prüfen statt nur die CSS-Variable.
+  expect(await deuteriumButton.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
 
   // Die Gravitations-Verdichtung ist freigeschaltet (keine Voraussetzungen),
   // mit 20 von 45 nötigen Energie aber noch nicht bezahlbar — der Fill zeigt
@@ -497,6 +503,7 @@ test('locked and not-yet-affordable upgrades/automations show a fractional progr
   await expect(gravityButton).not.toHaveClass(/is-buildable/);
   const gravityFill = await gravityButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'));
   expect(parseFloat(gravityFill)).toBeCloseTo(20 / 45 * 100, 5);
+  expect(await gravityButton.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
 
   // Punkt 3/4: Der Akkretionsstrom ist bei dieser Sternmasse ebenfalls erst
   // zur Hälfte freigeschaltet — 50 % Fill, Schloss-Icon, und "Aktuell" zeigt
@@ -506,6 +513,7 @@ test('locked and not-yet-affordable upgrades/automations show a fractional progr
   const accretionButton = accretionCard.locator('.tile-action-button');
   expect(await accretionButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('50%');
   await expect(accretionButton.locator('.tile-action-icon svg rect')).toHaveCount(1);
+  expect(await accretionButton.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
   await expect(accretionCard.locator('.tile-rate div').first().locator('b')).toHaveText('-');
 });
 
