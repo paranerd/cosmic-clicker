@@ -198,12 +198,14 @@ Implementierte manuelle Reaktionen:
   und liegen unter den Kosten der zugehörigen Automation. Automatische Raten
   bleiben vom Reaktionsausbau unberührt; Fusionsgedächtnis wirkt weiterhin
   multiplikativ auf beides. Der Ausbau-Button sitzt als kompakter Eck-Button
-  oben rechts auf der Reaktionskarte (siehe „Eck-Ausbaubutton“ unten). Statt
-  eines eigenen „Reaktionsausbau“-Abschnitts zeigt die Karte darunter dasselbe
+  oben rechts auf der Reaktionskarte (siehe „Eck-Ausbaubutton“ unten) und
+  zeigt dort auch den Ausbaupreis. Statt eines eigenen
+  „Reaktionsausbau“-Abschnitts zeigt die Karte darunter dasselbe
   Aktuell/Nächste-Stufe-Layout wie Automationen und Upgrades (aktuelle
   manuelle Fusionsmenge vs. Menge nach der nächsten Stufe bzw. „Voll
-  ausgebaut“); darunter folgen die Ausbaustufen-Pips und, solange nicht voll
-  ausgebaut, der Ausbaupreis als eigene Zeile.
+  ausgebaut“); darunter folgen nur noch die Ausbaustufen-Pips — keine
+  zusätzliche Preiszeile mehr, da der Preis bereits im Eck-Ausbaubutton
+  steht.
 - Beim manuellen Fusionieren steigt als Klick-Feedback die tatsächlich
   gewonnene Energie auf (z. B. „+68 Energie“); die Reaktionsgleichung steht
   ohnehin dauerhaft auf der Karte. Die Reaktionskarten werden bei
@@ -237,8 +239,10 @@ Implementierte manuelle Reaktionen:
 - Kartenlayout (geteilt mit den Upgrades, siehe „Eck-Ausbaubutton“ unten): die
   aktuelle Produktionsrate steht unter dem Titel, daneben der Gesamtwert nach
   der nächsten Ausbaustufe (nicht das Inkrement) bzw. „Voll ausgebaut“ bei
-  maximaler Stufe. Die Kostenzeile unter den Ausbaustufen-Pips erscheint nur,
-  solange die Automation gesperrt ist, und zeigt dann den Sperrgrund inklusive
+  maximaler Stufe. Solange die Automation gesperrt ist, zeigt die
+  „Aktuell“-Spalte statt der (noch gar nicht zutreffenden) Rate schlicht „-“.
+  Die Kostenzeile unter den Ausbaustufen-Pips erscheint nur, solange die
+  Automation gesperrt ist, und zeigt dann den Sperrgrund inklusive
   Live-Fortschritt (z. B. „998 / 1.500 C“); ist sie ausbaubar oder voll
   ausgebaut, verschwindet die Zeile — der Preis steht in diesem Fall im
   Eck-Ausbaubutton selbst.
@@ -280,9 +284,13 @@ Implementierte manuelle Reaktionen:
   ausgebaut“ bei erreichtem Maximum. Diese Zeile entfällt bei einmaligen
   Upgrades ohne echte Stufen (`maxLevel` 1, z. B. Deuteriumbrennen); die
   Ausbaustufen-Pips (`.level-row`) entfallen dort ebenfalls. Solange ein
-  Upgrade gesperrt ist, zeigt eine eigene Kostenzeile unter den Pips den
-  Sperrgrund; die Zeile verschwindet, sobald es ausbaubar oder voll ausgebaut
-  ist (Preis steht dann im Eck-Ausbaubutton bzw. entfällt ganz).
+  Upgrade oder eine Automation gesperrt ist, zeigt der „Aktuell“-Wert
+  schlicht „-“ statt eines Wertes, der ohnehin noch nicht gilt (z. B. „0
+  ME/s“ bei einer Automation, die noch gar nicht produziert); die
+  „Nächste Stufe“-Spalte bleibt informativ und zeigt weiterhin den Wert nach
+  dem Freischalten. Eine eigene Kostenzeile unter den Pips zeigt zusätzlich
+  den Sperrgrund; die Zeile verschwindet, sobald ausbaubar oder voll
+  ausgebaut ist (Preis steht dann im Eck-Ausbaubutton bzw. entfällt ganz).
 - Eck-Ausbaubutton: Statt eines Kauf-Buttons mit Fortschrittsbalken unten in
   der Kachel sitzt ein kompakter eckiger Button oben rechts auf jeder
   Automations-, Upgrade- und Reaktionskarte. Die Icon-Folge ist unabhängig von
@@ -297,28 +305,30 @@ Implementierte manuelle Reaktionen:
   solange ausbaubar, direkt im Button unter dem Icon statt in einem Tooltip —
   Tooltips sind für Spieler schwer zu entdecken und auf Mobilgeräten nicht
   nutzbar; ein aria-label bleibt nur für Screenreader erhalten und löst
-  keinen sichtbaren Hover-Tooltip aus. Nur Reaktionskarten zeigen im
-  Button-Hintergrund noch echten Fortschritt (verfügbare Energie ⁄
-  Ausbaupreis, von unten nach oben); bei Automationen und Upgrades bleibt die
-  Fläche unabhängig vom Fortschritt zur Freischaltung bzw. Bezahlbarkeit
-  gleichmäßig gefüllt — der Amber-Glow (siehe unten) zeigt die Bezahlbarkeit
-  dort bereits ausreichend an. Ist eine Stufe gerade bezahlbar, bekommt der
-  Button zusätzlich denselben pulsierenden Amber-Glow wie das Warnsymbol in
-  der Sternkammer, in derselben zurückhaltenden Intensität (schmale, blasse
-  Umrandung statt einer kräftigen Fläche). Bei Reaktionen ist der Ausbaupreis
-  bewusst doppelt sichtbar (im Button und in der Kostenzeile unter den Pips),
-  weil der Reaktionsausbau anders als Automationen/Upgrades keinen gesperrten
-  Zustand kennt, hinter dem sich die Kostenzeile sonst „verstecken“ könnte.
+  keinen sichtbaren Hover-Tooltip aus. Alle drei Kartentypen zeigen im
+  Button-Hintergrund denselben Fortschritt (Icon-Zustand und Fill-Fortschritt
+  sind zwei unabhängige Signale): gesperrt → Fortschritt Richtung
+  Freischaltung (bei mehreren Voraussetzungen zählt die am wenigsten
+  erfüllte, z. B. Deuteriumbrennens Mindestmasse UND -temperatur), ausbaubar
+  oder voll ausgebaut → Fortschritt Energie ⁄ Ausbaupreis (bei erreichtem
+  Maximum bzw. voller Reaktionsstufe bleibt die Fläche leer). Ist eine Stufe
+  gerade bezahlbar, bekommt der Button zusätzlich denselben pulsierenden
+  Amber-Glow wie das Warnsymbol in der Sternkammer, in derselben
+  zurückhaltenden Intensität (schmale, blasse Umrandung statt einer
+  kräftigen Fläche).
 - Reaktionskarten folgen derselben Grundstruktur wie Automations-/
   Upgradekarten: Eck-Ausbaubutton, Icon-und-Titel-Zeile (gleich großes,
   gleich positioniertes Icon), Aktuell/Nächste-Stufe-Zeile, Beschreibung,
-  Ausbaustufen-Pips und Ausbaupreis-Zeile. Der Kicker (Reaktionskette-Label)
+  Ausbaustufen-Pips. Der Ausbaupreis steht dabei NUR im Eck-Ausbaubutton,
+  nicht mehr zusätzlich als eigene Zeile unter den Pips — die doppelte
+  Anzeige war redundant und wurde entfernt. Der Kicker (Reaktionskette-Label)
   und die Fusionsgleichung mit dem Fusions-Button haben bei Automationen/
   Upgrades keine Entsprechung; sie stehen als zusätzliche Zeilen zwischen
-  Beschreibung und Pips. Anders als zuvor gibt es keinen eigenen
-  umschließenden Abschnitt und keinen Trennstrich mehr zwischen Beschreibung
-  und Ausbaustufen — gleiche Elemente sind über alle drei Kartentypen hinweg
-  gleich positioniert.
+  Beschreibung und Pips, der Fusions-Button nimmt dabei die volle
+  Kartenbreite ein (wie der „Mit … beginnen“-Button im Zyklus-Ende-Modal).
+  Anders als zuvor gibt es keinen eigenen umschließenden Abschnitt und
+  keinen Trennstrich mehr zwischen Beschreibung und Ausbaustufen — gleiche
+  Elemente sind über alle drei Kartentypen hinweg gleich positioniert.
 
 ### Aktueller Lebenszyklus und Physikmodell
 

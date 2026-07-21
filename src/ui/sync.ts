@@ -143,8 +143,9 @@ function syncReactionPanel(): void {
 // Button stehende Preis wechseln nur bei einem echten Zustandswechsel
 // (Ausbaustufe erreicht Maximum, Voraussetzung erfüllt/verliert sich) — die
 // reine Bezahlbarkeit (Energie reicht gerade so) und der Fortschritts-Fill
-// (nur bei Reaktionen ungleich null) werden dagegen bei jedem Tick
-// aktualisiert, damit der Amber-Glow sofort an-/ausgeht. Tooltips gibt es
+// (Freischaltungs- bzw. Bezahlbarkeits-Fortschritt, bei allen drei Kartentypen)
+// werden dagegen bei jedem Tick aktualisiert, damit der Amber-Glow sofort
+// an-/ausgeht. Tooltips gibt es
 // bewusst nicht mehr (Punkt 2) — aria-label bleibt nur für Screenreader
 // erhalten. Der Wechsel von Schloss zu Doppel-Caret nach der ersten
 // gekauften Stufe (Punkt 1, showLock) braucht hier keine eigene
@@ -186,9 +187,10 @@ function syncActivePanel(): void {
     orderedUpgradeCards().forEach(({ view }) => {
       const button = app.querySelector<HTMLButtonElement>(`[data-action="${view.definition.action}"]`);
       const affordable = !view.complete && view.unlocked && state.energy >= view.price;
-      // Kein Fortschritts-Fill mehr bei Upgrades (Punkt 3); Schloss bis zur
-      // ersten gekauften Stufe (Punkt 1), unabhängig von der Freischaltung.
-      const fillPercent = 0;
+      // Fortschritts-Fill genau wie bei Reaktionen: gesperrt → unlockProgress,
+      // ausbaubar → Energie/Preis. Schloss bis zur ersten gekauften Stufe
+      // (Punkt 1), unabhängig von der Freischaltung.
+      const fillPercent = view.complete ? 0 : !view.unlocked ? view.unlockProgress * 100 : state.energy / view.price * 100;
       const showLock = view.level === 0;
       const costText = view.complete ? '' : `${view.price} E`;
       const ariaLabel = view.complete ? view.definition.button.complete
@@ -203,7 +205,10 @@ function syncActivePanel(): void {
       const isMax = view.level >= view.max;
       const button = app.querySelector<HTMLButtonElement>(`[data-automation-card="${kind}"] button`);
       const affordable = !isMax && view.unlocked && state.energy >= view.price;
-      const fillPercent = 0;
+      // Fortschritts-Fill genau wie bei Reaktionen/Upgrades: gesperrt →
+      // unlockProgress, ausbaubar → Energie/Preis. Schloss bis zur ersten
+      // gekauften Stufe (Punkt 1), unabhängig von der Freischaltung.
+      const fillPercent = isMax ? 0 : !view.unlocked ? view.unlockProgress * 100 : state.energy / view.price * 100;
       const showLock = view.level === 0;
       const costText = isMax ? '' : `${view.price} E`;
       const ariaLabel = isMax ? 'Maximum' : !view.unlocked ? view.lockedLabel : `Ausbauen für ${view.price} Energie`;

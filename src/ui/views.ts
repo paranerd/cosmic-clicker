@@ -199,13 +199,13 @@ function reactionRateRow(view: ReactionView): string {
   return `<div class="tile-rate"><div><span>Aktuell</span><b>${formatMatter(currentAmount)} ${symbol}</b></div><div><span>Nächste Stufe:</span> <b>${view.upgradeMax ? 'Voll ausgebaut' : `${formatMatter(nextAmount)} ${symbol}`}</b></div></div>`;
 }
 
-// Ausbaustufen (Pips) und Ausbaupreis (nicht mehr daneben, sondern darunter,
-// Punkt 8) stehen ganz unten in der Kachel, exakt wie bei Automationen/
-// Upgrades — kein eigener umschließender Abschnitt/Trennstrich mehr.
+// Ausbaustufen (Pips) stehen ganz unten in der Kachel, exakt wie bei
+// Automationen/Upgrades — kein eigener umschließender Abschnitt/Trennstrich
+// mehr. Der Ausbaupreis steht NICHT zusätzlich hier (wie früher), sondern nur
+// noch einmal im Eck-Ausbaubutton selbst — die doppelte Anzeige war redundant.
 function reactionUpgradeFooter(view: ReactionView): string {
   if (!view.unlocked) return '';
-  return `<div class="level-row" data-reaction-upgrade-levels="${view.id}">${levelPips(view.upgradeLevel, REACTION_UPGRADE.maxLevel)}</div>
-    ${view.upgradeMax ? '' : `<div class="tile-cost" data-reaction-upgrade-cost="${view.id}">${view.upgradePrice} E</div>`}`;
+  return `<div class="level-row" data-reaction-upgrade-levels="${view.id}">${levelPips(view.upgradeLevel, REACTION_UPGRADE.maxLevel)}</div>`;
 }
 
 // Punkt 4: Reaktionskarten folgen jetzt derselben Grundstruktur wie
@@ -245,6 +245,11 @@ export interface UpgradeView {
   detail: string;
   label: string;
   priority: number;
+  // Fortschritt Richtung Freischaltung (0..1), solange noch gesperrt — treibt
+  // den Fill des Eck-Ausbaubuttons. Bei mehreren Voraussetzungen (z. B.
+  // Deuteriumbrennen: Mindestmasse UND -temperatur) zählt die am wenigsten
+  // erfüllte, weil die insgesamt limitierende ist.
+  unlockProgress: number;
 }
 
 export function upgradeView(id: UpgradeId): UpgradeView {
@@ -276,7 +281,12 @@ export function upgradeView(id: UpgradeId): UpgradeView {
     : expired ? definition.button.expired
       : unlocked ? definition.button.purchase : definition.button.locked;
   const priority = complete || expired ? 2 : !unlocked ? 3 : state.energy >= price ? 0 : 1;
-  return { id, definition, level, price, visible, unlocked, expired, complete, value, detail, label, priority };
+  const requirementFractions = [
+    definition.requirements.minimumStarMass !== undefined ? starMass(state) / definition.requirements.minimumStarMass : undefined,
+    definition.requirements.minimumTemperature !== undefined ? state.temperature / definition.requirements.minimumTemperature : undefined,
+  ].filter((fraction): fraction is number => fraction !== undefined);
+  const unlockProgress = requirementFractions.length ? Math.min(1, ...requirementFractions) : 1;
+  return { id, definition, level, price, visible, unlocked, expired, complete, value, detail, label, priority, unlockProgress };
 }
 
 // Punkt 1: Wert der nächsten Ausbaustufe eines Upgrades mit echten Stufen
@@ -305,11 +315,12 @@ function upgradeCard(view: UpgradeView): string {
   const hasLevels = definition.maxLevel > 1;
   const affordable = !complete && unlocked && state.energy >= price;
   const locked = !complete && !unlocked;
-  // Kein Fortschritts-Fill mehr bei Upgrades (Punkt 3) — nur Reaktionen zeigen
-  // den Fill noch. Das Icon bleibt bewusst ein Schloss, bis mindestens eine
-  // Stufe gekauft wurde (level === 0), unabhängig davon, ob die
-  // Voraussetzungen längst erfüllt und der Kauf schon möglich wäre.
-  const fillPercent = 0;
+  // Fortschritts-Fill genau wie bei Reaktionen: gesperrt → Fortschritt Richtung
+  // Freischaltung (unlockProgress), ausbaubar → Energie/Preis. Das Icon bleibt
+  // davon unabhängig bewusst ein Schloss, bis mindestens eine Stufe gekauft
+  // wurde (level === 0, showLock), unabhängig davon, ob die Voraussetzungen
+  // längst erfüllt und der Kauf schon möglich wäre.
+  const fillPercent = complete ? 0 : locked ? view.unlockProgress * 100 : state.energy / price * 100;
   const showLock = level === 0;
   const ariaLabel = complete ? definition.button.complete
     : locked ? (view.expired ? definition.button.expired : definition.button.locked)
@@ -321,7 +332,7 @@ function upgradeCard(view: UpgradeView): string {
     <article class="${classes}" data-upgrade-card="${view.id}">
       ${tileActionButton({ action: definition.action, complete, unlocked, showLock, affordable, fillPercent, costText: complete ? '' : `${price} E`, ariaLabel })}
       <div class="upgrade-heading"><span class="upgrade-icon">${definition.icon}</span><h3>${definition.title}</h3></div>
-      ${hasLevels ? `<div class="tile-rate"><div><span>Aktuell</span><b>${view.value}</b></div><div><span>Nächste Stufe:</span> <b>${complete ? 'Voll ausgebaut' : upgradeNextValue(view)}</b></div></div>` : ''}
+      ${hasLevels ? `<div class="tile-rate"><div><span>Aktuell</span><b>${locked ? '-' : view.value}</b></div><div><span>Nächste Stufe:</span> <b>${complete ? 'Voll ausgebaut' : upgradeNextValue(view)}</b></div></div>` : ''}
       <p>${definition.description}${view.detail ? `<strong>${view.detail}</strong>` : ''}</p>
       ${hasLevels ? `<div class="level-row" data-levels="${view.id}">${levelPips(level, definition.maxLevel)}</div>` : ''}
       ${locked ? `<div class="tile-cost" data-upgrade-cost="${view.id}">${view.expired ? definition.button.expired : definition.button.locked}</div>` : ''}
@@ -351,6 +362,9 @@ export function automationView(kind: AutomationKind) {
       : definition.mastery.kind === 'starMass'
         ? 'Protostern erforderlich'
         : `${formatMatter(mastery)} / ${formatMatter(definition.mastery.threshold)} ${definition.mastery.symbol}`,
+    // Fortschritt Richtung Freischaltung (0..1) — treibt den Fill des
+    // Eck-Ausbaubuttons, solange die Automation noch gesperrt ist.
+    unlockProgress: Math.min(1, mastery / definition.mastery.threshold),
     action: definition.reaction ? 'buy-reaction-automation' : 'buy-accretion',
     rateAt,
   };
@@ -366,16 +380,18 @@ function automationCard(kind: AutomationKind): string {
   // nächsten Ausbaustufe, nicht mehr das Inkrement.
   const nextRate = view.rateAt(Math.min(max, level + 1));
   const affordable = !isMax && unlocked && state.energy >= price;
-  // Kein Fortschritts-Fill mehr bei Automationen (Punkt 3); Schloss bleibt
-  // bis zur ersten gekauften Stufe, unabhängig von der Freischaltung.
-  const fillPercent = 0;
+  // Fortschritts-Fill genau wie bei Reaktionen/Upgrades: gesperrt → Fortschritt
+  // Richtung Meisterschaftsschwelle (unlockProgress), ausbaubar → Energie/
+  // Preis. Schloss bleibt davon unabhängig bis zur ersten gekauften Stufe,
+  // unabhängig von der Freischaltung (Punkt 1, showLock).
+  const fillPercent = isMax ? 0 : !unlocked ? view.unlockProgress * 100 : state.energy / price * 100;
   const showLock = level === 0;
   const ariaLabel = isMax ? 'Maximum' : !unlocked ? view.lockedLabel : `Ausbauen für ${price} Energie`;
   return `
     <article class="upgrade-card" data-automation-card="${kind}">
       ${tileActionButton({ action: view.action, dataset: view.reaction ? { reaction: view.reaction } : undefined, complete: isMax, unlocked, showLock, affordable, fillPercent, costText: isMax ? '' : `${price} E`, ariaLabel })}
       <div class="upgrade-heading"><span class="upgrade-icon">${view.icon}</span><h3>${view.title}</h3></div>
-      <div class="tile-rate"><div><span>Aktuell</span><b>${formatMatter(currentRate)} ${view.unit}</b></div><div><span>Nächste Stufe:</span> <b>${isMax ? 'Voll ausgebaut' : `${formatMatter(nextRate)} ${view.unit}`}</b></div></div>
+      <div class="tile-rate"><div><span>Aktuell</span><b>${!unlocked ? '-' : `${formatMatter(currentRate)} ${view.unit}`}</b></div><div><span>Nächste Stufe:</span> <b>${isMax ? 'Voll ausgebaut' : `${formatMatter(nextRate)} ${view.unit}`}</b></div></div>
       <p>${view.description}</p>
       <div class="level-row">${levelPips(level, max)}</div>
       ${!isMax && !unlocked ? `<div class="tile-cost" data-automation-cost="${kind}">${view.lockedLabel}</div>` : ''}

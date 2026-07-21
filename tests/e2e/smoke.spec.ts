@@ -413,7 +413,9 @@ test('upgrade and automation cards use compact heading rows with the rate moved 
   await expect(page.locator('.upgrade-heading').first()).toContainText('Akkretionsstrom');
   await expect(page.locator('.upgrade-heading').first()).not.toContainText('ME/s');
   const accretionCard = page.locator('[data-automation-card="accretion"]');
-  await expect(accretionCard.locator('.tile-rate')).toContainText('0 ME/s');
+  // Punkt 4 (Folgesession): "Aktuell" zeigt bei gesperrten Automationen "-"
+  // statt einer irreführenden 0-ME/s-Angabe.
+  await expect(accretionCard.locator('.tile-rate div').first().locator('b')).toHaveText('-');
   // Punkt 4: "Nächste Stufe" zeigt den Gesamtwert nach der nächsten
   // Ausbaustufe (hier identisch mit dem alten Inkrement, weil die aktuelle
   // Rate bei Stufe 0 noch 0 ist), nicht mehr nur die Differenz.
@@ -423,7 +425,7 @@ test('upgrade and automation cards use compact heading rows with the rate moved 
   await expect(page.getByText('Automation', { exact: true })).toHaveCount(0);
 });
 
-test('upgrade and automation corner buttons keep the lock icon and show no progress fill until the first level is bought', async ({ page }) => {
+test('upgrade and automation corner buttons keep the lock icon until the first level is bought, independent of the fill', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, stage: 'protostar', cloudTier: 1, nextCloudTier: 1,
     cloud: { hydrogen: 50_000, helium: 18_000, deuterium: 80, carbon: 0, oxygen: 0 },
@@ -435,17 +437,19 @@ test('upgrade and automation corner buttons keep the lock icon and show no progr
   });
   await page.goto('/');
 
-  // Punkt 1/3: Die Gravitations-Verdichtung ist hier längst freigeschaltet und
+  // Punkt 1: Die Gravitations-Verdichtung ist hier längst freigeschaltet und
   // mit 150 Energie auch bezahlbar (Preis 45) — trotzdem zeigt der Button vor
-  // dem ersten Ausbau noch das Schloss, kein Doppel-Caret, und keinen Fill.
+  // dem ersten Ausbau noch das Schloss, kein Doppel-Caret. Der Fill ist dabei
+  // (wieder, wie bei Reaktionen) am 100 %-Deckel, weil Energie den Preis
+  // längst übersteigt — Icon-Wechsel und Fill sind zwei unabhängige Signale.
   await page.getByRole('tab', { name: /Upgrades/ }).click();
   const upgradeButton = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' }).locator('.tile-action-button');
   await expect(upgradeButton).toHaveClass(/is-buildable/);
   await expect(upgradeButton.locator('.tile-action-icon svg rect')).toHaveCount(1);
-  expect(await upgradeButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('0%');
+  expect(await upgradeButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('100%');
   await upgradeButton.click();
   await expect(upgradeButton.locator('.tile-action-icon svg rect')).toHaveCount(0);
-  expect(await upgradeButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('0%');
+  expect(await upgradeButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('100%');
 
   // Dieselbe Logik gilt für Automationen: Der Akkretionsstrom ist bei dieser
   // Sternmasse (5.920 ME > 2.544 ME Protostern-Schwelle) unlocked und mit
@@ -455,10 +459,87 @@ test('upgrade and automation corner buttons keep the lock icon and show no progr
   const automationButton = page.locator('[data-automation-card="accretion"] .tile-action-button');
   await expect(automationButton).toHaveClass(/is-buildable/);
   await expect(automationButton.locator('.tile-action-icon svg rect')).toHaveCount(1);
-  expect(await automationButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('0%');
+  expect(await automationButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('100%');
   await automationButton.click();
   await expect(automationButton.locator('.tile-action-icon svg rect')).toHaveCount(0);
-  expect(await automationButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('0%');
+});
+
+test('locked and not-yet-affordable upgrades/automations show a fractional progress fill, exactly like reactions', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, stage: 'protostar', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 50_000, helium: 18_000, deuterium: 80, carbon: 0, oxygen: 0 },
+    // 1.272 ME = genau die Hälfte der Protostern-Schwelle (2.544 ME), die
+    // sowohl Deuteriumbrennens Mindestmasse als auch den Akkretionsstrom-
+    // Meisterschaftsschwellenwert bildet.
+    star: { hydrogen: 1_272, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    // Die seedbare Temperatur wird im Protostern-Stadium sofort auf den
+    // Stadien-Sockelwert (100.000 K) neu berechnet, unabhängig vom Seed-Wert
+    // hier — das ist genau ein Zehntel der für Deuteriumbrennen nötigen
+    // 1 Mio. K und damit die tatsächlich bindende (kleinste) Voraussetzung.
+    energy: 20, temperature: 500_000,
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+
+  // Punkt 3: Deuteriumbrennen ist gesperrt (Sternmasse bei der Hälfte der
+  // nötigen 2.544 ME, Temperatur bei einem Zehntel der nötigen 1 Mio. K —
+  // Letzteres ist die kleinere und damit bindende Voraussetzung) und zeigt
+  // daher exakt 10 % Fill Richtung Freischaltung statt 0 %.
+  await page.getByRole('tab', { name: /Upgrades/ }).click();
+  const deuteriumButton = page.locator('.deuterium-upgrade .tile-action-button');
+  expect(await deuteriumButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('10%');
+  await expect(deuteriumButton.locator('.tile-action-icon svg rect')).toHaveCount(1);
+
+  // Die Gravitations-Verdichtung ist freigeschaltet (keine Voraussetzungen),
+  // mit 20 von 45 nötigen Energie aber noch nicht bezahlbar — der Fill zeigt
+  // hier den Energie/Preis-Fortschritt (≈44,4 %), exakt wie bei Reaktionen.
+  const gravityButton = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' }).locator('.tile-action-button');
+  await expect(gravityButton).not.toHaveClass(/is-buildable/);
+  const gravityFill = await gravityButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'));
+  expect(parseFloat(gravityFill)).toBeCloseTo(20 / 45 * 100, 5);
+
+  // Punkt 3/4: Der Akkretionsstrom ist bei dieser Sternmasse ebenfalls erst
+  // zur Hälfte freigeschaltet — 50 % Fill, Schloss-Icon, und "Aktuell" zeigt
+  // "-" statt einer irreführenden 0-ME/s-Angabe.
+  await page.getByRole('tab', { name: /Automationen/ }).click();
+  const accretionCard = page.locator('[data-automation-card="accretion"]');
+  const accretionButton = accretionCard.locator('.tile-action-button');
+  expect(await accretionButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('50%');
+  await expect(accretionButton.locator('.tile-action-icon svg rect')).toHaveCount(1);
+  await expect(accretionCard.locator('.tile-rate div').first().locator('b')).toHaveText('-');
+});
+
+test('unlocked reaction cards drop the redundant cost line below the pips and give the fusion button the full card width', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, run: 2, stage: 'helium', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 10_000, helium: 4_000, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 20_000, helium: 8_000, deuterium: 30, carbon: 1_000, oxygen: 0 },
+    temperature: 100_000_000, fusedHydrogen: 15_000, fusedHelium: 1_000,
+    energy: 1_000, stats: { hydrogenFused: 15_000, heliumFused: 1_000, oxygenCreated: 0 },
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+
+  const hydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
+  // Punkt 1: Der Ausbaupreis steht nur noch im Eck-Button, nicht mehr
+  // zusätzlich als eigene Zeile unter den Ausbaustufen-Pips.
+  await expect(hydrogenCard.locator('[data-reaction-upgrade-levels]')).toBeVisible();
+  await expect(hydrogenCard.locator('.tile-cost')).toHaveCount(0);
+  await expect(hydrogenCard.locator('[data-action="buy-reaction-upgrade"] [data-tile-price]')).toBeVisible();
+
+  // Punkt 2: Der Fusionsbutton nimmt jetzt die volle Kartenbreite ein (Breite
+  // der Karte minus deren eigenes Padding), statt sich auf seinen Inhalt zu
+  // schrumpfen.
+  const fusionButton = hydrogenCard.locator('[data-action="run-reaction"]');
+  const cardBox = await hydrogenCard.boundingBox();
+  const buttonBox = await fusionButton.boundingBox();
+  const cardInset = await hydrogenCard.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+      + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+  });
+  expect(Math.abs(buttonBox!.width - (cardBox!.width - cardInset))).toBeLessThanOrEqual(1);
 });
 
 test('reaction cards mirror the upgrade/automation card layout with no separating divider', async ({ page }) => {

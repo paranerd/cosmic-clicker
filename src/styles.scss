@@ -297,10 +297,13 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .reaction-equation b { color: $amber; font-weight: 400; }
 .primary-action, .secondary-action { min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba($amber,.55); background: linear-gradient(135deg, rgba($amber,.95), rgba($orange,.94)); color: #1b110a; cursor: pointer; transition: .2s; }
 // Punkt 4: Der Fusionsbutton hat bei Automations-/Upgradekarten keine
-// Entsprechung; Abstand zur Gleichung/Beschreibung daher hier gesetzt statt
-// an der geteilten .primary-action-Basisregel (die auch im Zyklus-Ende-Modal
-// verwendet wird, wo das eigene .summary-actions-Gap bereits reicht).
-.action-card .primary-action { margin-top: 12px; }
+// Entsprechung; Abstand zur Gleichung/Beschreibung sowie die volle
+// Kartenbreite (wie beim Zyklus-Ende-Modal, siehe .summary-modal
+// .primary-action) daher hier gesetzt statt an der geteilten
+// .primary-action-Basisregel (die auch im Zyklus-Ende-Modal verwendet wird,
+// wo das eigene .summary-actions-Gap bereits reicht und keine volle Breite
+// pro Button gebraucht wird).
+.action-card .primary-action { width: 100%; margin-top: 12px; }
 .primary-action:hover:not(:disabled), .secondary-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 8px 24px rgba($orange,.16); }
 .primary-action span, .secondary-action span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .primary-action small, .secondary-action small { margin-top: 3px; font-size: 8px; opacity: .65; }
