@@ -550,6 +550,62 @@ test('unlocked reaction cards drop the redundant cost line below the pips and gi
   expect(Math.abs(buttonBox!.width - (cardBox!.width - cardInset))).toBeLessThanOrEqual(1);
 });
 
+test('fusion click feedback rises from the actual click position, not a fixed spot', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, run: 2, stage: 'helium', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 10_000, helium: 4_000, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 20_000, helium: 8_000, deuterium: 30, carbon: 1_000, oxygen: 0 },
+    temperature: 100_000_000, fusedHydrogen: 15_000, fusedHelium: 1_000,
+    energy: 1_000, stats: { hydrogenFused: 15_000, heliumFused: 1_000, oxygenCreated: 0 },
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+  // Die Feedback-Anzeige entfernt sich nach ihrem animationend selbst aus dem
+  // DOM (wie die Akkretions-Partikel) — für diesen Test stark verlangsamt,
+  // damit beide Klicks ausgewertet werden können, bevor irgendetwas entfernt
+  // wird (siehe der analoge Kommentar beim Akkretions-Test oben).
+  await page.addStyleTag({ content: '.action-feedback { animation-duration: 120s !important; }' });
+
+  const hydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
+  const fusionButton = hydrogenCard.locator('[data-action="run-reaction"]');
+  const buttonBox = await fusionButton.boundingBox();
+  const cardBox = await hydrogenCard.boundingBox();
+
+  // Punkt 9: Genau wie beim Materiegewinn am Stern steigt "+X Energie" aus
+  // der Region des tatsächlichen Klickpunkts auf (mit demselben Zufalls-
+  // Versatz), statt immer von derselben festen Stelle in der Karte — zwei
+  // weit auseinanderliegende Klicks auf denselben Button erzeugen deshalb
+  // deutlich unterschiedliche Positionen. Jeder Dispatch rendert die
+  // Reaktionskarte komplett neu (eigenes Verhalten, nicht Teil dieser
+  // Änderung), daher existiert je Klick nur eine Feedback-Anzeige gleich-
+  // zeitig — die Position wird direkt nach jedem einzelnen Klick ausgelesen,
+  // statt beide am Ende gemeinsam zu erwarten.
+  await fusionButton.click({ position: { x: 10, y: 8 } });
+  const firstFeedback = hydrogenCard.locator('.action-feedback.fusion');
+  await expect(firstFeedback).toBeVisible();
+  const firstLeft = await firstFeedback.evaluate((element) => Number.parseFloat((element as HTMLElement).style.left));
+
+  await fusionButton.click({ position: { x: buttonBox!.width - 10, y: 8 } });
+  const secondFeedback = hydrogenCard.locator('.action-feedback.fusion');
+  await expect(secondFeedback).toBeVisible();
+  await expect(secondFeedback).toHaveCount(1);
+  const secondLeft = await secondFeedback.evaluate((element) => Number.parseFloat((element as HTMLElement).style.left));
+
+  // Der Zufalls-Versatz allein deckt maximal ±18px ab (siehe feedback.ts) —
+  // ein Unterschied deutlich darüber kann nur vom unterschiedlichen
+  // Klickpunkt selbst stammen, nicht vom Zufall.
+  expect(secondLeft - firstLeft).toBeGreaterThan(30);
+
+  // Beide Positionen liegen erkennbar im Bereich des Buttons (kartenrelativ),
+  // nicht an einer festen, vom Button unabhängigen Stelle wie zuvor
+  // (".action-card .action-feedback { right: 22px; top: 28%; }").
+  const buttonLeftInCard = buttonBox!.x - cardBox!.x;
+  const buttonRightInCard = buttonBox!.x + buttonBox!.width - cardBox!.x;
+  expect(firstLeft).toBeGreaterThan(buttonLeftInCard - 30);
+  expect(firstLeft).toBeLessThan(buttonRightInCard + 30);
+});
+
 test('reaction cards mirror the upgrade/automation card layout with no separating divider', async ({ page }) => {
   await gotoGame(page);
   const hydrogenCard = page.locator('[data-reaction-card="hydrogen"]');

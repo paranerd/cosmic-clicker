@@ -208,9 +208,12 @@ Implementierte manuelle Reaktionen:
   steht.
 - Beim manuellen Fusionieren steigt als Klick-Feedback die tatsächlich
   gewonnene Energie auf (z. B. „+68 Energie“); die Reaktionsgleichung steht
-  ohnehin dauerhaft auf der Karte. Die Reaktionskarten werden bei
-  Wertänderungen gezielt aktualisiert statt neu aufgebaut, damit Buttons
-  beim Überfahren nicht flackern und den Fokus behalten.
+  ohnehin dauerhaft auf der Karte. Die Anzeige steigt aus der Region des
+  tatsächlichen Mausklicks auf dem Fusionsbutton auf (mit demselben leichten
+  Zufalls-Versatz wie beim Materiegewinn am Stern), nicht immer von derselben
+  festen Stelle in der Karte. Die Reaktionskarten werden bei Wertänderungen
+  gezielt aktualisiert statt neu aufgebaut, damit Buttons beim Überfahren
+  nicht flackern und den Fokus behalten.
 
 ### Automationen
 

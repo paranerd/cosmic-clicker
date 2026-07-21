@@ -4,8 +4,14 @@ import type { ReactionId } from '../game/types';
 import { formatCompact, formatNumber } from './format';
 import { app, getState } from './store';
 
-function createActionFeedback(container: HTMLElement, text: string, kind: string): void {
-  const feedback = document.createElement('span'); feedback.className = `action-feedback ${kind}`; feedback.textContent = text; container.append(feedback);
+// Punkt 9: Positioniert wie der Materiegewinn beim Stern-Klick — steigt aus
+// der Region des Mauszeigers auf (mit demselben Zufalls-Versatz wie
+// `gainX`/`gainY` unten), statt immer von derselben festen Stelle in der
+// Karte. `x`/`y` sind bereits kartenrelative Pixelkoordinaten.
+function createActionFeedback(container: HTMLElement, text: string, kind: string, x: number, y: number): void {
+  const feedback = document.createElement('span'); feedback.className = `action-feedback ${kind}`; feedback.textContent = text;
+  feedback.style.left = `${x}px`; feedback.style.top = `${y}px`; feedback.style.right = 'auto';
+  container.append(feedback);
   feedback.addEventListener('animationend', () => feedback.remove(), { once: true });
 }
 
@@ -49,7 +55,16 @@ export function playActionFeedback(action: string, event: MouseEvent, context: A
     const feedbackText = context.energyGained !== undefined && context.energyGained > 0
       ? `+${formatCompact(context.energyGained)} Energie`
       : 'Fusion + Energie';
-    if (card) createActionFeedback(card, feedbackText, 'fusion');
+    if (card) {
+      const cardRect = card.getBoundingClientRect();
+      // Tastatur-Auslösung liefert clientX/clientY = 0 — dann vom Button aus
+      // starten statt aus der Kartenecke (0,0), genau wie beim Stern-Klick.
+      const keyboardTriggered = event.detail === 0 || (event.clientX === 0 && event.clientY === 0);
+      const anchorRect = (button ?? card).getBoundingClientRect();
+      const baseX = keyboardTriggered ? anchorRect.left + anchorRect.width / 2 - cardRect.left : event.clientX - cardRect.left;
+      const baseY = keyboardTriggered ? anchorRect.top + anchorRect.height / 2 - cardRect.top : event.clientY - cardRect.top;
+      createActionFeedback(card, feedbackText, 'fusion', baseX + (Math.random() - .5) * 36, baseY - 18 - Math.random() * 18);
+    }
     card?.animate([{ borderColor: 'rgba(242,168,75,.25)' }, { borderColor: 'rgba(242,168,75,.9)', filter: 'brightness(1.35)' }, { borderColor: 'rgba(242,168,75,.25)', filter: 'brightness(1)' }], { duration: 650, easing: 'ease-out' });
     button?.animate([{ transform: 'scale(1)' }, { transform: 'scale(.97)' }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });
     app.querySelector<HTMLElement>('.star-surface')?.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.7)' }, { filter: 'brightness(1)' }], { duration: 520, easing: 'ease-out' });

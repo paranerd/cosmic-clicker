@@ -580,8 +580,14 @@ footer button:hover { color: $cyan; }
 .achievement-warning { margin: 0 0 12px; padding: 9px 10px; border: 1px solid rgba($amber,.32); background: rgba($amber,.05); }
 .achievement-warning b { display: block; color: $amber; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
 .achievement-warning span { display: block; margin-top: 4px; color: #aa9578; font-size: 8px; line-height: 1.45; }
+// Punkt 9: left/top werden ausschließlich per Inline-Style aus der Klick-
+// (bzw. Tastatur-)Position gesetzt (siehe feedback.ts) — die 50%/48%-Werte
+// hier sind nur ein Fallback, falls je ein Aufruf ohne x/y hinzukäme. Die
+// frühere feste ".action-card .action-feedback { right: 22px; ... }"-Regel
+// wurde entfernt, da sie sonst mit dem gesetzten Inline-"left" um dieselbe
+// Achse konkurriert (Breite ist "auto", beides gleichzeitig gesetzt wäre
+// überbestimmt).
 .action-feedback { position: absolute; z-index: 12; left: 50%; top: 48%; pointer-events: none; color: $cyan; font-family: ui-monospace,monospace; font-size: 13px; font-weight: 600; text-shadow: 0 0 12px currentColor; animation: feedbackRise .9s ease-out forwards; }
-.action-card .action-feedback { left: auto; right: 22px; top: 28%; }
 .action-feedback.heat { color: #b8a9f3; }
 .action-feedback.fusion { color: $amber; }
 .matter-particle { position: absolute; z-index: 10; width: 18px; height: 18px; display: grid; place-items: center; border: 1px solid rgba($cyan,.55); border-radius: 50%; background: rgba(8,20,29,.88); color: $cyan; font-family: Georgia,serif; font-size: 7px; pointer-events: none; animation: accreteIn .68s var(--particle-delay,0ms) cubic-bezier(.2,.75,.28,1) both; }
