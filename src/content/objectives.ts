@@ -63,7 +63,7 @@ export const OBJECTIVES: Record<StaticObjectiveId, ObjectiveDefinition> = {
     eyebrow: 'Nächstes Ziel',
     title: 'Hauptreihe erreichen',
     detail: `Fusioniere ${THRESHOLDS.mainSequenceHydrogen.toLocaleString('de-DE')} ME Wasserstoff, damit der Stern die Hauptreihe erreicht.`,
-    achievementTitle: 'Hauptreihe erreicht - Test',
+    achievementTitle: 'Hauptreihe erreicht',
   },
 };
 
