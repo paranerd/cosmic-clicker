@@ -55,14 +55,15 @@ export const OBJECTIVES: Record<StaticObjectiveId, ObjectiveDefinition> = {
     eyebrow: 'Nächstes Ziel',
     title: 'Wasserstoffkern zünden',
     detail: `Erreiche ${THRESHOLDS.hydrogenTemperature.toLocaleString('de-DE')} K und mindestens ${THRESHOLDS.hydrogenIgnitionMass.toLocaleString('de-DE')} ME Sternmasse durch weitere Verdichtung.`,
+    achievementTitle: 'Wasserstofffusion gezündet',
   },
   // Neu (vormals nicht von der generischen Brennphase unterschieden): eigenes
   // Ziel für die Wasserstofffusion vor Erreichen der Hauptreihe.
   'stabilize-star': {
     eyebrow: 'Nächstes Ziel',
     title: 'Hauptreihe erreichen',
-    detail: `Fusioniere weiter Wasserstoff, bis ${THRESHOLDS.mainSequenceHydrogen.toLocaleString('de-DE')} ME umgesetzt sind und der Stern die Hauptreihe erreicht.`,
-    achievementTitle: 'Hauptreihe erreicht',
+    detail: `Fusioniere ${THRESHOLDS.mainSequenceHydrogen.toLocaleString('de-DE')} ME Wasserstoff, damit der Stern die Hauptreihe erreicht.`,
+    achievementTitle: 'Hauptreihe erreicht - Test',
   },
 };
 
