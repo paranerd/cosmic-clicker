@@ -372,7 +372,7 @@ test('active accretion automation continuously streams particles into the star',
 
 test('upgrade and automation cards use compact heading rows', async ({ page }) => {
   await gotoGame(page);
-  await expect(page.locator('[data-reaction-card="hydrogen"]')).toContainText('Wasserstoffbrennen');
+  await expect(page.locator('[data-reaction-card="hydrogen"]')).toContainText('Wasserstofffusion');
   await expect(page.getByRole('button', { name: /Zünden/ })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Upgrades' }).click();
   const upgradeHeading = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' }).locator('.upgrade-heading');
@@ -442,8 +442,8 @@ test('stable hydrogen burning is hidden before ignition and then tracks created 
   });
   await gotoGame(page);
   const reactionPanel = page.locator('.reaction-grid');
-  await expect(reactionPanel.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
-  await expect(reactionPanel.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Wasserstofffusion' })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Heliumfusion' })).toBeVisible();
   await expect(reactionPanel.getByRole('heading', { name: 'Alpha-Einfang' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Automationen 1' }).click();
 
@@ -467,10 +467,10 @@ test('helium burning keeps earlier reactions, previews carbon and reveals matchi
   await page.goto('/');
 
   const reactionPanel = page.locator('.reaction-grid');
-  await expect(reactionPanel.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
-  await expect(reactionPanel.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Wasserstofffusion' })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Heliumfusion' })).toBeVisible();
   await expect(reactionPanel.getByRole('heading', { name: 'Alpha-Einfang' })).toBeVisible();
-  await expect(reactionPanel.getByRole('heading', { name: 'Kohlenstoffbrennen' })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Kohlenstofffusion' })).toBeVisible();
   await expect(page.locator('[data-reaction-card="carbon"] button')).toBeDisabled();
 
   await page.getByRole('tab', { name: /Automationen/ }).click();
@@ -742,10 +742,10 @@ test('the full ordered reaction path keeps available fuel visible and previews c
   });
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Wasserstoffbrennen' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Heliumbrennen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Wasserstofffusion' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Heliumfusion' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Alpha-Einfang', level: 3 })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Kohlenstoffbrennen', level: 3 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Kohlenstofffusion', level: 3 })).toBeVisible();
   await expect(page.locator('[data-reaction-card="carbon"] button')).toBeDisabled();
   // The carbonOxygen stage now carries the Punkt-6 shell wind, which keeps
   // the H/He envelope (and thus the reaction panel) changing every frame.

@@ -51,7 +51,7 @@ export function renderShell(): void {
     <header class="topbar">
       <a class="brand" href="#" aria-label="Cosmic Clicker Startseite"><span class="brand-mark">${icons.spark}</span><span><b>COSMIC</b><em>CLICKER</em></span></a>
       <div class="run-status"><b data-ui="run">ZYKLUS 01</b></div>
-      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Sternenstaub und aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>${PRESTIGE_PERKS.largerCloud.title}</b><small><i data-ui="cloud-perk-name">Kleine Urwolke</i></small></div><div><b>${PRESTIGE_PERKS.permanentGravity.title}</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><div><b>${PRESTIGE_PERKS.fusionMemory.title}</b><small>Stufe <i data-ui="fusion-perk-level">0</i></small></div><p>Neue Stufen werden am Zyklusende gekauft.</p></div></div><div class="sound-menu"><button class="icon-button" data-action="toggle-sound-menu" aria-label="Audioeinstellungen öffnen" aria-expanded="false">${state.soundEnabled ? icons.sound : icons.soundOff}</button><div class="sound-popover"><div><span>Effektlautstärke</span><b data-ui="volume-label">35%</b></div><input data-action="set-volume" aria-label="Effektlautstärke" type="range" min="0" max="100" step="1" value="35"><button data-action="toggle-sound" data-ui="mute-label">Ton stummschalten</button></div></div><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
+      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Sternenstaub und aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>${PRESTIGE_PERKS.largerCloud.title}</b><small><i data-ui="cloud-perk-name">Kleine Urwolke</i></small></div><div><b>${PRESTIGE_PERKS.permanentGravity.title}</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><div><b>${PRESTIGE_PERKS.fusionMemory.title}</b><small>Stufe <i data-ui="fusion-perk-level">0</i></small></div><p>Neue Stufen können am Zyklusende gekauft werden.</p></div></div><div class="sound-menu"><button class="icon-button" data-action="toggle-sound-menu" aria-label="Audioeinstellungen öffnen" aria-expanded="false">${state.soundEnabled ? icons.sound : icons.soundOff}</button><div class="sound-popover"><div><span>Effektlautstärke</span><b data-ui="volume-label">35%</b></div><input data-action="set-volume" aria-label="Effektlautstärke" type="range" min="0" max="100" step="1" value="35"><button data-action="toggle-sound" data-ui="mute-label">Ton stummschalten</button></div></div><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
     </header>
 
     <main>
@@ -61,7 +61,7 @@ export function renderShell(): void {
         <aside class="data-panel left-panel">
           <div class="panel-heading"><span class="index">01</span><div><small>Echtzeitdaten</small><h2>Stellarer Kern</h2></div></div>
           <div class="primary-reading"><span>Kerntemperatur</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>${formatTemperature(INITIAL_TEMPERATURE)}</span><span data-ui="temperature-max"></span></small></div>
-          <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small><small class="metric-sub" data-ui="mass-solar"></small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric energy-metric"><span>Energie</span><b data-ui="energy"></b><small>verfügbar</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
+          <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric energy-metric"><span>Energie</span><b data-ui="energy"></b><small>verfügbar</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
           <div class="composition"><div class="section-label"><span>Kernzusammensetzung</span></div>${DISPLAY_MATTER_KEYS.map((key) => `<div class="composition-row" data-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><div><b>${RESOURCES[key].label}</b><div class="mini-track"><i data-ui="${key}-bar"></i></div></div><strong data-ui="${key}-value"></strong></div>`).join('')}</div>
           <div class="cloud-stats"><div class="section-label"><span data-ui="cloud-name">Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="wind-status" data-ui="wind-status"><span>Sternwind</span><b data-ui="wind-rate">inaktiv</b><small>trägt Materie aus der Urwolke ab</small></div><div class="wind-status" data-ui="shell-wind-status"><span>Hüllenwind</span><b data-ui="shell-wind-rate">inaktiv</b><small>trägt H/He aus der Sternhülle ab</small></div><div class="cloud-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-cloud-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><p><b>${RESOURCES[key].label}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
         </aside>
@@ -168,11 +168,24 @@ export function updateUI(forcePanel = false): void {
   const stageIndex = Math.max(0, nodes.findIndex(([stage]) => stage === state.stage));
   const stageChanged = state.stage !== lastStage;
 
-  setText('run', `ZYKLUS ${state.run.toString().padStart(2, '0')}`); setText('stardust', formatNumber(state.stardust)); setText('elapsed', formatDuration(state.elapsed)); setText('cloud-perk-name', cloudDefinition(state.perks.largerCloud).name); setText('gravity-perk-level', String(state.perks.permanentGravity)); setText('fusion-perk-level', String(state.perks.fusionMemory));
-  setText('objective-eyebrow', objective.eyebrow); setText('objective-title', objective.title); setText('objective-detail', objective.detail); setText('objective-percent', `${formatNumber(objective.progress, 1)}%`); setWidth('objective-bar', objective.progress);
+  setText('run', `ZYKLUS ${state.run.toString().padStart(2, '0')}`);
+  setText('stardust', formatNumber(state.stardust));
+  setText('elapsed', formatDuration(state.elapsed));
+  setText('cloud-perk-name', cloudDefinition(state.perks.largerCloud).name);
+  setText('gravity-perk-level', String(state.perks.permanentGravity));
+  setText('fusion-perk-level', String(state.perks.fusionMemory));
+  setText('objective-eyebrow', objective.eyebrow);
+  setText('objective-title', objective.title);
+  setText('objective-detail', objective.detail);
+  setText('objective-percent', `${formatNumber(objective.progress, 1)}%`);
+  setWidth('objective-bar', objective.progress);
   syncObjectiveAchievement(objective);
-  setText('temperature', formatTemperature(state.temperature)); setText('temperature-max', scale.label); app.querySelector<HTMLElement>('[data-ui="temperature-bar"]')?.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
-  setText('mass', formatMatter(mass)); setText('mass-solar', `≈ ${formatSolarMasses(solarMasses(state))}`); setText('pressure', formatNumber(pressureProgress(state), 1)); setText('energy', formatCompact(state.energy)); setText('accretion-rate', formatMatter(accretionPerSecond(state)));
+  setText('temperature', formatTemperature(state.temperature));
+  setText('temperature-max', scale.label); app.querySelector<HTMLElement>('[data-ui="temperature-bar"]')?.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
+  setText('mass', formatMatter(mass));
+  setText('pressure', formatNumber(pressureProgress(state), 1));
+  setText('energy', formatCompact(state.energy));
+  setText('accretion-rate', formatMatter(accretionPerSecond(state)));
   DISPLAY_MATTER_KEYS.forEach((key) => {
     const percent = matterPercent(state.star[key], starTotal);
     setWidth(`${key}-bar`, percent);

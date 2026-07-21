@@ -15,7 +15,7 @@ export const OUTCOME_LABELS: Record<StellarOutcome, string> = {
 };
 
 export const OUTCOMES: Record<StellarOutcome, { title: string; description: string; stardust: number }> = {
-  brownDwarf: { title: 'Eine Massengrenze wird sichtbar.', description: 'Die kleine Wolke wurde vollständig gebunden, blieb aber zu leicht für dauerhaftes Wasserstoffbrennen.', stardust: 2 },
+  brownDwarf: { title: 'Eine Massengrenze wird sichtbar.', description: 'Die kleine Wolke wurde vollständig gebunden, blieb aber zu leicht für dauerhafte Wasserstofffusion.', stardust: 2 },
   heliumWhiteDwarf: { title: 'Ein Helium-Weißer-Zwerg bleibt zurück.', description: 'Nach dem Wasserstoffende war der Kern zu leicht, um Helium zu zünden.', stardust: 4 },
   whiteDwarf: { title: 'Ein Weißer Zwerg bleibt zurück.', description: 'Der sonnenähnliche Stern hat seine Hülle abgestoßen. Sein Kohlenstoff-Sauerstoff-Kern glüht weiter.', stardust: 5 },
   oxygenNeonWhiteDwarf: { title: 'Ein O/Ne-Weißer-Zwerg bleibt zurück.', description: 'Kohlenstoff brannte, doch die Masse reichte nicht für den vollständigen Weg bis zum Eisenkern.', stardust: 6 },
@@ -27,19 +27,19 @@ export const OUTCOMES: Record<StellarOutcome, { title: string; description: stri
 export const PRESTIGE_PERKS = {
   largerCloud: {
     title: 'Wolkenwachstum',
-    description: `+${(CLOUD_GROWTH.growthFactorPerLevel - 1) * 100} % Wolkenmasse pro Stufe · Elementverteilung bleibt realistisch`,
+    description: `+${(CLOUD_GROWTH.growthFactorPerLevel - 1) * 100}% maximale Wolkenmasse`,
     maxLevel: LIMITS.cloudGrowthLevel,
     cost: (level: number): number => 2 + level * 3,
   },
   permanentGravity: {
     title: 'Gravitatives Gedächtnis',
-    description: `+${ACCRETION.permanentGravityBonusPerLevel * 100} % Akkretionsrate pro Stufe`,
+    description: `+${ACCRETION.permanentGravityBonusPerLevel * 100}% Akkretionsrate`,
     maxLevel: LIMITS.permanentGravity,
     cost: (level: number): number => 2 + level * 2,
   },
   fusionMemory: {
     title: 'Fusionsgedächtnis',
-    description: `+${FUSION_MEMORY_BONUS_PER_LEVEL * 100} % manuelle und automatische Fusion pro Stufe`,
+    description: `+${FUSION_MEMORY_BONUS_PER_LEVEL * 100}% Fusion`,
     maxLevel: LIMITS.fusionMemory,
     cost: (level: number): number => 3 + level * 3,
   },

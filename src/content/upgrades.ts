@@ -71,7 +71,7 @@ export const UPGRADES = {
     mode: 'single',
     title: 'Deuteriumbrennen',
     icon: 'D',
-    description: 'Beschleunigt die kompressionsbedingte Erwärmung um 35 %. Der Effekt endet beim Freischalten des Wasserstoffbrennens.',
+    description: 'Beschleunigt die kompressionsbedingte Erwärmung um 35 %. Der Effekt endet beim Freischalten der Wasserstofffusion.',
     action: 'buy-deuterium',
     cardClass: 'deuterium-upgrade',
     hiddenStages: ['nebula'],

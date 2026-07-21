@@ -47,13 +47,13 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     baseCost: 65, costGrowth: 1.85, maxLevel: LIMITS.accretion,
     mastery: { kind: 'starMass', threshold: THRESHOLDS.protostarMass, symbol: 'ME' },
   },
-  fusion: reactionAutomation('fusion', 'hydrogen', 'Stabiles Wasserstoffbrennen', 'H', 'H/s', 64, 280, FUSION_AUTOMATION_HELIUM, 'He'),
-  heliumFusion: reactionAutomation('heliumFusion', 'helium', 'Stabiles Heliumbrennen', 'He', 'He/s', 48, 520, FUSION_AUTOMATION_CARBON, 'C'),
+  fusion: reactionAutomation('fusion', 'hydrogen', 'Stabile Wasserstofffusion', 'H', 'H/s', 64, 280, FUSION_AUTOMATION_HELIUM, 'He'),
+  heliumFusion: reactionAutomation('heliumFusion', 'helium', 'Stabile Heliumfusion', 'He', 'He/s', 48, 520, FUSION_AUTOMATION_CARBON, 'C'),
   oxygenSynthesis: reactionAutomation('oxygenSynthesis', 'alphaCapture', 'Stabiler Alpha-Einfang', 'O', 'O/s', 24, 900, FUSION_AUTOMATION_OXYGEN, 'O'),
-  carbonFusion: reactionAutomation('carbonFusion', 'carbon', 'Stabiles Kohlenstoffbrennen', 'C', 'C/s', 18, 1_400, 900, 'Ne'),
-  neonFusion: reactionAutomation('neonFusion', 'neon', 'Stabiles Neonbrennen', 'Ne', 'Ne/s', 14, 1_900, 700, 'O'),
-  oxygenFusion: reactionAutomation('oxygenFusion', 'oxygen', 'Stabiles Sauerstoffbrennen', 'O', 'O/s', 11, 2_500, 550, 'Si'),
-  siliconFusion: reactionAutomation('siliconFusion', 'silicon', 'Stabiles Siliziumbrennen', 'Si', 'Si/s', 8, 3_200, 400, 'Fe'),
+  carbonFusion: reactionAutomation('carbonFusion', 'carbon', 'Stabile Kohlenstofffusion', 'C', 'C/s', 18, 1_400, 900, 'Ne'),
+  neonFusion: reactionAutomation('neonFusion', 'neon', 'Stabile Neonfusion', 'Ne', 'Ne/s', 14, 1_900, 700, 'O'),
+  oxygenFusion: reactionAutomation('oxygenFusion', 'oxygen', 'Stabile Sauerstofffusion', 'O', 'O/s', 11, 2_500, 550, 'Si'),
+  siliconFusion: reactionAutomation('siliconFusion', 'silicon', 'Stabile Siliziumfusion', 'Si', 'Si/s', 8, 3_200, 400, 'Fe'),
 };
 
 export const AUTOMATION_ORDER = ['accretion', 'fusion', 'heliumFusion', 'oxygenSynthesis', 'carbonFusion', 'neonFusion', 'oxygenFusion', 'siliconFusion'] as const satisfies readonly AutomationKind[];
