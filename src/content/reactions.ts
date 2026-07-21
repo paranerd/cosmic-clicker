@@ -2,6 +2,11 @@ import type { ReactionId, Stage } from '../game/types';
 import type { MatterKey } from './resources';
 import { THRESHOLDS } from './progression';
 
+export interface WindWarning {
+  title: string;
+  text: string;
+}
+
 export interface ReactionDefinition {
   id: ReactionId;
   title: string;
@@ -30,6 +35,11 @@ export interface ReactionDefinition {
   // sobald der Brennstoff der Reaktion erschöpft ist (Ziel-ID `burn-<reaktion>`).
   ignitionAchievementTitle?: string;
   completionAchievementTitle: string;
+  // Zusätzlicher Warnhinweis im Ziel-Banner, sobald der Brennstoff dieser
+  // Reaktion erschöpft ist (siehe objectives.ts/windWarningFor). Aktuell nur
+  // bei Wasserstoff gesetzt (Hüllenwind verstärkt sich beim Verlassen der
+  // Hauptreihe).
+  completionWindWarning?: WindWarning;
 }
 
 export const HYDROGEN_TO_HELIUM_RATIO = .993;
@@ -45,6 +55,10 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     ignitionTemperature: THRESHOLDS.hydrogenTemperature, minimumMass: THRESHOLDS.hydrogenIgnitionMass,
     stageOnUnlock: 'hydrogen', energyBasis: 'input', energyPerUnit: .34, heatPerUnit: 2.4, automation: 'fusion',
     ignitionAchievementTitle: 'Wasserstofffusion freigeschaltet', completionAchievementTitle: 'Wasserstofffusion abgeschlossen',
+    completionWindWarning: {
+      title: 'Hüllenwind verstärkt sich',
+      text: 'Der Stern verliert ab jetzt spürbar Wasserstoff und Helium aus seiner eigenen Hülle. Hält der Massenverlust an, kann er den späteren Sternrest verändern.',
+    },
   },
   helium: {
     id: 'helium', title: 'Heliumfusion', kicker: 'Triple-Alpha', symbol: 'He', className: 'helium',

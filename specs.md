@@ -82,9 +82,9 @@ konkretere Festlegung in diesem Abschnitt.
 - Zur Einordnung im Spiel wird die aktuelle Wolkengröße einem von drei
   Entwicklungspfaden zugeordnet, der sich rein aus der tatsächlichen
   Wolkenmasse ergibt (nicht aus einer künstlich vergebenen Stufennummer):
-  „Kleine Urwolke“ unterhalb der Zündmasse für Wasserstoffbrennen (typischer
+  „Kleine Urwolke“ unterhalb der Zündmasse für Wasserstofffusion (typischer
   Ausgang: Brauner Zwerg), „Stellare Urwolke“ bis zur Zündmasse für
-  Kohlenstoffbrennen (typischer Ausgang: Weißer Zwerg) und „Massereiche
+  Kohlenstofffusion (typischer Ausgang: Weißer Zwerg) und „Massereiche
   Urwolke“ darüber (öffnet Supernova, Neutronenstern und Schwarzes Loch).
 - Beim Rundenwechsel wählt ein Schieberegler stufenlos zwischen der kleinsten
   und der zuletzt freigeschalteten Wolkengröße; bereits freigeschaltete
@@ -107,7 +107,7 @@ konkretere Festlegung in diesem Abschnitt.
   kürzer verläuft als bei der stellaren Urwolke – deutlich komprimiert
   gegenüber dem realen Verhältnis von rund 3.000×. Die Phase endet, sobald
   Kern- und Restwolkenwasserstoff erschöpft sind; die 15.000-H-ME-Grenze
-  bleibt weiterhin nur der Startpunkt und schließt Wasserstoffbrennen nicht ab.
+  bleibt weiterhin nur der Startpunkt und schließt Wasserstofffusion nicht ab.
 - Ab der Hauptreihe verliert der Stern zusätzlich über einen Hüllenwind
   eigenständig Wasserstoff und Helium direkt aus seiner Hülle, nie schwerere
   Kernelemente einer aktiven Brennstufe. Die Rate ist auf der Hauptreihe mit
@@ -137,10 +137,10 @@ konkretere Festlegung in diesem Abschnitt.
 ### Temperatur und frühe Sternentstehung
 
 - Markante Temperaturschwellen sind 100.000 K für den Protostern, 1 Mio. K für
-  Deuteriumbrennen, 10 Mio. K für Wasserstoffbrennen, 100 Mio. K für
-  Heliumbrennen, 600 Mio. K für Kohlenstoffbrennen, 1,2 Mrd. K für
-  Neonbrennen, 1,5 Mrd. K für Sauerstoffbrennen und 2,7 Mrd. K für
-  Siliziumbrennen.
+  Deuteriumbrennen, 10 Mio. K für Wasserstofffusion, 100 Mio. K für
+  Heliumfusion, 600 Mio. K für Kohlenstofffusion, 1,2 Mrd. K für
+  Neonfusion, 1,5 Mrd. K für Sauerstofffusion und 2,7 Mrd. K für
+  Siliziumfusion.
 - Ohne Upgrades benötigt der Protostern ungefähr 50 bis 60 aktive
   Akkretionsimpulse.
 - Die aktuelle Kompressionskurve verwendet einen Exponenten von 3 bezogen auf
@@ -161,13 +161,13 @@ Implementierte manuelle Reaktionen:
 
 | Reaktion | Manuelle Menge | Umwandlung | Energie |
 | --- | ---: | --- | ---: |
-| Wasserstoffbrennen | 200 H | H → He mit Faktor 0,993 | 0,34 je eingesetzter H-ME |
-| Heliumbrennen | 300 He | He → C mit Faktor 0,998 | 0,52 je eingesetzter He-ME |
+| Wasserstofffusion | 200 H | H → He mit Faktor 0,993 | 0,34 je eingesetzter H-ME |
+| Heliumfusion | 300 He | He → C mit Faktor 0,998 | 0,52 je eingesetzter He-ME |
 | Alpha-Einfang | 180 C + 60 He | C + He → O mit Faktor `4/3 × 0,998` | 0,68 je erzeugter O-ME |
-| Kohlenstoffbrennen | 150 C | C → Ne mit Faktor 0,997 | 0,82 je eingesetzter C-ME |
-| Neonbrennen | 140 Ne | Ne → O mit Faktor 0,996 | 0,94 je eingesetzter Ne-ME |
-| Sauerstoffbrennen | 120 O | O → Si mit Faktor 0,995 | 1,08 je eingesetzter O-ME |
-| Siliziumbrennen | 100 Si | Si → Fe-Gruppe mit Faktor 0,994 | 1,20 je eingesetzter Si-ME |
+| Kohlenstofffusion | 150 C | C → Ne mit Faktor 0,997 | 0,82 je eingesetzter C-ME |
+| Neonfusion | 140 Ne | Ne → O mit Faktor 0,996 | 0,94 je eingesetzter Ne-ME |
+| Sauerstofffusion | 120 O | O → Si mit Faktor 0,995 | 1,08 je eingesetzter O-ME |
+| Siliziumfusion | 100 Si | Si → Fe-Gruppe mit Faktor 0,994 | 1,20 je eingesetzter Si-ME |
 
 - Jede Fusion setzt Energie frei. Energie wird für normale Upgrades und
   Automationen ausgegeben.
@@ -180,9 +180,9 @@ Implementierte manuelle Reaktionen:
   Energieertrag und nächster Prozess gehören in die Reaktionsdefinition; die
   Oberfläche verwendet eine gemeinsame Kartenkomponente.
 - Die feste Grenze von 15.000 fusionierten H-ME markiert nur die stabilisierte
-  Hauptreihe und beendet niemals die Möglichkeit zum Wasserstoffbrennen.
+  Hauptreihe und beendet niemals die Möglichkeit zur Wasserstofffusion.
   Wasserstoff kann bis zur Erschöpfung des Kernvorrats fusioniert werden.
-- Ab der Hauptreihe läuft Wasserstoffbrennen zusätzlich strukturell und
+- Ab der Hauptreihe läuft Wasserstofffusion zusätzlich strukturell und
   automatisch ab, unabhängig von gekauften Automationen (siehe Abschnitt
   „Aktuelle Urwolken“ für Rate und Kalibrierung). Dieser strukturelle
   Verbrauch nutzt dieselbe zentrale Reaktionsdefinition wie manuelle und
@@ -196,16 +196,16 @@ Implementierte manuelle Reaktionen:
 
 - Akkretionsstrom wird ab dem Protostern kaufbar, besitzt acht Stufen, startet
   mit 17 ME/s je Stufe und kostet anfangs 65 Energie bei Kostenfaktor 1,85.
-- Stabiles Wasserstoffbrennen wird erst zusammen mit der manuellen Reaktion
+- Stabile Wasserstofffusion wird erst zusammen mit der manuellen Reaktion
   sichtbar und nach 5.000 selbst erzeugten He-ME kaufbar. Basisrate 64 H/s,
   Anfangskosten 280 Energie, acht Stufen, Kostenfaktor 1,9.
-- Stabiles Heliumbrennen wird erst zusammen mit der manuellen Reaktion sichtbar
+- Stabile Heliumfusion wird erst zusammen mit der manuellen Reaktion sichtbar
   und nach 1.500 selbst erzeugten C-ME kaufbar. Basisrate 48 He/s,
   Anfangskosten 520 Energie, acht Stufen, Kostenfaktor 1,9.
 - Stabiler Alpha-Einfang wird erst zusammen mit der manuellen Reaktion sichtbar
   und nach 400 selbst erzeugten O-ME kaufbar. Basisrate 24 O/s,
   Anfangskosten 900 Energie, acht Stufen, Kostenfaktor 1,9.
-- Stabiles Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen werden ebenfalls
+- Stabile Kohlenstoff-, Neon-, Sauerstoff- und Siliziumfusion werden ebenfalls
   erst mit ihrer jeweiligen manuellen Reaktion sichtbar. Sie benötigen 900 Ne,
   700 O, 550 Si beziehungsweise 400 Fe eigener Reaktionsleistung und besitzen
   je acht Stufen.
@@ -237,8 +237,8 @@ Implementierte manuelle Reaktionen:
 ### Aktueller Lebenszyklus und Physikmodell
 
 - Der bestehende Spielstand unterscheidet Urwolke, Protostern,
-  Deuteriumphase, Wasserstoffbrennen, Hauptreihe, Roten Riesen,
-  Heliumbrennen, C/O-Kern, massereichen Stern, Supernova und stellare Reste.
+  Deuteriumphase, Wasserstofffusion, Hauptreihe, Roten Riesen,
+  Heliumfusion, C/O-Kern, massereichen Stern, Supernova und stellare Reste.
 - Gezündete Reaktionen werden separat vom strukturellen Sternstadium gespeichert.
 - Nach Erschöpfung eines Brennstoffs prüft der Spielkern automatisch:
   erreichte Temperatur, verbleibende Kernzusammensetzung und relevante
@@ -262,11 +262,11 @@ Implementierte manuelle Reaktionen:
   Loch ausreichende Masse durch langes Warten unter die entsprechende
   Schwelle fällt.
 - Die vollständige spielbare Brennkette bis zum Eisenkern umfasst
-  Wasserstoffbrennen, Heliumbrennen, Alpha-Einfang,
-  Kohlenstoffbrennen, Neonbrennen, Sauerstoffbrennen und Siliziumbrennen.
+  Wasserstofffusion, Heliumfusion, Alpha-Einfang,
+  Kohlenstofffusion, Neonfusion, Sauerstofffusion und Siliziumfusion.
 - Vereinfachte Zündtemperaturen sind 10 Mio. K (H), 100 Mio. K (He),
   600 Mio. K (C), 1,2 Mrd. K (Ne), 1,5 Mrd. K (O) und 2,7 Mrd. K (Si).
-- Kohlenstoffbrennen und alle folgenden zentralen Brennstufen verlangen einen
+- Kohlenstofffusion und alle folgenden zentralen Brennstufen verlangen einen
   massereichen Stern von mindestens ungefähr 8 M☉. Erreicht ein leichterer
   Stern diese Stufe nicht, bleibt abhängig von der Zusammensetzung ein C/O- oder
   O/Ne-Weißer-Zwerg zurück.
@@ -332,8 +332,8 @@ Implementierte manuelle Reaktionen:
   zur [masseabhängigen Sternentwicklung](https://science.nasa.gov/universe/stories/quick-reads/the-lives-times-and-deaths-of-stars/)
   und zur [Kernbrennfolge bis zur
   Eisengruppe](https://solarsystem.nasa.gov/genesismission/educate/scimodule/PlanetaryDiversity/plandiv_pdf/SupermarketST.pdf).
-- Die Größenordnung von etwa 100 Mio. K für Heliumbrennen sowie die höheren
-  Temperaturen für Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen folgen
+- Die Größenordnung von etwa 100 Mio. K für Heliumfusion sowie die höheren
+  Temperaturen für Kohlenstoff-, Neon-, Sauerstoff- und Siliziumfusion folgen
   dem NASA-Bericht [Stellar Evolution: A
   Survey](https://ntrs.nasa.gov/api/citations/19660024135/downloads/19660024135.pdf).
 - Die Grenzwerte 0,5 M☉, 8 M☉, 9 M☉ und 20 M☉ sind bewusst vereinfachte
@@ -358,9 +358,9 @@ Es sollen folgende Elemente fusioniert werden können: H, He, C, O, Ne, Si, Fe
 
 Beispiele:
 
-- Wasserstoffbrennen, um 4 H in 1 He umzuwandeln
-- Kohlenstoffbrennen
-- Siliziumbrennen
+- Wasserstofffusion, um 4 H in 1 He umzuwandeln
+- Kohlenstofffusion
+- Siliziumfusion
 
 ### Automationen
 
@@ -378,7 +378,7 @@ Darüber hinaus soll es weitere Upgrades geben.
 Beispiele:
 
 - Erhöhte Gravitation: erhöht die Anzahl der eingezogenen Wasserstoffteilchen pro Zeit (für die Automationen) und pro Klick
-- Deuteriumbrennen (ab 1 Mio. Kelvin und nur bis zum Wasserstoffbrennen): einmaliges Upgrade, das die kompressionsbedingte Erwärmung beschleunigt
+- Deuteriumbrennen (ab 1 Mio. Kelvin und nur bis zur Wasserstofffusion): einmaliges Upgrade, das die kompressionsbedingte Erwärmung beschleunigt
 
 ## Prestige / Perks
 
@@ -415,8 +415,8 @@ Festgelegte Ausprägung für den Prototyp:
 - Das Tutorial dunkelt nicht relevante Bildschirmbereiche ab, scrollt auf Mobilgeräten zum Fokus und zeigt seine Erklärung dort horizontal zentriert.
 - Nach Abschluss oder Überspringen des Tutorials wird wieder der Tab „Reaktionen“ ausgewählt.
 - In der Oberfläche werden nur chemische Elemente ausgewiesen, keine Isotope. Deuterium ist implizit in jeder Wasserstoffwolke vorhanden.
-- Das Deuteriumbrennen wird ab dem Protostern angezeigt und ist in jeder Runde ab 1 Mio. K als einmaliges Upgrade verfügbar: Es kostet 75 Energie und verstärkt die Erwärmung um 35 %, jedoch nicht über die Schwelle des Wasserstoffbrennens hinaus.
-- Die Proton-Proton-Kette wird in der Spieleroberfläche verständlich als Wasserstoffbrennen bezeichnet.
+- Das Deuteriumbrennen wird ab dem Protostern angezeigt und ist in jeder Runde ab 1 Mio. K als einmaliges Upgrade verfügbar: Es kostet 75 Energie und verstärkt die Erwärmung um 35 %, jedoch nicht über die Schwelle der Wasserstofffusion hinaus.
+- Die Proton-Proton-Kette wird in der Spieleroberfläche verständlich als Wasserstofffusion bezeichnet.
 - Toast-Meldungen gleiten horizontal zentriert von oben herein, stapeln und verschieben sich bei Folgemeldungen und blenden nach kurzer Zeit einzeln aus.
 - Die Soundeffekte werden ohne externe Audiodateien über die Web Audio API erzeugt; Lautstärke (Standard: 35 %) und Stummschaltung werden gespeichert.
 - Die Rundenauswertung erfasst Klicks, Reaktionen, akkretierte Materie, erzeugte Energie, Offline-Zeit, Käufe, Rundendauer und erhaltenen Sternenstaub.
@@ -430,23 +430,23 @@ Festgelegte Progression:
 
 - Jedes vollständig neue Spiel beginnt mit derselben kleinen Wasserstoffwolke bei 10 K. Isotope wie Deuterium werden nicht separat ausgewiesen.
 - Jede Runde beginnt ergebnisoffen. Entwicklungsstufen werden ausschließlich aus Masse, Temperatur, Zusammensetzung und Reaktionen abgeleitet; es gibt keinen Sonderfall, der den ersten Zyklus auf einen Braunen Zwerg begrenzt.
-- Die kleine Ausgangswolke enthält implizit zu wenig Wasserstoff, um 10 Mio. K und damit dauerhaftes Wasserstoffbrennen zu erreichen. Wird eine Wolke vor der Zündung vollständig gebunden, entsteht daraus ein Brauner Zwerg.
+- Die kleine Ausgangswolke enthält implizit zu wenig Wasserstoff, um 10 Mio. K und damit dauerhafte Wasserstofffusion zu erreichen. Wird eine Wolke vor der Zündung vollständig gebunden, entsteht daraus ein Brauner Zwerg.
 - Der Braune Zwerg gilt als erste erfolgreiche Entdeckung, nicht als Niederlage. Er gewährt garantiert genug Sternenstaub für die erste Stufe des Wolkenwachstums.
 - Der permanente Perk „Wolkenwachstum“ vergrößert die Urwolke prozentual in beliebig vielen Stufen, statt eine feste Anzahl Wolkengrößen freizuschalten. Bereits freigeschaltete Größen bleiben für spätere Zyklen über den Schieberegler auswählbar.
-- Sobald die Wolkenmasse für Kohlenstoffbrennen ausreicht, ermöglicht sie den vollständigen Pfad über Wasserstoffbrennen, Hauptreihe, Roten Riesen, Heliumbrennen und einen Kohlenstoff-Sauerstoff-Kern bis zum Weißen Zwerg.
-- Reicht die Wolkenmasse zusätzlich für Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen, führt der Weg zur Supernova. Die akkretierte Endmasse entscheidet zwischen Neutronenstern und Schwarzem Loch.
-- Heliumbrennen wird als Triple-Alpha-Prozess umgesetzt. Kohlenstoff und Sauerstoff sind sichtbare, gespeicherte Kernressourcen; Sauerstoff entsteht durch Alpha-Einfang an Kohlenstoff.
-- Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen besitzen eigene Ressourcen, Reaktionskarten und Automationen.
+- Sobald die Wolkenmasse für Kohlenstofffusion ausreicht, ermöglicht sie den vollständigen Pfad über Wasserstofffusion, Hauptreihe, Roten Riesen, Heliumfusion und einen Kohlenstoff-Sauerstoff-Kern bis zum Weißen Zwerg.
+- Reicht die Wolkenmasse zusätzlich für Kohlenstoff-, Neon-, Sauerstoff- und Siliziumfusion, führt der Weg zur Supernova. Die akkretierte Endmasse entscheidet zwischen Neutronenstern und Schwarzem Loch.
+- Heliumfusion wird als Triple-Alpha-Prozess umgesetzt. Kohlenstoff und Sauerstoff sind sichtbare, gespeicherte Kernressourcen; Sauerstoff entsteht durch Alpha-Einfang an Kohlenstoff.
+- Kohlenstoff-, Neon-, Sauerstoff- und Siliziumfusion besitzen eigene Ressourcen, Reaktionskarten und Automationen.
 - Der bestehende Sternenstaub bleibt die einzige Prestige-Währung. Der Vermächtnis-Baum erhält die Äste Wolkenwachstum, Akkretion und Fusion.
 - Eine interaktive Entwicklungsübersicht in der Chronik zeigt den aktuellen Pfad, bekannte Endzustände und noch nicht entdeckte Abzweigungen.
 - Echte Wendepunkte werden weiterhin einmalig im schließbaren Ziel-Banner erklärt; Detailwissen bleibt freiwillig in Reaktionskarten und Chronik.
 - Bestehende v0.1- bis v0.2-Spielstände werden auf das neue Zustandsmodell migriert. Abgeschlossene Runden bleiben in der Historie erhalten.
 - Die Verdichtung bis zum ersten Protostern benötigt ohne Upgrades ungefähr 50 bis 60 aktive Impulse. Die erste Brauner-Zwerg-Runde zielt auf etwa 7 bis 10 Minuten; vollständige stellare Runden auf etwa 20 bis 30 Minuten und werden durch Vermächtnis-Perks schneller.
-- „Stabiles Wasserstoffbrennen“ erscheint erst nach Freischaltung des Wasserstoffbrennens und wird nach 5.000 ME durch Fusion selbst erzeugtem Helium kaufbar.
+- „Stabile Wasserstofffusion“ erscheint erst nach Freischaltung der Wasserstofffusion und wird nach 5.000 ME durch Fusion selbst erzeugtem Helium kaufbar.
 - Im Reaktionsbereich bleiben alle bereits freigeschalteten Prozesse sowie die unmittelbar nächste, noch gesperrte Reaktion sichtbar. So kündigt sich jede folgende Brennstufe an, ohne frühere nutzbare Brennstoffe zu verstecken.
-- Jede manuelle Kernreaktion erhält eine eigene Automation, die erst mit der zugehörigen Reaktion sichtbar wird. Stabiles Heliumbrennen wird nach 1.500 ME selbst erzeugtem Kohlenstoff, stabiler Alpha-Einfang nach 400 ME selbst erzeugtem Sauerstoff kaufbar.
+- Jede manuelle Kernreaktion erhält eine eigene Automation, die erst mit der zugehörigen Reaktion sichtbar wird. Stabile Heliumfusion wird nach 1.500 ME selbst erzeugtem Kohlenstoff, stabiler Alpha-Einfang nach 400 ME selbst erzeugtem Sauerstoff kaufbar.
 - Die Rundenzusammenfassung ist stets das einzige sichtbare Popup. Sie schließt andere Dialoge, Menüs, Tutorialhinweise, Toasts und Ziel-Banner; Perk-Änderungen erhalten auf kleinen Bildschirmen die aktuelle Scrollposition.
-- Die Temperaturskala folgt den markanten Stufen 100.000 K für den Protostern, 1 Mio. K für Deuteriumbrennen und 10 Mio. K für Wasserstoffbrennen.
+- Die Temperaturskala folgt den markanten Stufen 100.000 K für den Protostern, 1 Mio. K für Deuteriumbrennen und 10 Mio. K für Wasserstofffusion.
 - Verfügbare Upgrades werden vor gesperrten oder bereits abgeschlossenen Upgrades angezeigt.
 - Ab dem Protostern trägt der Sternwind pro Minute 0,25 % der ursprünglichen Wolkenmasse ab, auch während des Offline-Fortschritts. Beim Einsetzen warnt das Achievement-Banner ausdrücklich vor dem unwiederbringlichen Materieverlust.
 - Die Kernzusammensetzung zeigt absolute Materieeinheiten pro Element; die redundante Gesamtmasse bleibt ausschließlich in den Kerndaten.

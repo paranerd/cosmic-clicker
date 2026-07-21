@@ -44,10 +44,9 @@ Nur im Dev-Server steht in der Browser-Konsole `cosmicDebug()` zur Verfügung. D
 ## Aufbau
 
 - `src/game/engine.ts` enthält die deterministischen Spielregeln.
-- `src/content/` bündelt Reaktionen, Upgrades, Automationen, Wolken, Ressourcen, Progression und Prestige-Inhalte.
-- `src/game/config.ts` stellt die zentralen Inhalte für ältere Importe gesammelt bereit.
+- `src/content/` bündelt Reaktionen, Upgrades, Automationen, Wolken, Ressourcen, Progression, Ziele/Erfolge und Prestige-Inhalte.
 - `src/game/storage.ts` verwaltet Browser-Speicherung und Offline-Fortschritt.
 - `src/main.ts` rendert die Oberfläche und verbindet Interaktionen mit der Engine.
 - `src/styles.scss` enthält das responsive visuelle System und die Sternanimation.
 
-Die spielbare Brennkette umfasst Wasserstoff-, Helium-, Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen bis zum Eisenkern. Welche Endstufe erreicht wird, hängt von Brennstoff, Temperatur und Sternmasse ab.
+Die spielbare Brennkette umfasst Wasserstoff-, Helium-, Kohlenstoff-, Neon-, Sauerstoff- und Siliziumfusion bis zum Eisenkern. Welche Endstufe erreicht wird, hängt von Brennstoff, Temperatur und Sternmasse ab.

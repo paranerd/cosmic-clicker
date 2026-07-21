@@ -129,37 +129,13 @@ export const STAGE_LABELS = Object.fromEntries(
   Object.entries(STAGES).map(([stage, definition]) => [stage, definition.label]),
 ) as Record<Stage, string>;
 
-export const ACHIEVEMENT_TITLES: Record<string, string> = {
-  'form-protostar': 'Protostern gebildet',
-  'heat-protostar': '1 Mio. Kelvin erreicht',
-  'ignite-hydrogen': 'Wasserstofffusion freigeschaltet',
-  'stabilize-star': 'Hauptreihe erreicht',
-  'leave-main-sequence': 'Hauptreihe abgeschlossen',
-  'ignite-helium': 'Heliumkern gezündet',
-  'build-carbon-core': 'Kohlenstoffkern gebildet',
-  'build-oxygen-core': 'Kohlenstoff-Sauerstoff-Kern vollendet',
-  'collapse-core': 'Kernkollaps ausgelöst',
-  'observe-remnant': 'Stellarer Rest entdeckt',
-  'ignite-alphaCapture': 'Alpha-Einfang freigeschaltet',
-  'ignite-carbon': 'Kohlenstofffusion freigeschaltet',
-  'ignite-neon': 'Neonfusion freigeschaltet',
-  'ignite-oxygen': 'Sauerstofffusion freigeschaltet',
-  'ignite-silicon': 'Siliziumfusion freigeschaltet',
-  'burn-hydrogen': 'Wasserstofffusion abgeschlossen',
-  'burn-helium': 'Heliumfusion abgeschlossen',
-  'burn-alphaCapture': 'Alpha-Einfang abgeschlossen',
-  'burn-carbon': 'Kohlenstofffusion abgeschlossen',
-  'burn-neon': 'Neonfusion abgeschlossen',
-  'burn-oxygen': 'Sauerstofffusion abgeschlossen',
-  'burn-silicon': 'Siliziumfusion abgeschlossen',
-};
-
-export const PROTOSTAR_WIND_WARNING = {
-  title: 'Sternwind setzt ein',
-  text: 'Er trägt fortan stetig Materie aus der Urwolke ab. Diese Materie kann nicht mehr eingesammelt werden.',
-} as const;
-
-export const SHELL_WIND_WARNING = {
-  title: 'Hüllenwind verstärkt sich',
-  text: 'Der Stern verliert ab jetzt spürbar Wasserstoff und Helium aus seiner eigenen Hülle. Hält der Massenverlust an, kann er den späteren Sternrest verändern.',
-} as const;
+// Erfolgs- und Warntexte fürs Ziel-Banner sind absichtlich nicht hier: die
+// IDs sind Ziel-/Reaktionsphasen aus objectiveFor() (z. B. `ignite-carbon`,
+// `burn-hydrogen`), keine STAGES-Schlüssel — STAGES kennt weder Reaktionen
+// noch den Rundenabschluss, und mehrere STAGES-Einträge (z. B.
+// `carbonOxygen`, `supernova`) werden ihrerseits nie als `state.stage`
+// gesetzt. Die Titel und Texte der frühen Formationsziele stehen als
+// `achievementTitle`/`windWarning` direkt an ihrem OBJECTIVES-Eintrag in
+// `objectives.ts`; die reaktionsbezogenen Erfolgstitel und Windwarnungen
+// liegen direkt bei ihrer Reaktion in `reactions.ts`
+// (ignitionAchievementTitle/completionAchievementTitle/completionWindWarning).
