@@ -286,21 +286,39 @@ Implementierte manuelle Reaktionen:
 - Eck-Ausbaubutton: Statt eines Kauf-Buttons mit Fortschrittsbalken unten in
   der Kachel sitzt ein kompakter eckiger Button oben rechts auf jeder
   Automations-, Upgrade- und Reaktionskarte. Die Icon-Folge ist unabhängig von
-  der momentanen Bezahlbarkeit fest an den Zustand gekoppelt: Schloss (nicht
-  freigeschaltet) → Doppel-Caret nach oben (ausbaubar) → Haken (voll
-  ausgebaut). Der Ausbaupreis steht, solange ausbaubar, direkt im Button unter
-  dem Icon statt in einem Tooltip — Tooltips sind für Spieler schwer zu
-  entdecken und auf Mobilgeräten nicht nutzbar; ein aria-label bleibt nur für
-  Screenreader erhalten und löst keinen sichtbaren Hover-Tooltip aus. Der
-  Button-Hintergrund füllt sich zustandsabhängig von unten nach oben: gesperrt
-  → Fortschritt bis zur Freischaltung (z. B. Mindestmasse/-temperatur bei
-  Upgrades, Meisterschaftsschwelle bei Automationen), ausbaubar → Fortschritt
-  bis zur Bezahlbarkeit (verfügbare Energie ⁄ Preis). Ist eine Stufe gerade
-  bezahlbar, bekommt der Button zusätzlich denselben pulsierenden Amber-Glow
-  wie das Warnsymbol in der Sternkammer. Bei Reaktionen ist der Ausbaupreis
+  der momentanen Bezahlbarkeit: Bei Automationen und Upgrades zeigt der Button
+  IMMER zuerst ein Schloss, unabhängig davon, ob die Voraussetzungen längst
+  erfüllt und der Ausbau bereits möglich/bezahlbar wäre — erst nach der ersten
+  gekauften Stufe wechselt das Icon zum Doppel-Caret nach oben, bei
+  Erreichen des Maximums zum Haken. Bei Reaktionen existiert dagegen kein
+  Schloss-Zustand: Der Ausbau-Button erscheint dort ohnehin erst, sobald die
+  Reaktion selbst freigeschaltet ist, und zeigt von Anfang an den
+  Doppel-Caret bzw. bei vollem Ausbau den Haken. Der Ausbaupreis steht,
+  solange ausbaubar, direkt im Button unter dem Icon statt in einem Tooltip —
+  Tooltips sind für Spieler schwer zu entdecken und auf Mobilgeräten nicht
+  nutzbar; ein aria-label bleibt nur für Screenreader erhalten und löst
+  keinen sichtbaren Hover-Tooltip aus. Nur Reaktionskarten zeigen im
+  Button-Hintergrund noch echten Fortschritt (verfügbare Energie ⁄
+  Ausbaupreis, von unten nach oben); bei Automationen und Upgrades bleibt die
+  Fläche unabhängig vom Fortschritt zur Freischaltung bzw. Bezahlbarkeit
+  gleichmäßig gefüllt — der Amber-Glow (siehe unten) zeigt die Bezahlbarkeit
+  dort bereits ausreichend an. Ist eine Stufe gerade bezahlbar, bekommt der
+  Button zusätzlich denselben pulsierenden Amber-Glow wie das Warnsymbol in
+  der Sternkammer, in derselben zurückhaltenden Intensität (schmale, blasse
+  Umrandung statt einer kräftigen Fläche). Bei Reaktionen ist der Ausbaupreis
   bewusst doppelt sichtbar (im Button und in der Kostenzeile unter den Pips),
   weil der Reaktionsausbau anders als Automationen/Upgrades keinen gesperrten
   Zustand kennt, hinter dem sich die Kostenzeile sonst „verstecken“ könnte.
+- Reaktionskarten folgen derselben Grundstruktur wie Automations-/
+  Upgradekarten: Eck-Ausbaubutton, Icon-und-Titel-Zeile (gleich großes,
+  gleich positioniertes Icon), Aktuell/Nächste-Stufe-Zeile, Beschreibung,
+  Ausbaustufen-Pips und Ausbaupreis-Zeile. Der Kicker (Reaktionskette-Label)
+  und die Fusionsgleichung mit dem Fusions-Button haben bei Automationen/
+  Upgrades keine Entsprechung; sie stehen als zusätzliche Zeilen zwischen
+  Beschreibung und Pips. Anders als zuvor gibt es keinen eigenen
+  umschließenden Abschnitt und keinen Trennstrich mehr zwischen Beschreibung
+  und Ausbaustufen — gleiche Elemente sind über alle drei Kartentypen hinweg
+  gleich positioniert.
 
 ### Aktueller Lebenszyklus und Physikmodell
 

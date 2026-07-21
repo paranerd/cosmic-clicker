@@ -132,7 +132,8 @@ function syncReactionPanel(): void {
       const fillPercent = view.upgradeMax ? 0 : state.energy / view.upgradePrice * 100;
       const costText = view.upgradeMax ? '' : `${view.upgradePrice} E`;
       const ariaLabel = view.upgradeMax ? 'Reaktionsausbau voll ausgebaut' : `Reaktionsausbau für ${view.upgradePrice} Energie`;
-      syncTileButton(upgradeButton, view.upgradeMax, true, view.upgradeAffordable, fillPercent, costText, ariaLabel);
+      // Reaktionen zeigen von Anfang an den Doppel-Caret, nie ein Schloss.
+      syncTileButton(upgradeButton, view.upgradeMax, true, false, view.upgradeAffordable, fillPercent, costText, ariaLabel);
     }
   });
 }
@@ -142,13 +143,19 @@ function syncReactionPanel(): void {
 // Button stehende Preis wechseln nur bei einem echten Zustandswechsel
 // (Ausbaustufe erreicht Maximum, Voraussetzung erfüllt/verliert sich) — die
 // reine Bezahlbarkeit (Energie reicht gerade so) und der Fortschritts-Fill
-// werden dagegen bei jedem Tick aktualisiert, damit der Amber-Glow sofort
-// an-/ausgeht und der Fill flüssig mitwächst. Tooltips gibt es bewusst nicht
-// mehr (Punkt 2) — aria-label bleibt nur für Screenreader erhalten.
+// (nur bei Reaktionen ungleich null) werden dagegen bei jedem Tick
+// aktualisiert, damit der Amber-Glow sofort an-/ausgeht. Tooltips gibt es
+// bewusst nicht mehr (Punkt 2) — aria-label bleibt nur für Screenreader
+// erhalten. Der Wechsel von Schloss zu Doppel-Caret nach der ersten
+// gekauften Stufe (Punkt 1, showLock) braucht hier keine eigene
+// Übergangserkennung: bei Upgrades/Automationen steckt die Stufe bereits in
+// der jeweiligen Panel-Signatur (siehe updateUI), ein Stufenwechsel baut das
+// Panel also ohnehin komplett neu — mit dem dann schon korrekten Icon.
 function syncTileButton(
   button: HTMLButtonElement | null,
   complete: boolean,
   unlocked: boolean,
+  showLock: boolean,
   affordable: boolean,
   fillPercent: number,
   costText: string,
@@ -162,7 +169,7 @@ function syncTileButton(
   if (button.dataset.tileState !== tileState) {
     button.classList.toggle('is-complete', complete);
     button.classList.toggle('is-locked', !complete && !unlocked);
-    button.innerHTML = tileButtonInner(complete, unlocked, costText);
+    button.innerHTML = tileButtonInner(complete, unlocked, showLock, costText);
     button.dataset.tileState = tileState;
   } else {
     const priceSpan = button.querySelector<HTMLElement>('[data-tile-price]');
@@ -179,12 +186,15 @@ function syncActivePanel(): void {
     orderedUpgradeCards().forEach(({ view }) => {
       const button = app.querySelector<HTMLButtonElement>(`[data-action="${view.definition.action}"]`);
       const affordable = !view.complete && view.unlocked && state.energy >= view.price;
-      const fillPercent = view.complete ? 0 : !view.unlocked ? view.unlockProgress * 100 : state.energy / view.price * 100;
+      // Kein Fortschritts-Fill mehr bei Upgrades (Punkt 3); Schloss bis zur
+      // ersten gekauften Stufe (Punkt 1), unabhängig von der Freischaltung.
+      const fillPercent = 0;
+      const showLock = view.level === 0;
       const costText = view.complete ? '' : `${view.price} E`;
       const ariaLabel = view.complete ? view.definition.button.complete
         : !view.unlocked ? (view.expired ? view.definition.button.expired : view.definition.button.locked)
           : `${view.definition.button.purchase} für ${view.price} Energie`;
-      syncTileButton(button, view.complete, view.unlocked, affordable, fillPercent, costText, ariaLabel);
+      syncTileButton(button, view.complete, view.unlocked, showLock, affordable, fillPercent, costText, ariaLabel);
     });
   }
   if (activePanel === 'automation') {
@@ -193,10 +203,11 @@ function syncActivePanel(): void {
       const isMax = view.level >= view.max;
       const button = app.querySelector<HTMLButtonElement>(`[data-automation-card="${kind}"] button`);
       const affordable = !isMax && view.unlocked && state.energy >= view.price;
-      const fillPercent = isMax ? 0 : !view.unlocked ? view.unlockProgress * 100 : state.energy / view.price * 100;
+      const fillPercent = 0;
+      const showLock = view.level === 0;
       const costText = isMax ? '' : `${view.price} E`;
       const ariaLabel = isMax ? 'Maximum' : !view.unlocked ? view.lockedLabel : `Ausbauen für ${view.price} Energie`;
-      syncTileButton(button, isMax, view.unlocked, affordable, fillPercent, costText, ariaLabel);
+      syncTileButton(button, isMax, view.unlocked, showLock, affordable, fillPercent, costText, ariaLabel);
       // Der Sperrgrund-Fortschritt (z. B. "998 / 1.500 C") wächst kontinuierlich
       // mit der Reaktionsleistung — anders als der Ausbaupreis muss dieser Text
       // daher bei jedem Tick aktualisiert werden, nicht erst beim Strukturrebuild.

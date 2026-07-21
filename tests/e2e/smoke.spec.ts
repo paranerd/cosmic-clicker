@@ -423,6 +423,66 @@ test('upgrade and automation cards use compact heading rows with the rate moved 
   await expect(page.getByText('Automation', { exact: true })).toHaveCount(0);
 });
 
+test('upgrade and automation corner buttons keep the lock icon and show no progress fill until the first level is bought', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, stage: 'protostar', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 50_000, helium: 18_000, deuterium: 80, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 5_000, helium: 900, deuterium: 20, carbon: 0, oxygen: 0 },
+    energy: 150, temperature: 350_000,
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+    seenObjectives: ['heat-protostar'],
+  });
+  await page.goto('/');
+
+  // Punkt 1/3: Die Gravitations-Verdichtung ist hier längst freigeschaltet und
+  // mit 150 Energie auch bezahlbar (Preis 45) — trotzdem zeigt der Button vor
+  // dem ersten Ausbau noch das Schloss, kein Doppel-Caret, und keinen Fill.
+  await page.getByRole('tab', { name: /Upgrades/ }).click();
+  const upgradeButton = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' }).locator('.tile-action-button');
+  await expect(upgradeButton).toHaveClass(/is-buildable/);
+  await expect(upgradeButton.locator('.tile-action-icon svg rect')).toHaveCount(1);
+  expect(await upgradeButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('0%');
+  await upgradeButton.click();
+  await expect(upgradeButton.locator('.tile-action-icon svg rect')).toHaveCount(0);
+  expect(await upgradeButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('0%');
+
+  // Dieselbe Logik gilt für Automationen: Der Akkretionsstrom ist bei dieser
+  // Sternmasse (5.920 ME > 2.544 ME Protostern-Schwelle) unlocked und mit
+  // Preis 65 bezahlbar (105 Energie verbleiben nach dem Gravitations-Ausbau),
+  // zeigt aber vor der ersten Stufe ebenfalls das Schloss.
+  await page.getByRole('tab', { name: /Automationen/ }).click();
+  const automationButton = page.locator('[data-automation-card="accretion"] .tile-action-button');
+  await expect(automationButton).toHaveClass(/is-buildable/);
+  await expect(automationButton.locator('.tile-action-icon svg rect')).toHaveCount(1);
+  expect(await automationButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('0%');
+  await automationButton.click();
+  await expect(automationButton.locator('.tile-action-icon svg rect')).toHaveCount(0);
+  expect(await automationButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'))).toBe('0%');
+});
+
+test('reaction cards mirror the upgrade/automation card layout with no separating divider', async ({ page }) => {
+  await gotoGame(page);
+  const hydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
+  // Punkt 4: Reaktionskarten teilen sich jetzt denselben .upgrade-heading-
+  // Wrapper wie Upgrade-/Automationskarten (gleiche Icon-Größe/-Ausrichtung),
+  // haben keine eigene .action-copy-Verpackung mehr und keinen Trennstrich
+  // (.reaction-upgrade) zwischen Beschreibung und Ausbaustufen.
+  await expect(hydrogenCard.locator('.upgrade-heading')).toHaveCount(1);
+  await expect(hydrogenCard.locator('.upgrade-heading .upgrade-icon.reaction-symbol')).toHaveCount(1);
+  await expect(hydrogenCard.locator('.action-copy')).toHaveCount(0);
+  await expect(hydrogenCard.locator('.reaction-upgrade')).toHaveCount(0);
+  await expect(hydrogenCard.locator('.card-kicker')).toBeVisible();
+  const kickerBeforeHeading = await hydrogenCard.evaluate((card) => {
+    const kicker = card.querySelector('.card-kicker');
+    const heading = card.querySelector('.upgrade-heading');
+    return !!(kicker && heading && (kicker.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0);
+  });
+  expect(kickerBeforeHeading).toBe(true);
+  const iconSize = await hydrogenCard.locator('.upgrade-icon').evaluate((element) => Math.round(element.getBoundingClientRect().width));
+  expect(iconSize).toBe(32);
+});
+
 test('available upgrades are ordered before upgrades that are still locked', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, stage: 'protostar', cloudTier: 1, nextCloudTier: 1,

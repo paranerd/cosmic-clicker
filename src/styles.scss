@@ -256,15 +256,9 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .side-tabs button.unlock-flash { animation: tabUnlockFlash 1.25s ease-out; }
 .side-content { min-height: 0; padding: 14px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba($cyan,.25) transparent; }
 .action-sidepanel .reaction-grid, .action-sidepanel .upgrade-grid { grid-template-columns: 1fr; }
-.action-sidepanel .action-card { min-height: 0; grid-template-columns: 38px minmax(0,1fr); gap: 10px; padding: 13px; }
-.action-sidepanel .action-card + .action-card { margin-top: 0; }
-.action-sidepanel .reaction-symbol { width: 36px; height: 36px; font-size: 16px; }
-.action-sidepanel .action-copy h3 { font-size: 15px; }
-.action-sidepanel .action-copy p { font-size: 8px; }
 .action-sidepanel .reaction-equation { margin-top: 7px; }
-.action-sidepanel .action-card button { grid-column: 1 / -1; min-height: 38px; }
-.action-sidepanel .upgrade-card { padding: 13px; }
-.action-sidepanel .upgrade-card p { min-height: 0; }
+.action-sidepanel .action-card, .action-sidepanel .upgrade-card { padding: 13px; }
+.action-sidepanel .action-card p, .action-sidepanel .upgrade-card p { min-height: 0; }
 
 .control-deck { border-bottom: 1px solid $line; background: rgba(8,13,22,.43); }
 .deck-tabs { height: 58px; display: flex; align-items: end; padding: 0 30px; border-bottom: 1px solid $line; gap: 28px; }
@@ -276,35 +270,37 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .deck-tabs button.has-notice .notice-dot { display: grid; }
 .deck-content { min-height: 250px; padding: 26px 30px 30px; }
 .reaction-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-.action-card { min-height: 146px; position: relative; overflow: hidden; display: grid; grid-template-columns: 54px minmax(0,1fr) 180px; gap: 20px; align-items: center; padding: 19px 20px; border: 1px solid $line; background: rgba(255,255,255,.018); transition: .2s; }
-.action-card + .action-card { margin-top: 12px; }
+// Reaktionskarten sind strukturell jetzt dasselbe wie Automations-/
+// Upgradekarten (siehe .upgrade-card weiter unten, mit der dieses Ruleset
+// zusammengelegt ist) — kein eigenes 3-Spalten-Grid, kein Trennstrich mehr.
+// .is-ready bleibt reaktionsspezifisch (Glow, sobald genug Brennstoff da ist).
 .action-card.is-ready { border-color: rgba($amber,.28); background: linear-gradient(90deg, rgba($amber,.04), transparent 50%); }
-.reaction-symbol { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid; border-radius: 50%; font-family: Georgia, serif; font-size: 21px; }
-.reaction-symbol.deuterium { color: #a89ce5; border-color: rgba(#9e8fe5,.4); box-shadow: inset 0 0 18px rgba(#9e8fe5,.1); }
-.reaction-symbol.hydrogen { color: $amber; border-color: rgba($amber,.4); box-shadow: inset 0 0 18px rgba($amber,.1); }
-.reaction-symbol.helium { color: #f4c57f; border-color: rgba($amber,.42); box-shadow: inset 0 0 18px rgba($amber,.12); }
-.reaction-symbol.oxygen { color: #87b7f5; border-color: rgba(#75a8eb,.45); box-shadow: inset 0 0 18px rgba(#75a8eb,.12); }
-.reaction-symbol.carbon { color: #d7dbe0; border-color: rgba(#d7dbe0,.42); box-shadow: inset 0 0 18px rgba(#d7dbe0,.1); }
-.reaction-symbol.neon { color: #dc9cff; border-color: rgba(#c979f4,.45); box-shadow: inset 0 0 18px rgba(#c979f4,.1); }
-.reaction-symbol.silicon { color: #e9b784; border-color: rgba(#d99b60,.45); box-shadow: inset 0 0 18px rgba(#d99b60,.1); }
-.reaction-symbol.evolution { color: $cyan; border-color: rgba($cyan,.45); box-shadow: inset 0 0 18px rgba($cyan,.12); font-family: inherit; font-size: 15px; }
+// Kicker (Reaktionskette-Label) hat bei Automations-/Upgradekarten keine
+// Entsprechung und bleibt daher eine reaktionsspezifische Zusatzzeile über
+// der Titel-Zeile, statt die geteilte .card-kicker-Basisregel zu ändern (die
+// auch die Missionsleiste oben nutzt).
+.action-card .card-kicker { display: block; margin-bottom: 6px; }
+// Farbvariante je Element — Größe/Form kommen jetzt von .upgrade-icon
+// (gemeinsam mit dem Symbol-Span in der Karten-Markup verwendet); kein Glow
+// mehr, damit sich das Symbol optisch nicht mehr von Automations-/
+// Upgrade-Icons unterscheidet.
+.reaction-symbol.deuterium { color: #a89ce5; border-color: rgba(#9e8fe5,.4); }
+.reaction-symbol.hydrogen { color: $amber; border-color: rgba($amber,.4); }
+.reaction-symbol.helium { color: #f4c57f; border-color: rgba($amber,.42); }
+.reaction-symbol.oxygen { color: #87b7f5; border-color: rgba(#75a8eb,.45); }
+.reaction-symbol.carbon { color: #d7dbe0; border-color: rgba(#d7dbe0,.42); }
+.reaction-symbol.neon { color: #dc9cff; border-color: rgba(#c979f4,.45); }
+.reaction-symbol.silicon { color: #e9b784; border-color: rgba(#d99b60,.45); }
+.reaction-symbol.evolution { color: $cyan; border-color: rgba($cyan,.45); }
 .evolution-action { background: linear-gradient(90deg, rgba($cyan,.04), transparent 56%); }
-// Punkt 7/9: Platz für den (jetzt eckigen, breiteren) Ausbau-Button oben
-// rechts auf der Reaktionskarte reservieren, damit Kicker/Titel nicht
-// darunter laufen.
-.action-copy { padding-right: 46px; }
-.action-copy h3 { margin: 4px 0 5px; font-family: Georgia, serif; font-size: 18px; font-weight: 400; }
-.action-copy p { margin: 0; color: $muted; font-size: 10px; line-height: 1.5; }
 .reaction-equation { display: flex; gap: 9px; align-items: center; margin-top: 10px; color: #9aa7b6; font-family: ui-monospace, monospace; font-size: 9px; }
 .reaction-equation b { color: $amber; font-weight: 400; }
-
-// Punkt 2/7/8: Ausbaustufen (Pips) und Ausbaupreis bleiben unterhalb des
-// Fusionsbuttons, jetzt im selben Aktuell/Nächste-Stufe-Layout wie bei
-// Automationen/Upgrades (.tile-rate/.level-row/.tile-cost weiter unten); der
-// Ausbau-Button selbst sitzt oben rechts auf der Karte (.tile-action-button,
-// siehe weiter unten, Punkt 3/4/6/7/9).
-.reaction-upgrade { grid-column: 1 / -1; margin-top: 2px; padding-top: 10px; border-top: 1px solid $line; }
 .primary-action, .secondary-action { min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba($amber,.55); background: linear-gradient(135deg, rgba($amber,.95), rgba($orange,.94)); color: #1b110a; cursor: pointer; transition: .2s; }
+// Punkt 4: Der Fusionsbutton hat bei Automations-/Upgradekarten keine
+// Entsprechung; Abstand zur Gleichung/Beschreibung daher hier gesetzt statt
+// an der geteilten .primary-action-Basisregel (die auch im Zyklus-Ende-Modal
+// verwendet wird, wo das eigene .summary-actions-Gap bereits reicht).
+.action-card .primary-action { margin-top: 12px; }
 .primary-action:hover:not(:disabled), .secondary-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 8px 24px rgba($orange,.16); }
 .primary-action span, .secondary-action span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .primary-action small, .secondary-action small { margin-top: 3px; font-size: 8px; opacity: .65; }
@@ -320,11 +316,14 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .system-explainer > div { margin-top: 20px; padding-top: 14px; display: flex; justify-content: space-between; border-top: 1px solid $line; }
 .system-explainer > div span { color: $muted; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
 .system-explainer > div b { color: $cyan; font-family: ui-monospace,monospace; font-size: 14px; font-weight: 400; }
-.upgrade-card { position: relative; border: 1px solid $line; padding: 18px; background: rgba(255,255,255,.018); }
+// Automations-, Upgrade- und Reaktionskarten teilen sich jetzt dieselbe
+// Grundform (Punkt 4) — .action-card ist nur noch der reaktionsspezifische
+// Zusatzname für .is-ready, keine eigene Kachel-Optik mehr.
+.upgrade-card, .action-card { position: relative; border: 1px solid $line; padding: 18px; background: rgba(255,255,255,.018); }
 .upgrade-heading { padding-right: 46px; display: grid; grid-template-columns: 32px minmax(0,1fr); gap: 10px; align-items: center; }
 .upgrade-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid rgba($cyan,.35); border-radius: 50%; color: $cyan; font-family: Georgia,serif; }
-.upgrade-card h3 { margin: 0; font-family: Georgia,serif; font-size: 17px; font-weight: 400; }
-.upgrade-card p { min-height: 42px; margin: 10px 0 0; color: $muted; font-size: 9px; line-height: 1.5; }
+.upgrade-heading h3 { margin: 0; font-family: Georgia,serif; font-size: 17px; font-weight: 400; }
+.upgrade-card p, .action-card p { min-height: 42px; margin: 10px 0 0; color: $muted; font-size: 9px; line-height: 1.5; }
 .upgrade-card p strong { display: block; margin-top: 4px; color: #91cdd1; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 400; }
 .level-row { display: flex; gap: 5px; margin: 15px 0; }
 .level-pip { height: 3px; flex: 1; background: rgba(255,255,255,.08); }
@@ -372,15 +371,14 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .tile-action-price { color: inherit; font-family: ui-monospace,monospace; font-size: 7px; font-weight: 400; line-height: 1.15; text-align: center; }
 .upgrade-card .tile-action-button:hover:not(:disabled), .action-card .tile-action-button:hover:not(:disabled) { border-color: rgba($cyan,.55); color: $text; }
 .tile-action-button:disabled { cursor: default; }
-.tile-action-button.is-buildable { border-color: rgba($amber,.55); background: linear-gradient(to top, rgba($amber,.24) var(--tile-fill), rgba($amber,.05) 0); color: $amber; animation: warning-pulse 2.6s ease-in-out infinite; }
-.tile-action-button.is-buildable:hover { border-color: rgba($amber,.8); }
+// Punkt 2: Subtiler als zuvor — dieselbe Intensität wie das Warnsymbol
+// (border rgba($amber,.45), background rgba($amber,.09)), nur mit dem
+// gewohnten Fill-Verlauf statt einer flachen Fläche.
+.tile-action-button.is-buildable { border-color: rgba($amber,.45); background: linear-gradient(to top, rgba($amber,.14) var(--tile-fill), rgba($amber,.07) 0); color: $amber; animation: warning-pulse 2.6s ease-in-out infinite; }
+.tile-action-button.is-buildable:hover { border-color: rgba($amber,.65); }
 .tile-action-button.is-complete { border-color: rgba($cyan,.18); background: transparent; color: #54606c; }
 .tile-action-button.is-locked { border-color: $line; background: linear-gradient(to top, rgba(255,255,255,.06) var(--tile-fill), transparent 0); color: #4f5a68; }
 @media (prefers-reduced-motion: reduce) { .tile-action-button.is-buildable { animation: none; } }
-// Die Kontrollzentrum-Sidepanel-Regel für Kartenbuttons (volle Breite unten)
-// gilt sonst für JEDEN Button in .action-card, inkl. des neuen Eckbuttons —
-// hier gezielt wieder auf die kompakte, absolut positionierte Form zurücksetzen.
-.action-sidepanel .action-card .tile-action-button { grid-column: auto; min-height: 38px; }
 .legacy-intro { display: flex; align-items: end; justify-content: space-between; gap: 40px; padding-bottom: 20px; }
 .legacy-intro h3 { margin: 4px 0 0; font-family: Georgia,serif; font-weight: 400; font-size: 21px; }
 .legacy-intro p { max-width: 550px; margin: 0; color: $muted; font-size: 10px; line-height: 1.6; }
@@ -659,9 +657,7 @@ footer button:hover { color: $cyan; }
   .phase-dots { bottom: 20px; }
   .sidepanel-heading { padding: 14px 16px 9px; }
   .side-content { padding: 10px 12px; }
-  .action-sidepanel .action-card { padding: 10px 11px; }
-  .action-sidepanel .action-copy p { display: none; }
-  .action-sidepanel .upgrade-card h3 { margin-top: 0; }
+  .action-sidepanel .action-card, .action-sidepanel .upgrade-card { padding: 10px 11px; }
   .action-sidepanel .level-row { margin: 9px 0; }
   footer { display: none; }
 }
@@ -701,8 +697,6 @@ footer button:hover { color: $cyan; }
   .sidepanel-heading { padding: 20px 20px 12px; }
   .side-content { padding: 16px 20px; }
   .data-panel { padding: 25px 20px; }
-  .action-card { grid-template-columns: 44px 1fr; }
-  .action-card button { grid-column: 1 / -1; }
   .deck-tabs { padding: 0 16px; gap: 18px; overflow-x: auto; }
   .deck-content { padding: 18px 16px 22px; }
   .legacy-intro { display: block; }
@@ -744,7 +738,6 @@ footer button:hover { color: $cyan; }
   .stellar-lab, .star-chamber { min-height: 480px; }
   .click-callout { bottom: 52px; }
   .phase-dots { bottom: 24px; }
-  .action-copy p { display: none; }
   .summary-modal { padding: 32px 20px; }
   .summary-modal h2 { font-size: 28px; }
   .summary-heading { grid-template-columns: 1fr; text-align: center; }
