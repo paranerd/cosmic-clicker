@@ -1,5 +1,6 @@
 export * from './automations';
 export * from './clouds';
+export * from './objectives';
 export * from './prestige';
 export * from './progression';
 export * from './reactions';

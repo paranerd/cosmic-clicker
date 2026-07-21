@@ -225,9 +225,14 @@ Implementierte manuelle Reaktionen:
   Wirkungen können weiterhin eine Erweiterung des Spielkerns erfordern.
 - Deklarative Namen, Texte, Kosten, Schwellenwerte, Raten und Sichtbarkeiten
   liegen nach Fachgebiet in `src/content/`: Ressourcen, Wolken, Reaktionen,
-  Automationen, Upgrades, Fortschritt, Prestige und Tutorial.
+  Automationen, Upgrades, Fortschritt, Ziele/Erfolge, Prestige und Tutorial.
 - `src/game/engine.ts` enthält Berechnungen und Zustandsänderungen;
-  `src/main.ts` verbindet den Zustand mit der Benutzeroberfläche.
+  `src/main.ts` verbindet den Zustand mit der Benutzeroberfläche. Das gilt auch
+  für die Missionsleiste: `objectiveFor()` in `engine.ts` wählt nur noch die
+  passende Ziel-ID und berechnet den Fortschritt, die angezeigten Texte
+  (eyebrow/title/detail) sowie die Erfolgstitel für das Ziel-Banner kommen
+  vollständig aus `src/content/objectives.ts` beziehungsweise generisch aus
+  den Reaktionsdefinitionen in `src/content/reactions.ts`.
 
 ### Aktueller Lebenszyklus und Physikmodell
 
@@ -289,6 +294,13 @@ Implementierte manuelle Reaktionen:
 - Zielwechsel verwenden ein gut sichtbares, nicht blockierendes und manuell
   schließbares Banner, das horizontal zentriert von unten hereingleitet.
 - Mehrere Ziel-Banner werden nacheinander in einer Warteschlange gezeigt.
+- Frühe Formationsziele (Protostern bilden, 1 Mio. K erreichen, Wasserstoffkern
+  zünden, Hauptreihe erreichen) sind eigene, aufeinanderfolgende Zwischenziele
+  mit je eigenem Erfolgs-Banner. Reaktionsbezogene Ziele (Kernkontraktion vor
+  der nächsten Zündung, aktive Brennphase je Reaktion) werden generisch aus
+  den Reaktionsdefinitionen erzeugt, ebenso ihre Erfolgstitel. Beim
+  Rundenabschluss selbst erscheint kein weiteres Ziel-Banner, da an dessen
+  Stelle die Rundenzusammenfassung übernimmt.
 - Kurzmeldungen werden als gestapelte, automatisch verschwindende Toasts von
   oben eingeblendet.
 - Die Chronik zeigt den aktuellen Entwicklungspfad, bekannte Endzustände und
@@ -301,8 +313,8 @@ Implementierte manuelle Reaktionen:
 - Erfasst werden manuelle Klicks und Reaktionen, gesamte und automatische
   Akkretion, gesamter Sternwindverlust (mit gesondertem Zähler für den Anteil
   des Hüllenwinds), fusionierter Wasserstoff und Helium, erzeugter
-  Sauerstoff, erzeugte Energie, Käufe, Offline-Zeit, Rundendauer und
-  Sternenstaub.
+  Sauerstoff, erzeugte Energie, die je Runde höchste erreichte Kerntemperatur,
+  Käufe, Offline-Zeit, Rundendauer und Sternenstaub.
 - Speicherstände der Versionen 1 bis 5 werden normalisiert. Version 5 speichert
   Reaktionsfreischaltungen, Reaktionssummen, Kontraktionswärme, schwere
   Elemente und die zusätzlichen Automationen und Endzustände.

@@ -64,6 +64,12 @@ export const normalizeGameState = (value: unknown): GameState | null => {
   if (parsed.stats?.hydrogenFused === undefined && typeof parsed.fusedHydrogen === 'number') {
     stats.hydrogenFused = parsed.fusedHydrogen;
   }
+  // Ältere Spielstände kennen noch kein peakTemperature-Feld. Ohne diese
+  // Migration würde ein Spielstand mit hoher aktueller Temperatur nach dem
+  // Laden fälschlich nur die Anfangstemperatur als „erreicht“ anzeigen.
+  if (parsed.stats?.peakTemperature === undefined) {
+    stats.peakTemperature = Math.max(stats.peakTemperature, parsed.temperature ?? fallback.temperature);
+  }
   const history = Array.isArray(parsed.history) ? parsed.history.slice(0, 20).map((record): RoundRecord => ({
     ...createRunStatistics(),
     ...record,

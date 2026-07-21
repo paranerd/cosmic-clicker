@@ -17,7 +17,6 @@ import {
   objectiveFor,
   pressureProgress,
   shellWindPerSecond,
-  solarMasses,
   starMass,
   stellarWindPerSecond,
 } from '../game/engine';

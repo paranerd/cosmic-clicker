@@ -16,6 +16,9 @@ import {
   LIMITS,
   MAIN_SEQUENCE_BURN,
   MATTER_KEYS,
+  OBJECTIVE_EYEBROWS,
+  OBJECTIVE_TEMPLATES,
+  OBJECTIVES,
   OUTCOMES,
   PRESTIGE_PERKS,
   REACTIONS,
@@ -154,6 +157,15 @@ export const calculateTemperature = (state: GameState): number => {
   );
 };
 
+// Setzt die aktuelle Kerntemperatur und pflegt gleichzeitig die je Runde
+// höchste je erreichte Temperatur (stats.peakTemperature) nach, da die
+// aktuelle Temperatur durch abklingenden heatBonus zwischenzeitlich unter
+// einen vorher erreichten Spitzenwert sinken kann.
+const updateTemperature = (state: GameState): void => {
+  state.temperature = calculateTemperature(state);
+  if (state.temperature > state.stats.peakTemperature) state.stats.peakTemperature = state.temperature;
+};
+
 const log = (state: GameState, text: string, kind: GameState['log'][number]['kind'] = 'info'): void => {
   state.log.unshift({ id: Date.now() + Math.random(), text, kind });
   state.log = state.log.slice(0, 12);
@@ -163,14 +175,14 @@ const setStage = (state: GameState, stage: Stage, message?: string): void => {
   if (state.stage === stage) return;
   state.stage = stage;
   if (message) log(state, message, 'discovery');
-  state.temperature = calculateTemperature(state);
+  updateTemperature(state);
 };
 
 export const createRunStatistics = (): RunStatistics => ({
   manualClicks: 0, deuteriumBurns: 0, manualFusionActions: 0, manualHeliumActions: 0,
   matterAccreted: 0, automaticMatterAccreted: 0, matterLostToWind: 0, matterLostToShellWind: 0,
   hydrogenFused: 0, automaticHydrogenFused: 0, heliumFused: 0, automaticHeliumFused: 0,
-  oxygenCreated: 0, automaticOxygenCreated: 0, energyGenerated: 0,
+  oxygenCreated: 0, automaticOxygenCreated: 0, energyGenerated: 0, peakTemperature: INITIAL_TEMPERATURE,
   upgradesPurchased: 0, automationsPurchased: 0, offlineSeconds: 0, stardustEarned: 0,
 });
 
@@ -260,7 +272,7 @@ const runReaction = (state: GameState, reaction: ReactionId, requested: number, 
     if (automatic) state.stats.automaticHydrogenFused += amount;
     if (!automatic) state.manualFusions += 1;
     if (state.fusedHydrogen >= THRESHOLDS.mainSequenceHydrogen && state.stage === 'hydrogen') {
-      setStage(state, 'mainSequence', 'Hydrostatisches Gleichgewicht: Der Stern erreicht die Hauptreihe. Wasserstoffbrennen bleibt aktiv.');
+      setStage(state, 'mainSequence', 'Hydrostatisches Gleichgewicht: Der Stern erreicht die Hauptreihe. Wasserstofffusion bleibt aktiv.');
     }
   }
   if (reaction === 'helium') {
@@ -292,7 +304,7 @@ const completeRun = (state: GameState, outcome: Exclude<StellarOutcome, 'legacyM
   state.stardust += award;
   state.stats.stardustEarned += award;
   addDiscovery(state, outcome);
-  state.temperature = calculateTemperature(state);
+  updateTemperature(state);
   log(state, `${OUTCOMES[outcome].title} +${award} Sternenstaub`, 'discovery');
 };
 
@@ -308,7 +320,7 @@ const unlockEligibleReactions = (state: GameState): void => {
 
 const updateFormationStage = (state: GameState): void => {
   if (state.completed || state.unlockedReactions.includes('hydrogen')) return;
-  state.temperature = calculateTemperature(state);
+  updateTemperature(state);
   if (state.temperature >= THRESHOLDS.deuteriumTemperature) {
     setStage(state, 'deuterium', '1 Mio. K: Deuteriumbrennen kann aktiviert werden.');
   } else if (state.temperature >= THRESHOLDS.protostarTemperature) {
@@ -345,7 +357,7 @@ const contractionDecision = (state: GameState): ContractionDecision => {
 
 const evaluateEvolution = (state: GameState): void => {
   if (state.completed) return;
-  state.temperature = calculateTemperature(state);
+  updateTemperature(state);
   unlockEligibleReactions(state);
   if (!state.unlockedReactions.includes('hydrogen') && cloudMass(state) <= .001) {
     completeRun(state, 'brownDwarf');
@@ -383,7 +395,7 @@ const applyContraction = (state: GameState, seconds: number): void => {
   if (needed <= 0) return;
   const rate = definition.ignitionTemperature / TEMPERATURE_MODEL.contractionSecondsPerStage;
   state.contractionHeat += Math.min(needed, rate * seconds);
-  state.temperature = calculateTemperature(state);
+  updateTemperature(state);
 };
 
 interface PersistentRunOptions {
@@ -438,7 +450,7 @@ export const tick = (state: GameState, seconds: number): GameState => {
   next.stats.matterAccreted += accreted;
   next.stats.automaticMatterAccreted += accreted;
   next.stats.energyGenerated += accreted * ACCRETION.energyPerMatter;
-  next.temperature = calculateTemperature(next);
+  updateTemperature(next);
   updateFormationStage(next);
   unlockEligibleReactions(next);
   AUTOMATION_ORDER.forEach((kind) => {
@@ -528,24 +540,56 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
     buyAutomation(next, REACTIONS[action.reaction].automation);
   } else if (action.type === 'BUY_ACCRETION') buyAutomation(next, 'accretion');
 
-  next.temperature = calculateTemperature(next);
+  updateTemperature(next);
   updateFormationStage(next);
   unlockEligibleReactions(next);
   evaluateEvolution(next);
   return next;
 };
 
+// Generisch gehalten: objectiveFor() wählt nur noch die passende Ziel-ID und
+// berechnet den Fortschritt aus dem Spielzustand; die angezeigten Texte
+// (eyebrow/title/detail) kommen vollständig aus content/ — entweder aus
+// OBJECTIVES (frühe Formationsphasen, Rundenabschluss) oder generisch aus
+// REACTIONS plus den Textvorlagen in OBJECTIVE_TEMPLATES (Kontraktions- und
+// Brennphasen aller Reaktionen). Reihenfolge wichtig: die Kontraktions-Prüfung
+// muss vor der `stage === 'hydrogen'`-Abfrage stehen, da ein Stern rechnerisch
+// noch im Stage `hydrogen` stehen kann, während der Wasserstoffvorrat bereits
+// erschöpft ist und der Kern in Richtung Helium kontrahiert.
 export const objectiveFor = (state: GameState): { id: string; eyebrow: string; title: string; progress: number; detail: string } => {
-  if (state.completed) return { id: 'review-cycle', eyebrow: 'Entwicklung abgeschlossen', title: 'Runde auswerten', progress: 100, detail: 'Investiere Sternenstaub oder beginne den nächsten Zyklus.' };
-  if (state.stage === 'nebula') return { id: 'form-protostar', eyebrow: 'Erstes Ziel', title: 'Protostern bilden', progress: Math.min(100, starMass(state) / THRESHOLDS.protostarMass * 100), detail: 'Verdichte die Materie der Urwolke im Zentrum.' };
-  if (!state.unlockedReactions.includes('hydrogen')) return { id: 'ignite-hydrogen', eyebrow: 'Nächstes Ziel', title: 'Wasserstoffkern zünden', progress: Math.min(100, state.temperature / THRESHOLDS.hydrogenTemperature * 100), detail: 'Erreiche 10 Mio. K durch weitere Verdichtung.' };
+  if (state.completed) {
+    const objective = OBJECTIVES['review-cycle'];
+    return { id: 'review-cycle', eyebrow: objective.eyebrow, title: objective.title, progress: 100, detail: objective.detail };
+  }
+  if (state.stage === 'nebula') {
+    const objective = OBJECTIVES['form-protostar'];
+    return { id: 'form-protostar', eyebrow: objective.eyebrow, title: objective.title, progress: Math.min(100, starMass(state) / THRESHOLDS.protostarMass * 100), detail: objective.detail };
+  }
+  if (state.stage === 'protostar') {
+    const objective = OBJECTIVES['heat-protostar'];
+    return { id: 'heat-protostar', eyebrow: objective.eyebrow, title: objective.title, progress: Math.min(100, state.temperature / THRESHOLDS.deuteriumTemperature * 100), detail: objective.detail };
+  }
+  if (!state.unlockedReactions.includes('hydrogen')) {
+    const objective = OBJECTIVES['ignite-hydrogen'];
+    return { id: 'ignite-hydrogen', eyebrow: objective.eyebrow, title: objective.title, progress: Math.min(100, state.temperature / THRESHOLDS.hydrogenTemperature * 100), detail: objective.detail };
+  }
   const decision = contractionDecision(state);
   if (decision?.kind === 'ignite') {
     const reaction = REACTIONS[decision.next];
     const requiredSolarMasses = (reaction.minimumMass / THRESHOLDS.matterPerSolarMass).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return { id: `ignite-${decision.next}`, eyebrow: 'Kernkontraktion', title: `${reaction.title} zünden`, progress: Math.min(100, state.temperature / reaction.ignitionTemperature * 100), detail: `Der erschöpfte Kern kontrahiert bis ${reaction.ignitionTemperature.toLocaleString('de-DE')} K (benötigt ≥ ${requiredSolarMasses} M☉).` };
+    return {
+      id: `ignite-${decision.next}`,
+      eyebrow: OBJECTIVE_EYEBROWS.contraction,
+      title: OBJECTIVE_TEMPLATES.igniteTitle(reaction.title),
+      progress: Math.min(100, state.temperature / reaction.ignitionTemperature * 100),
+      detail: OBJECTIVE_TEMPLATES.igniteDetail(reaction.ignitionTemperature, requiredSolarMasses),
+    };
+  }
+  if (state.stage === 'hydrogen') {
+    const objective = OBJECTIVES['stabilize-star'];
+    return { id: 'stabilize-star', eyebrow: objective.eyebrow, title: objective.title, progress: Math.min(100, state.fusedHydrogen / THRESHOLDS.mainSequenceHydrogen * 100), detail: objective.detail };
   }
   const active = [...REACTION_ORDER].reverse().find((id) => reactionAvailable(state, id)) ?? 'hydrogen';
   const definition = REACTIONS[active];
-  return { id: `burn-${active}`, eyebrow: 'Aktive Brennphase', title: definition.title, progress: 0, detail: `Fusioniere den verfügbaren ${definition.equationInput}-Brennstoff im Kern.` };
+  return { id: `burn-${active}`, eyebrow: OBJECTIVE_EYEBROWS.activeBurn, title: definition.title, progress: 0, detail: OBJECTIVE_TEMPLATES.burnDetail(definition.equationInput) };
 };

@@ -1,5 +1,5 @@
 import { playSound } from '../audio';
-import { ACHIEVEMENT_TITLES, PROTOSTAR_WIND_WARNING, SHELL_WIND_WARNING } from '../content';
+import { achievementTitleFor, PROTOSTAR_WIND_WARNING, SHELL_WIND_WARNING } from '../content';
 import { objectiveFor } from '../game/engine';
 import { saveGame } from '../game/storage';
 import { app, getActivePanel, getState, type Panel } from './store';
@@ -141,7 +141,7 @@ function displayNextAchievement(): void {
   if (!root || activeAchievement) return;
   activeAchievement = achievementQueue.shift() ?? null;
   if (!activeAchievement) { root.innerHTML = ''; return; }
-  const title = ACHIEVEMENT_TITLES[activeAchievement.completedObjective];
+  const title = achievementTitleFor(activeAchievement.completedObjective);
   if (!title) { activeAchievement = null; displayNextAchievement(); return; }
   const windWarning = activeAchievement.completedObjective === 'form-protostar'
     ? `<div class="achievement-warning"><b>${PROTOSTAR_WIND_WARNING.title}</b><span>${PROTOSTAR_WIND_WARNING.text}</span></div>`
@@ -155,7 +155,7 @@ function displayNextAchievement(): void {
 }
 
 function showAchievement(completedObjective: string, next: Objective): void {
-  if (!ACHIEVEMENT_TITLES[completedObjective]) return;
+  if (!achievementTitleFor(completedObjective)) return;
   achievementQueue.push({ completedObjective, next });
   displayNextAchievement();
 }

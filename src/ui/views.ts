@@ -262,7 +262,7 @@ export function evolutionMapMarkup(): string {
     ${branch('brownDwarf', 'brownDwarf', 'Unterhalb der Zündmasse → Brauner Zwerg')}
     <div class="massive-branches">
       ${branch('stellar', 'heliumWhiteDwarf', 'Wasserstoff endet früh → Helium-Weißer-Zwerg')}
-      ${branch('stellar', 'whiteDwarf', 'Heliumbrennen → Kohlenstoff-Sauerstoff-Weißer-Zwerg')}
+      ${branch('stellar', 'whiteDwarf', 'Heliumfusion → Kohlenstoff-Sauerstoff-Weißer-Zwerg')}
     </div>
     <div class="massive-branches">
       ${branch('massive', 'oxygenNeonWhiteDwarf', 'Fortgeschrittenes Brennen stoppt → O/Ne-Weißer-Zwerg')}
@@ -306,7 +306,8 @@ export function statsEntries(): [string, string, string][] {
     .map((id) => [`reaction-${id}`, `${REACTIONS[id].title}: Brennstoff`, `${formatMatter(state.reactionTotals[id])} ${RESOURCES[REACTIONS[id].primaryInput].symbol}`]);
   return [
     ['matter', 'Eingesammelte Materie', `${formatMatter(stats.matterAccreted)} ME`],
-    ['automatic-matter', 'Davon automatisch', `${formatMatter(stats.automaticMatterAccreted)} ME`],
+    ['energy', 'Erzeugte Energie', formatCompact(stats.energyGenerated)],
+    ['temperature', 'Erreichte Temperatur', formatTemperature(stats.peakTemperature)],
     ['stellar-wind', 'Durch Sternwind verloren', `${formatMatter(stats.matterLostToWind)} ME`],
     ['shell-wind', 'Davon durch Hüllenwind', `${formatMatter(stats.matterLostToShellWind)} ME`],
     ['fusion', 'Manuelle Fusionen', formatNumber(stats.manualFusionActions)],
@@ -314,8 +315,6 @@ export function statsEntries(): [string, string, string][] {
     ['helium', 'Helium fusioniert', `${formatMatter(stats.heliumFused)} He`],
     ['oxygen', 'Sauerstoff erzeugt', `${formatMatter(stats.oxygenCreated)} O`],
     ...heavyReactions,
-    ['energy', 'Energie erzeugt', formatCompact(stats.energyGenerated)],
-    ['purchases', 'Käufe', formatNumber(stats.upgradesPurchased + stats.automationsPurchased)],
   ];
 }
 

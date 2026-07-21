@@ -84,6 +84,7 @@ export interface RunStatistics {
   oxygenCreated: number;
   automaticOxygenCreated: number;
   energyGenerated: number;
+  peakTemperature: number;
   upgradesPurchased: number;
   automationsPurchased: number;
   offlineSeconds: number;
