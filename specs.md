@@ -197,7 +197,10 @@ Implementierte manuelle Reaktionen:
   Kostenfaktor 1,9). Die Energie-Basiskosten stehen je Reaktion in der
   zentralen Reaktionsdefinition und liegen unter den Kosten der zugehörigen
   Automation. Automatische Raten bleiben vom Reaktionsausbau unberührt;
-  Fusionsgedächtnis wirkt weiterhin multiplikativ auf beides.
+  Fusionsgedächtnis wirkt weiterhin multiplikativ auf beides. Der
+  Ausbau-Button sitzt als kompakter Eck-Button oben rechts auf der
+  Reaktionskarte (siehe „Eck-Ausbaubutton“ unten); Ausbaustufen (Pips) und
+  Ausbaupreis bleiben als eigene Zeile unterhalb des Fusionsbuttons sichtbar.
 - Beim manuellen Fusionieren steigt als Klick-Feedback die tatsächlich
   gewonnene Energie auf (z. B. „+68 Energie“); die Reaktionsgleichung steht
   ohnehin dauerhaft auf der Karte. Die Reaktionskarten werden bei
@@ -228,6 +231,11 @@ Implementierte manuelle Reaktionen:
 - Produktionsraten wachsen zusätzlich um 8 % je Automationsstufe.
 - Alle Automationskarten werden aus derselben datengetriebenen Definitions- und
   Renderpipeline erzeugt.
+- Kartenlayout (geteilt mit den Upgrades, siehe „Eck-Ausbaubutton“ unten): die
+  aktuelle Produktionsrate steht unter dem Titel, daneben die Rate der
+  nächsten Ausbaustufe bzw. „Voll ausgebaut“ bei maximaler Stufe. Ist die
+  Automation noch gesperrt, zeigt die Kostenzeile statt des Preises den
+  Sperrgrund inklusive Live-Fortschritt (z. B. „998 / 1.500 C“).
 
 ### Upgrades und zentrale Inhalte
 
@@ -261,6 +269,19 @@ Implementierte manuelle Reaktionen:
   (eyebrow/title/detail) sowie die Erfolgstitel für das Ziel-Banner kommen
   vollständig aus `src/content/objectives.ts` beziehungsweise generisch aus
   den Reaktionsdefinitionen in `src/content/reactions.ts`.
+- Kartenlayout: Aktueller Wert (Produktionsrate bzw. Multiplikator) steht
+  unter dem Titel, daneben der Wert der nächsten Ausbaustufe bzw. „Voll
+  ausgebaut“ bei erreichtem Maximum. Diese Zeile entfällt bei einmaligen
+  Upgrades ohne echte Stufen (`maxLevel` 1, z. B. Deuteriumbrennen); die
+  Ausbaustufen-Pips (`.level-row`) entfallen dort ebenfalls.
+- Eck-Ausbaubutton: Statt eines Kauf-Buttons mit Fortschrittsbalken unten in
+  der Kachel sitzt ein kompakter runder Button oben rechts auf jeder
+  Automations-, Upgrade- und Reaktionskarte. Icon zeigt den Zustand (Pfeil =
+  ausbaubar, Haken = voll ausgebaut, Schloss = derzeit nicht ausbaubar);
+  Label und Preis stehen als Tooltip/aria-label am Button. Ist eine Stufe
+  bezahlbar, bekommt der Button denselben pulsierenden Amber-Glow wie das
+  Warnsymbol in der Sternkammer. Der Ausbaupreis (bzw. „—“ bei vollem Ausbau)
+  bleibt zusätzlich als eigene Textzeile in der Kachel sichtbar.
 
 ### Aktueller Lebenszyklus und Physikmodell
 

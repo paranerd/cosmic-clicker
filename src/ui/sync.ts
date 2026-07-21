@@ -23,7 +23,7 @@ import {
   starMass,
 } from '../game/engine';
 import { syncDebug } from './debug';
-import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, levelPips, matterPercent, progress, temperatureScale } from './format';
+import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, levelPips, matterPercent, temperatureScale } from './format';
 import { isWarningsOpen, setWarningsOpen } from './menus';
 import { markOpportunitiesSeen, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
 import { syncOverlay } from './overlay';
@@ -124,28 +124,36 @@ function syncReactionPanel(): void {
     }
     const upgradeButton = card.querySelector<HTMLButtonElement>('[data-action="buy-reaction-upgrade"]');
     if (upgradeButton) {
-      upgradeButton.disabled = view.upgradeMax || !view.upgradeAffordable;
-      const label = upgradeButton.querySelector('[data-button-label]');
-      const labelText = view.upgradeMax ? 'Maximum' : 'Ausbauen';
-      if (label && label.textContent !== labelText) label.textContent = labelText;
-      const cost = upgradeButton.querySelector('[data-button-cost]');
-      const costText = view.upgradeMax ? '—' : `${view.upgradePrice} E`;
-      if (cost && cost.textContent !== costText) cost.textContent = costText;
+      const tooltip = `${view.upgradeMax ? 'Maximum' : 'Ausbauen'} ${view.upgradeMax ? '—' : `${view.upgradePrice} E`}`;
+      syncTileButton(upgradeButton, view.upgradeMax, true, view.upgradeAffordable, tooltip);
       const pips = card.querySelector<HTMLElement>(`[data-reaction-upgrade-levels="${id}"]`);
       const pipMarkup = levelPips(view.upgradeLevel, REACTION_UPGRADE.maxLevel);
       if (pips && pips.innerHTML !== pipMarkup) pips.innerHTML = pipMarkup;
+      const cost = card.querySelector<HTMLElement>(`[data-reaction-upgrade-cost="${id}"]`);
+      const costText = view.upgradeMax ? '—' : `${view.upgradePrice} E`;
+      if (cost && cost.textContent !== costText) cost.textContent = costText;
     }
   });
 }
 
-function syncProgressButton(action: string, price: number, unlocked: boolean, isMax: boolean, label: string, terminalLabel = 'Maximum'): void {
-  const state = getState();
-  const button = app.querySelector<HTMLButtonElement>(`[data-action="${action}"]`);
+// Punkt 3/4/6/7: Gemeinsame In-place-Aktualisierung für die Eck-Ausbaubuttons
+// (Automationen, Upgrades, Reaktionsausbau). Icon/Zustandsklassen wechseln
+// nur bei einem echten Zustandswechsel (Ausbaustufe erreicht Maximum,
+// Voraussetzung erfüllt/verliert sich) — die reine Bezahlbarkeit (Energie
+// reicht gerade so) wird dagegen bei jedem Tick aktualisiert, damit der
+// Amber-Glow sofort an-/ausgeht.
+function syncTileButton(button: HTMLButtonElement | null, complete: boolean, unlocked: boolean, affordable: boolean, tooltip: string): void {
   if (!button) return;
-  if (!isMax) button.style.setProperty('--button-progress', `${progress(state.energy, price, unlocked)}%`);
-  button.disabled = !unlocked || state.energy < price || isMax;
-  button.querySelector('[data-button-label]')!.textContent = isMax ? terminalLabel : label;
-  button.querySelector('[data-button-cost]')!.textContent = isMax ? '—' : `${price} E`;
+  button.disabled = !affordable;
+  button.classList.toggle('is-buildable', affordable);
+  const tileState = complete ? 'complete' : !unlocked ? 'locked' : 'open';
+  if (button.dataset.tileState !== tileState) {
+    button.classList.toggle('is-complete', complete);
+    button.classList.toggle('is-locked', !complete && !unlocked);
+    button.innerHTML = complete ? icons.check : !unlocked ? icons.lock : icons.buildUp;
+    button.dataset.tileState = tileState;
+  }
+  if (button.title !== tooltip) { button.title = tooltip; button.setAttribute('aria-label', tooltip); }
 }
 
 function syncActivePanel(): void {
@@ -154,26 +162,26 @@ function syncActivePanel(): void {
   if (activePanel === 'reactions') syncReactionPanel();
   if (activePanel === 'upgrades') {
     orderedUpgradeCards().forEach(({ view }) => {
-      syncProgressButton(
-        view.definition.action,
-        view.price,
-        view.unlocked,
-        view.complete,
-        view.label,
-        view.label,
-      );
+      const button = app.querySelector<HTMLButtonElement>(`[data-action="${view.definition.action}"]`);
+      const affordable = !view.complete && view.unlocked && state.energy >= view.price;
+      const tooltip = `${view.label} ${view.complete ? '—' : `${view.price} E`}`;
+      syncTileButton(button, view.complete, view.unlocked, affordable, tooltip);
     });
   }
   if (activePanel === 'automation') {
     AUTOMATION_ORDER.filter(automationVisible).forEach((kind) => {
       const view = automationView(kind);
-      const button = app.querySelector<HTMLButtonElement>(`[data-automation-card="${kind}"] button`);
-      if (!button) return;
       const isMax = view.level >= view.max;
-      if (!isMax) button.style.setProperty('--button-progress', `${progress(state.energy, view.price, view.unlocked)}%`);
-      button.disabled = !view.unlocked || state.energy < view.price || isMax;
-      button.querySelector('[data-button-label]')!.textContent = isMax ? 'Maximum' : view.unlocked ? 'Ausbauen' : view.lockedLabel;
-      button.querySelector('[data-button-cost]')!.textContent = isMax ? '—' : `${view.price} E`;
+      const button = app.querySelector<HTMLButtonElement>(`[data-automation-card="${kind}"] button`);
+      const affordable = !isMax && view.unlocked && state.energy >= view.price;
+      const tooltip = `${isMax ? 'Maximum' : view.unlocked ? 'Ausbauen' : view.lockedLabel} ${isMax ? '—' : `${view.price} E`}`;
+      syncTileButton(button, isMax, view.unlocked, affordable, tooltip);
+      // Der Sperrgrund-Fortschritt (z. B. "998 / 1.500 C") wächst kontinuierlich
+      // mit der Reaktionsleistung — anders als der Ausbaupreis muss dieser Text
+      // daher bei jedem Tick aktualisiert werden, nicht erst beim Strukturrebuild.
+      const cost = app.querySelector<HTMLElement>(`[data-automation-cost="${kind}"]`);
+      const costText = isMax ? '—' : view.unlocked ? `${view.price} E` : view.lockedLabel;
+      if (cost && cost.textContent !== costText) cost.textContent = costText;
     });
   }
 }

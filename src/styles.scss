@@ -289,21 +289,22 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .reaction-symbol.silicon { color: #e9b784; border-color: rgba(#d99b60,.45); box-shadow: inset 0 0 18px rgba(#d99b60,.1); }
 .reaction-symbol.evolution { color: $cyan; border-color: rgba($cyan,.45); box-shadow: inset 0 0 18px rgba($cyan,.12); font-family: inherit; font-size: 15px; }
 .evolution-action { background: linear-gradient(90deg, rgba($cyan,.04), transparent 56%); }
+// Punkt 7: Platz für den Ausbau-Button oben rechts auf der Reaktionskarte
+// reservieren, damit Kicker/Titel nicht darunter laufen.
+.action-copy { padding-right: 34px; }
 .action-copy h3 { margin: 4px 0 5px; font-family: Georgia, serif; font-size: 18px; font-weight: 400; }
 .action-copy p { margin: 0; color: $muted; font-size: 10px; line-height: 1.5; }
 .reaction-equation { display: flex; gap: 9px; align-items: center; margin-top: 10px; color: #9aa7b6; font-family: ui-monospace, monospace; font-size: 9px; }
 .reaction-equation b { color: $amber; font-weight: 400; }
 
-// Punkt 2: Reaktionsausbau direkt auf der Karte (mehr Fusion pro Klick).
-.reaction-upgrade { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 14px; align-items: center; margin-top: 2px; padding-top: 10px; border-top: 1px solid $line; }
+// Punkt 2/7: Ausbaustufen (Pips) und Ausbaupreis bleiben unterhalb des
+// Fusionsbuttons; der Ausbau-Button selbst sitzt oben rechts auf der Karte
+// (.tile-action-button, siehe weiter unten, Punkt 3/4/6/7).
+.reaction-upgrade { grid-column: 1 / -1; margin-top: 2px; padding-top: 10px; border-top: 1px solid $line; }
 .reaction-upgrade-copy span { display: block; color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .1em; }
 .reaction-upgrade-copy small { display: block; margin-top: 2px; color: #4e5a69; font-size: 7px; }
-.reaction-upgrade .level-row { grid-row: 2; grid-column: 1; margin: 6px 0 0; }
-.reaction-upgrade-button { grid-row: 1 / span 2; grid-column: 2; min-width: 108px; min-height: 34px; padding: 4px 11px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid rgba($cyan,.25); background: rgba($cyan,.05); color: #badce0; font-size: 8px; cursor: pointer; transition: .2s; }
-.reaction-upgrade-button span { text-transform: uppercase; letter-spacing: .06em; }
-.reaction-upgrade-button b { font-family: ui-monospace,monospace; font-weight: 400; }
-.reaction-upgrade-button:hover:not(:disabled) { border-color: rgba($cyan,.5); background: rgba($cyan,.1); }
-.reaction-upgrade-button:disabled { color: #4f5a68; border-color: $line; background: transparent; cursor: default; }
+.reaction-upgrade-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.reaction-upgrade-footer .level-row { flex: 1; margin: 0; }
 .primary-action, .secondary-action { min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba($amber,.55); background: linear-gradient(135deg, rgba($amber,.95), rgba($orange,.94)); color: #1b110a; cursor: pointer; transition: .2s; }
 .primary-action:hover:not(:disabled), .secondary-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 8px 24px rgba($orange,.16); }
 .primary-action span, .secondary-action span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
@@ -320,11 +321,10 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .system-explainer > div { margin-top: 20px; padding-top: 14px; display: flex; justify-content: space-between; border-top: 1px solid $line; }
 .system-explainer > div span { color: $muted; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
 .system-explainer > div b { color: $cyan; font-family: ui-monospace,monospace; font-size: 14px; font-weight: 400; }
-.upgrade-card { border: 1px solid $line; padding: 18px; background: rgba(255,255,255,.018); }
-.upgrade-heading { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 10px; align-items: center; }
+.upgrade-card { position: relative; border: 1px solid $line; padding: 18px; background: rgba(255,255,255,.018); }
+.upgrade-heading { padding-right: 34px; display: grid; grid-template-columns: 32px minmax(0,1fr); gap: 10px; align-items: center; }
 .upgrade-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid rgba($cyan,.35); border-radius: 50%; color: $cyan; font-family: Georgia,serif; }
 .upgrade-card h3 { margin: 0; font-family: Georgia,serif; font-size: 17px; font-weight: 400; }
-.upgrade-card h3 b { margin-left: 5px; color: $cyan; font-family: ui-monospace,monospace; font-size: 10px; font-weight: 400; white-space: nowrap; }
 .upgrade-card p { min-height: 42px; margin: 10px 0 0; color: $muted; font-size: 9px; line-height: 1.5; }
 .upgrade-card p strong { display: block; margin-top: 4px; color: #91cdd1; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 400; }
 .level-row { display: flex; gap: 5px; margin: 15px 0; }
@@ -333,10 +333,43 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .upgrade-card button, .perk-card button { width: 100%; min-height: 36px; padding: 0 11px; display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba($cyan,.25); background: rgba($cyan,.05); color: #badce0; font-size: 9px; cursor: pointer; }
 .upgrade-card button:disabled, .perk-card button:disabled { color: #4f5a68; border-color: $line; background: transparent; }
 .upgrade-card button b { font-family: ui-monospace,monospace; font-weight: 400; }
-.upgrade-card .progress-button { position: relative; isolation: isolate; overflow: hidden; background: rgba($cyan,.025); }
-.upgrade-card .terminal-button { background: rgba($cyan,.025); }
-.progress-button > i { position: absolute; z-index: -1; inset: 0 auto 0 0; width: var(--button-progress, 0%); background: linear-gradient(90deg, rgba($cyan,.08), rgba($cyan,.22)); border-right: 1px solid rgba($cyan,.55); box-shadow: 5px 0 16px rgba($cyan,.08); transition: width .25s ease; }
-.progress-button:not(:disabled) > i { background: linear-gradient(90deg, rgba($cyan,.16), rgba($cyan,.34)); }
+
+// Punkt 1: Aktuelle Produktionsrate/aktueller Multiplikator und der Wert der
+// nächsten Ausbaustufe (bzw. Hinweis auf vollständigen Ausbau) nebeneinander
+// unter dem Kartentitel.
+.tile-rate { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 10px; }
+.tile-rate span { display: block; color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .08em; }
+.tile-rate b { display: block; margin-top: 3px; color: $cyan; font-family: ui-monospace,monospace; font-size: 12px; font-weight: 400; }
+
+// Punkt 5: Ausbaupreis (bzw. „—“ bei vollem Ausbau) bleibt als eigene
+// Textzeile sichtbar, jetzt ohne umschließenden Button.
+.tile-cost { margin-top: 8px; text-align: right; color: #9aa7b6; font-family: ui-monospace,monospace; font-size: 9px; }
+.reaction-upgrade-footer .tile-cost { margin-top: 0; text-align: right; }
+
+// Punkt 3/4/6/7: Eck-Ausbaubutton auf Automations-, Upgrade- und
+// Reaktionskarten (ersetzt den bisherigen Progress-/Terminal-Button unten in
+// der Kachel). Das Icon zeigt Ausbaubar (Pfeil) / Voll ausgebaut (Haken) /
+// Nicht ausbaubar (Schloss); der Glow bei Ausbaubarkeit (Punkt 4) nutzt
+// bewusst dieselbe Amber-Pulse-Animation wie das Warnsymbol.
+.upgrade-card .tile-action-button, .action-card .tile-action-button {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  width: 30px; height: 30px; min-height: 0; padding: 0;
+  display: grid; place-items: center;
+  border: 1px solid rgba($cyan,.3); border-radius: 50%;
+  background: rgba($cyan,.06); color: #9db8bd; cursor: pointer; transition: .2s ease;
+}
+.tile-action-button svg { width: 14px; height: 14px; }
+.upgrade-card .tile-action-button:hover:not(:disabled), .action-card .tile-action-button:hover:not(:disabled) { border-color: rgba($cyan,.55); background: rgba($cyan,.14); color: $text; }
+.tile-action-button:disabled { cursor: default; }
+.tile-action-button.is-buildable { border-color: rgba($amber,.55); background: rgba($amber,.12); color: $amber; animation: warning-pulse 2.6s ease-in-out infinite; }
+.tile-action-button.is-buildable:hover { background: rgba($amber,.2); border-color: rgba($amber,.8); }
+.tile-action-button.is-complete { border-color: rgba($cyan,.18); background: transparent; color: #54606c; }
+.tile-action-button.is-locked { border-color: $line; background: transparent; color: #4f5a68; }
+@media (prefers-reduced-motion: reduce) { .tile-action-button.is-buildable { animation: none; } }
+// Die Kontrollzentrum-Sidepanel-Regel für Kartenbuttons (volle Breite unten)
+// gilt sonst für JEDEN Button in .action-card, inkl. des neuen Eckbuttons —
+// hier gezielt wieder auf die kompakte, absolut positionierte Form zurücksetzen.
+.action-sidepanel .action-card .tile-action-button { grid-column: auto; min-height: 0; height: 30px; }
 .legacy-intro { display: flex; align-items: end; justify-content: space-between; gap: 40px; padding-bottom: 20px; }
 .legacy-intro h3 { margin: 4px 0 0; font-family: Georgia,serif; font-weight: 400; font-size: 21px; }
 .legacy-intro p { max-width: 550px; margin: 0; color: $muted; font-size: 10px; line-height: 1.6; }

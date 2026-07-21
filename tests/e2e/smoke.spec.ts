@@ -393,13 +393,16 @@ test('active accretion automation continuously streams particles into the star',
   await expect(page.locator('.automation-particles i').first()).toHaveCSS('animation-iteration-count', 'infinite');
 });
 
-test('upgrade and automation cards use compact heading rows', async ({ page }) => {
+test('upgrade and automation cards use compact heading rows with the rate moved below the title', async ({ page }) => {
   await gotoGame(page);
   await expect(page.locator('[data-reaction-card="hydrogen"]')).toContainText('Wasserstofffusion');
   await expect(page.getByRole('button', { name: /Zünden/ })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Upgrades' }).click();
-  const upgradeHeading = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' }).locator('.upgrade-heading');
-  await expect(upgradeHeading).toContainText('Gravitative Verdichtung ×1');
+  const gravityCard = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' });
+  const upgradeHeading = gravityCard.locator('.upgrade-heading');
+  await expect(upgradeHeading).toContainText('Gravitative Verdichtung');
+  await expect(upgradeHeading).not.toContainText('×1');
+  await expect(gravityCard.locator('.tile-rate')).toContainText('×1');
   await expect(page.locator('.deuterium-upgrade')).toHaveCount(0);
   await expect(page.getByText('Aktueller Multiplikator', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Upgrade', { exact: true })).toHaveCount(0);
@@ -407,8 +410,11 @@ test('upgrade and automation cards use compact heading rows', async ({ page }) =
 
   await page.getByRole('tab', { name: 'Automationen' }).click();
   await expect(page.locator('.upgrade-heading')).toHaveCount(1);
-  await expect(page.locator('.upgrade-heading').first()).toContainText('Akkretionsstrom 0 ME/s');
-  await expect(page.locator('[data-automation-card="accretion"]')).toContainText('Nächste Stufe: +17 ME/s');
+  await expect(page.locator('.upgrade-heading').first()).toContainText('Akkretionsstrom');
+  await expect(page.locator('.upgrade-heading').first()).not.toContainText('ME/s');
+  const accretionCard = page.locator('[data-automation-card="accretion"]');
+  await expect(accretionCard.locator('.tile-rate')).toContainText('0 ME/s');
+  await expect(accretionCard).toContainText('Nächste Stufe: +17 ME/s');
   await expect(page.getByRole('button', { name: /Protostern erforderlich/ })).toBeDisabled();
   await expect(page.locator('[data-automation-card="fusion"]')).toHaveCount(0);
   await expect(page.getByText('Automation', { exact: true })).toHaveCount(0);
@@ -447,8 +453,13 @@ test('deuterium burning appears at the protostar and is available in the first c
 
   const upgrade = page.locator('.deuterium-upgrade');
   await expect(upgrade).toBeVisible();
+  // Deuteriumbrennen ist ein einmaliges Toggle-Upgrade ohne echte Ausbaustufen
+  // (Punkt 2/Q4-Entscheidung) und bekommt daher keine Aktuell/Nächste-Stufe-
+  // Zeile mit dem Multiplikator — die Bestätigung läuft über den
+  // Beschreibungstext und den Button-Zustand.
   await upgrade.getByRole('button', { name: 'Aktivieren 75 E' }).click();
-  await expect(upgrade).toContainText('Deuteriumbrennen ×1,35');
+  await expect(upgrade).toContainText('Erwärmung beschleunigt');
+  await expect(upgrade.locator('.tile-action-button')).toHaveClass(/is-complete/);
   await expect(page.locator('[data-matter="deuterium"]')).toHaveCount(0);
   await expect(page.locator('[data-cloud-matter="deuterium"]')).toHaveCount(0);
 });
@@ -505,7 +516,7 @@ test('helium burning keeps earlier reactions, previews carbon and reveals matchi
   await expect(page.locator('[data-automation-card="carbonFusion"]')).toHaveCount(0);
 });
 
-test('terminal upgrades no longer render a purchase progress bar', async ({ page }) => {
+test('terminal upgrades render the corner button as complete, not as a purchase progress bar', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, run: 2, stage: 'deuterium', cloudTier: 1, nextCloudTier: 1,
     cloud: { hydrogen: 40_000, helium: 12_000, deuterium: 40, carbon: 0, oxygen: 0 },
@@ -519,7 +530,8 @@ test('terminal upgrades no longer render a purchase progress bar', async ({ page
   await page.getByRole('tab', { name: 'Upgrades' }).click();
 
   const button = page.locator('.deuterium-upgrade').getByRole('button', { name: 'Aktiv —' });
-  await expect(button).toHaveClass(/terminal-button/);
+  await expect(button).toHaveClass(/is-complete/);
+  await expect(button).not.toHaveClass(/is-buildable/);
   await expect(button.locator('i')).toHaveCount(0);
 });
 

@@ -8,6 +8,11 @@ export const icons = {
   help: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.4 2.4 0 1 1 3.6 2.1c-.9.5-1.4 1-1.4 2.2M12 17h.01"/></svg>',
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
   warning: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4m0 3h.01"/></svg>',
+  // Punkt 3/4/6/7: Eck-Ausbaubutton auf Automations-, Upgrade- und
+  // Reaktionskarten. buildUp = kann (noch) ausgebaut werden, lock = kann
+  // aktuell nicht ausgebaut werden (Voraussetzung fehlt / Quelle erschöpft).
+  buildUp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6m0 0-5 5m5-5 5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke-linecap="round"/></svg>',
 };
 
 export const formatNumber = (value: number, maximumFractionDigits = 0): string =>
@@ -44,7 +49,6 @@ export function formatDuration(seconds: number): string {
 
 export const matterPercent = (value: number, total: number): number => total <= 0 ? 0 : value / total * 100;
 export const disabled = (condition: boolean): string => condition ? 'disabled aria-disabled="true"' : '';
-export const progress = (value: number, cost: number, unlocked = true): number => unlocked ? Math.min(100, value / cost * 100) : 0;
 
 export function temperatureScale(value: number): { max: number; label: string; progress: number } {
   const stops = [100_000, 1_000_000, 10_000_000, 100_000_000, 600_000_000, 1_200_000_000, 1_500_000_000, 2_700_000_000];
