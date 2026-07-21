@@ -1,8 +1,7 @@
 import { playSound, type SoundEffect } from '../audio';
-import { REACTIONS } from '../content';
 import { accretionPerClick } from '../game/engine';
 import type { ReactionId } from '../game/types';
-import { formatNumber } from './format';
+import { formatCompact, formatNumber } from './format';
 import { app, getState } from './store';
 
 function createActionFeedback(container: HTMLElement, text: string, kind: string): void {
@@ -31,9 +30,15 @@ function playAccretionFeedback(event: MouseEvent): void {
   star.animate([{ transform: 'scale(1)' }, { transform: 'scale(.965)' }, { transform: 'scale(1.035)' }, { transform: 'scale(1)' }], { duration: 260, easing: 'ease-out' });
 }
 
-export function playActionFeedback(action: string, event: MouseEvent): void {
+// Punkt 8: Beim Fusionieren steigt die tatsächlich gewonnene Energie auf
+// (statt der Reaktionsgleichung, die ohnehin dauerhaft auf der Karte steht).
+// main.ts misst die Energiedifferenz des Spielzustands rund um den Dispatch
+// und reicht sie als context.energyGained herein.
+export interface ActionFeedbackContext { energyGained?: number }
+
+export function playActionFeedback(action: string, event: MouseEvent, context: ActionFeedbackContext = {}): void {
   const state = getState();
-  const sounds: Partial<Record<string, SoundEffect>> = { accrete: 'accrete', 'buy-deuterium': 'deuterium', 'run-reaction': 'fusion', 'buy-gravity': 'purchase', 'buy-accretion': 'purchase', 'buy-reaction-automation': 'purchase', 'buy-perk-cloud': 'purchase', 'buy-perk-gravity': 'purchase', 'buy-perk-fusion': 'purchase' };
+  const sounds: Partial<Record<string, SoundEffect>> = { accrete: 'accrete', 'buy-deuterium': 'deuterium', 'run-reaction': 'fusion', 'buy-gravity': 'purchase', 'buy-accretion': 'purchase', 'buy-reaction-automation': 'purchase', 'buy-reaction-upgrade': 'purchase', 'buy-perk-cloud': 'purchase', 'buy-perk-gravity': 'purchase', 'buy-perk-fusion': 'purchase' };
   if (sounds[action]) playSound(sounds[action], state.soundEnabled, state.volume);
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (action === 'accrete') playAccretionFeedback(event);
@@ -41,7 +46,9 @@ export function playActionFeedback(action: string, event: MouseEvent): void {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-reaction]');
     const reaction = button?.dataset.reaction as ReactionId | undefined;
     const card = reaction ? app.querySelector<HTMLElement>(`[data-reaction-card="${reaction}"]`) : null;
-    const feedbackText = reaction ? `${REACTIONS[reaction].equationInput} → ${REACTIONS[reaction].equationOutput}` : 'Fusion + Energie';
+    const feedbackText = context.energyGained !== undefined && context.energyGained > 0
+      ? `+${formatCompact(context.energyGained)} Energie`
+      : 'Fusion + Energie';
     if (card) createActionFeedback(card, feedbackText, 'fusion');
     card?.animate([{ borderColor: 'rgba(242,168,75,.25)' }, { borderColor: 'rgba(242,168,75,.9)', filter: 'brightness(1.35)' }, { borderColor: 'rgba(242,168,75,.25)', filter: 'brightness(1)' }], { duration: 650, easing: 'ease-out' });
     button?.animate([{ transform: 'scale(1)' }, { transform: 'scale(.97)' }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });

@@ -1,9 +1,12 @@
 import {
+  ACTIVE_WARNINGS,
   AUTOMATION_ORDER,
   DISPLAY_MATTER_KEYS,
   INITIAL_TEMPERATURE,
   MATTER_KEYS,
   PRESTIGE_PERKS,
+  REACTION_ORDER,
+  REACTION_UPGRADE,
   RESOURCES,
   STAGES,
   STAGE_LABELS,
@@ -12,16 +15,16 @@ import {
 import {
   accretionPerClick,
   accretionPerSecond,
+  activeWarnings,
   cloudDefinition,
   cloudMass,
   objectiveFor,
   pressureProgress,
-  shellWindPerSecond,
   starMass,
-  stellarWindPerSecond,
 } from '../game/engine';
 import { syncDebug } from './debug';
-import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, matterPercent, progress, temperatureScale } from './format';
+import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, levelPips, matterPercent, progress, temperatureScale } from './format';
+import { isWarningsOpen, setWarningsOpen } from './menus';
 import { markOpportunitiesSeen, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
 import { syncOverlay } from './overlay';
 import { app, getActivePanel, getState, setActivePanel, type Panel } from './store';
@@ -33,6 +36,7 @@ import {
   logMarkup,
   orderedUpgradeCards,
   panelMarkup,
+  reactionView,
   timelineMarkup,
   timelineNodes,
   upgradeOrderSignature,
@@ -62,7 +66,7 @@ export function renderShell(): void {
           <div class="primary-reading"><span>Kerntemperatur</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>${formatTemperature(INITIAL_TEMPERATURE)}</span><span data-ui="temperature-max"></span></small></div>
           <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric energy-metric"><span>Energie</span><b data-ui="energy"></b><small>verfügbar</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
           <div class="composition"><div class="section-label"><span>Kernzusammensetzung</span></div>${DISPLAY_MATTER_KEYS.map((key) => `<div class="composition-row" data-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><div><b>${RESOURCES[key].label}</b><div class="mini-track"><i data-ui="${key}-bar"></i></div></div><strong data-ui="${key}-value"></strong></div>`).join('')}</div>
-          <div class="cloud-stats"><div class="section-label"><span data-ui="cloud-name">Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="wind-status" data-ui="wind-status"><span>Sternwind</span><b data-ui="wind-rate">inaktiv</b><small>trägt Materie aus der Urwolke ab</small></div><div class="wind-status" data-ui="shell-wind-status"><span>Hüllenwind</span><b data-ui="shell-wind-rate">inaktiv</b><small>trägt H/He aus der Sternhülle ab</small></div><div class="cloud-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-cloud-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><p><b>${RESOURCES[key].label}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
+          <div class="cloud-stats"><div class="section-label"><span data-ui="cloud-name">Urwolke</span></div><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div class="cloud-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-cloud-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><p><b>${RESOURCES[key].label}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
         </aside>
 
         <section class="star-chamber">
@@ -70,6 +74,7 @@ export function renderShell(): void {
           <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">H</i>`).join('')}</div>
           <button class="star-button" data-action="accrete" aria-label="Materie einsammeln"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
           <div class="click-callout"><span data-ui="click-yield"></span><small data-ui="click-detail"></small></div><div class="phase-dots">${Array.from({length:8},(_, index)=>`<i data-phase="${index}"></i>`).join('')}</div>
+          <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
         </section>
 
         <aside class="action-sidepanel">
@@ -98,8 +103,39 @@ function setWidth(name: string, value: number): void {
   app.querySelector<HTMLElement>(`[data-ui="${name}"]`)?.style.setProperty('width', `${Math.max(0, Math.min(100, value))}%`);
 }
 
+// Punkt 8: Die Reaktionskarten werden gezielt in-place aktualisiert statt bei
+// jedem Tick per innerHTML neu gebaut. Das Neubauen zerstörte den Hover- und
+// Fokuszustand der Buttons und ließ sie beim Überfahren flackern; die Struktur
+// des Panels ändert sich jetzt nur noch, wenn eine neue Reaktion freigeschaltet
+// wird (siehe dynamicPanelSignature in updateUI).
 function syncReactionPanel(): void {
-  // Reaction cards share one data-driven renderer and are refreshed as a unit.
+  REACTION_ORDER.forEach((id) => {
+    const card = app.querySelector<HTMLElement>(`[data-reaction-card="${id}"]`);
+    if (!card) return;
+    const view = reactionView(id);
+    card.classList.toggle('is-ready', view.available);
+    const button = card.querySelector<HTMLButtonElement>('[data-action="run-reaction"]');
+    if (button) {
+      button.disabled = !view.available;
+      const label = button.querySelector('[data-button-label]');
+      if (label && label.textContent !== view.label) label.textContent = view.label;
+      const detail = button.querySelector('[data-button-detail]');
+      if (detail && detail.textContent !== view.detail) detail.textContent = view.detail;
+    }
+    const upgradeButton = card.querySelector<HTMLButtonElement>('[data-action="buy-reaction-upgrade"]');
+    if (upgradeButton) {
+      upgradeButton.disabled = view.upgradeMax || !view.upgradeAffordable;
+      const label = upgradeButton.querySelector('[data-button-label]');
+      const labelText = view.upgradeMax ? 'Maximum' : 'Ausbauen';
+      if (label && label.textContent !== labelText) label.textContent = labelText;
+      const cost = upgradeButton.querySelector('[data-button-cost]');
+      const costText = view.upgradeMax ? '—' : `${view.upgradePrice} E`;
+      if (cost && cost.textContent !== costText) cost.textContent = costText;
+      const pips = card.querySelector<HTMLElement>(`[data-reaction-upgrade-levels="${id}"]`);
+      const pipMarkup = levelPips(view.upgradeLevel, REACTION_UPGRADE.maxLevel);
+      if (pips && pips.innerHTML !== pipMarkup) pips.innerHTML = pipMarkup;
+    }
+  });
 }
 
 function syncProgressButton(action: string, price: number, unlocked: boolean, isMax: boolean, label: string, terminalLabel = 'Maximum'): void {
@@ -211,19 +247,29 @@ export function updateUI(forcePanel = false): void {
   setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Auf den Stern klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken, um Materie einzusammeln');
   app.querySelectorAll<HTMLElement>('[data-phase]').forEach((dot) => { const normalizedStage = nodes.length <= 1 ? 7 : Math.round(stageIndex / (nodes.length - 1) * 7); dot.classList.toggle('active', Number(dot.dataset.phase) <= normalizedStage); });
   const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatMatter(remaining)} ME`); setText('cloud-initial', `von ${formatMatter(initialCloud)} ME`); app.querySelector<HTMLElement>('.gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
-  const windRate = stellarWindPerSecond(state);
-  setText('wind-rate', windRate > 0 ? `−${formatRate(windRate)} ME/s` : 'inaktiv');
-  app.querySelector<HTMLElement>('[data-ui="wind-status"]')?.classList.toggle('is-active', windRate > 0);
-  const shellWindRate = shellWindPerSecond(state);
-  setText('shell-wind-rate', shellWindRate > 0 ? `−${formatRate(shellWindRate)} ME/s` : 'inaktiv');
-  app.querySelector<HTMLElement>('[data-ui="shell-wind-status"]')?.classList.toggle('is-active', shellWindRate > 0);
+  // Punkt 4: Warnsymbol unten rechts in der Star Chamber, sobald mindestens
+  // eine Warnung aktiv ist; das Popover listet alle aktiven Warnungen samt
+  // aktueller Verlustrate.
+  const warnings = activeWarnings(state);
+  const warningCorner = app.querySelector<HTMLElement>('[data-ui="warning-corner"]');
+  if (warningCorner) {
+    warningCorner.hidden = warnings.length === 0;
+    if (!warnings.length && isWarningsOpen()) setWarningsOpen(false);
+  }
+  const warningMarkup = warnings.map(({ id, ratePerSecond }) =>
+    `<div class="warning-entry"><b>${ACTIVE_WARNINGS[id].title}</b><strong>−${formatRate(ratePerSecond)} ME/s</strong><p>${ACTIVE_WARNINGS[id].text}</p></div>`).join('');
+  const warningList = app.querySelector<HTMLElement>('[data-ui="warning-list"]');
+  if (warningList && warningList.innerHTML !== warningMarkup) warningList.innerHTML = warningMarkup;
   const soundButton = app.querySelector<HTMLButtonElement>('[data-action="toggle-sound-menu"]'); if (soundButton) { soundButton.innerHTML = state.soundEnabled ? icons.sound : icons.soundOff; soundButton.ariaLabel = 'Audioeinstellungen öffnen'; }
   const volumeInput = app.querySelector<HTMLInputElement>('[data-action="set-volume"]'); if (volumeInput && Number(volumeInput.value) !== Math.round(state.volume * 100)) volumeInput.value = String(Math.round(state.volume * 100));
   setText('volume-label', `${Math.round(state.volume * 100)}%`); setText('mute-label', state.soundEnabled ? 'Ton stummschalten' : 'Ton einschalten');
   const currentUpgradeOrder = activePanel === 'upgrades' ? upgradeOrderSignature() : '';
   const upgradeOrderChanged = activePanel === 'upgrades' && currentUpgradeOrder !== lastUpgradeOrderSignature;
+  // Punkt 8: Für das Reaktionspanel zählt nur noch die Struktur (welche
+  // Karten existieren) — alle Werte darin aktualisiert syncReactionPanel()
+  // in-place, ohne die Buttons neu zu bauen.
   const dynamicPanelSignature = activePanel === 'reactions'
-    ? `${state.unlockedReactions.join(',')}:${MATTER_KEYS.map((key) => Math.round(state.star[key])).join(',')}:${Math.round(state.temperature)}`
+    ? state.unlockedReactions.join(',')
     : activePanel === 'automation' ? `${state.unlockedReactions.join(',')}:${Object.values(state.automation).join(',')}` : '';
   const dynamicPanelChanged = dynamicPanelSignature !== lastDynamicPanelSignature;
   if (forcePanel || stageChanged || upgradeOrderChanged || dynamicPanelChanged) { const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(activePanel); lastStage = state.stage; lastUpgradeOrderSignature = currentUpgradeOrder; lastDynamicPanelSignature = dynamicPanelSignature; }

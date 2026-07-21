@@ -16,6 +16,10 @@ export interface AutomationDefinition {
   costGrowth: number;
   maxLevel: number;
   mastery: { kind: 'starMass'; threshold: number; symbol: string } | { kind: 'reaction'; reaction: ReactionId; threshold: number; symbol: string };
+  // Punkt 1: Automationen, deren Nachschubquelle versiegen kann, hinterlegen
+  // hier die Quelle und den Buttontext für den gesperrten Zustand. Ist die
+  // Quelle erschöpft, kann die Automation nicht weiter ausgebaut werden.
+  supply?: { kind: 'cloudMatter'; exhaustedLabel: string };
 }
 
 export const FUSION_AUTOMATION_HELIUM = 5_000;
@@ -46,6 +50,7 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     unit: 'ME/s', baseRate: ACCRETION.automaticBasePerLevel, rateGrowthPerLevel: 0,
     baseCost: 65, costGrowth: 1.85, maxLevel: LIMITS.accretion,
     mastery: { kind: 'starMass', threshold: THRESHOLDS.protostarMass, symbol: 'ME' },
+    supply: { kind: 'cloudMatter', exhaustedLabel: 'Urwolke erschöpft' },
   },
   fusion: reactionAutomation('fusion', 'hydrogen', 'Stabile Wasserstofffusion', 'H', 'H/s', 64, 280, FUSION_AUTOMATION_HELIUM, 'He'),
   heliumFusion: reactionAutomation('heliumFusion', 'helium', 'Stabile Heliumfusion', 'He', 'He/s', 48, 520, FUSION_AUTOMATION_CARBON, 'C'),

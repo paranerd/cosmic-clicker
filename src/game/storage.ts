@@ -113,6 +113,7 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     unlockedReactions,
     reactionTotals,
     automaticReactionTotals: { ...fallback.automaticReactionTotals, ...parsed.automaticReactionTotals },
+    reactionUpgrades: { ...fallback.reactionUpgrades, ...parsed.reactionUpgrades },
     history,
     outcome,
     discoveredOutcomes,

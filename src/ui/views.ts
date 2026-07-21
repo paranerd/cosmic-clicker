@@ -8,7 +8,11 @@ import {
   OUTCOME_LABELS,
   REACTIONS,
   REACTION_ORDER,
+  REACTION_UPGRADE,
   RESOURCES,
+  STAGES,
+  STAGE_LABELS,
+  THRESHOLDS,
   UPGRADE_ORDER,
   UPGRADES,
   type AutomationKind,
@@ -18,13 +22,15 @@ import {
 } from '../content';
 import {
   automationCost,
+  automationSupplyExhausted,
   accretionPerClick,
   cloudDefinition,
   reactionAutomationPerSecond,
   reactionAvailable,
   reactionCapacity,
+  reactionManualAmount,
+  reactionUpgradeCost,
   starMass,
-  stellarFusionMultiplier,
 } from '../game/engine';
 import type { CloudTier, ReactionId, Stage, StellarOutcome } from '../game/types';
 import { disabled, formatCompact, formatDuration, formatMatter, formatNumber, formatTemperature, levelPips, progress } from './format';
@@ -65,12 +71,12 @@ export function currentOpportunities(): Record<Panel, string[]> {
     const definition = AUTOMATIONS[kind];
     const level = state.automation[kind];
     const price = automationCost(kind, level);
-    if (automationVisible(kind) && level < definition.maxLevel && automationMastery(kind) >= definition.mastery.threshold && state.energy >= price) automation.push(`${kind}:${level}`);
+    if (automationVisible(kind) && level < definition.maxLevel && automationMastery(kind) >= definition.mastery.threshold && state.energy >= price && !automationSupplyExhausted(state, kind)) automation.push(`${kind}:${level}`);
   });
   return { reactions, upgrades, automation };
 }
 
-interface ReactionView {
+export interface ReactionView {
   id: ReactionId;
   visible: boolean;
   unlocked: boolean;
@@ -79,15 +85,18 @@ interface ReactionView {
   energy: number;
   label: string;
   detail: string;
+  upgradeLevel: number;
+  upgradePrice: number;
+  upgradeMax: boolean;
+  upgradeAffordable: boolean;
 }
 
-function reactionView(id: ReactionId): ReactionView {
+export function reactionView(id: ReactionId): ReactionView {
   const state = getState();
   const definition = REACTIONS[id];
   const unlocked = state.unlockedReactions.includes(id);
   const capacity = reactionCapacity(state, id);
-  const multiplier = stellarFusionMultiplier(state);
-  const amount = Math.min(definition.manualAmount * multiplier, capacity);
+  const amount = Math.min(reactionManualAmount(state, id), capacity);
   const inputMass = Object.values(definition.inputs).reduce((sum, ratio) => sum + amount * (ratio ?? 0), 0);
   const outputMass = Object.values(definition.outputs).reduce((sum, ratio) => sum + amount * (ratio ?? 0), 0);
   const energy = (definition.energyBasis === 'input' ? inputMass : outputMass) * definition.energyPerUnit;
@@ -97,7 +106,26 @@ function reactionView(id: ReactionId): ReactionView {
   const label = !unlocked ? `Ab ${formatTemperature(definition.ignitionTemperature)}`
     : capacity <= .001 ? 'Kein Brennstoff im Kern'
       : `${formatMatter(amount)} ${RESOURCES[definition.primaryInput].symbol} fusionieren`;
-  return { id, visible, unlocked, available, amount, energy, label, detail: available ? `+${formatCompact(energy)} Energie` : `${formatMatter(capacity)} ${RESOURCES[definition.primaryInput].symbol} verfügbar` };
+  // Punkt 2: Zustand des Reaktionsausbaus für die Karte.
+  const upgradeLevel = state.reactionUpgrades[id];
+  const upgradePrice = reactionUpgradeCost(id, upgradeLevel);
+  const upgradeMax = upgradeLevel >= REACTION_UPGRADE.maxLevel;
+  return {
+    id, visible, unlocked, available, amount, energy, label,
+    detail: available ? `+${formatCompact(energy)} Energie` : `${formatMatter(capacity)} ${RESOURCES[definition.primaryInput].symbol} verfügbar`,
+    upgradeLevel, upgradePrice, upgradeMax, upgradeAffordable: !upgradeMax && state.energy >= upgradePrice,
+  };
+}
+
+// Punkt 2: Ausbau-Zeile unterhalb des Fusionsbuttons — nur bei bereits
+// freigeschalteten Reaktionen sichtbar.
+function reactionUpgradeRow(view: ReactionView): string {
+  if (!view.unlocked) return '';
+  return `<div class="reaction-upgrade">
+    <div class="reaction-upgrade-copy"><span>Reaktionsausbau</span><small>+${Math.round(REACTION_UPGRADE.bonusPerLevel * 100)} % Menge pro Klick je Stufe</small></div>
+    <div class="level-row" data-reaction-upgrade-levels="${view.id}">${levelPips(view.upgradeLevel, REACTION_UPGRADE.maxLevel)}</div>
+    <button class="reaction-upgrade-button" data-action="buy-reaction-upgrade" data-reaction="${view.id}" ${disabled(view.upgradeMax || !view.upgradeAffordable)}><span data-button-label>${view.upgradeMax ? 'Maximum' : 'Ausbauen'}</span><b data-button-cost>${view.upgradeMax ? '—' : `${view.upgradePrice} E`}</b></button>
+  </div>`;
 }
 
 function reactionCard(view: ReactionView): string {
@@ -106,6 +134,7 @@ function reactionCard(view: ReactionView): string {
     <div class="reaction-symbol ${definition.className}">${definition.symbol}</div>
     <div class="action-copy"><span class="card-kicker">${definition.kicker}</span><h3>${definition.title}</h3><p>${definition.description}</p><div class="reaction-equation"><span>${definition.equationInput}</span><b>→</b><span>${definition.equationOutput}</span></div></div>
     <button class="primary-action compact" data-action="run-reaction" data-reaction="${view.id}" ${disabled(!view.available)}><span data-button-label>${view.label}</span><small data-button-detail>${view.detail}</small></button>
+    ${reactionUpgradeRow(view)}
   </div>`;
 }
 
@@ -182,15 +211,21 @@ export function automationView(kind: AutomationKind) {
   const rateAt = (nextLevel: number): number => definition.reaction
     ? reactionAutomationPerSecond({ ...state, automation: { ...state.automation, [kind]: nextLevel } }, definition.reaction)
     : nextLevel * definition.baseRate * (accretionPerClick(state) / ACCRETION.manualBase);
+  // Punkt 1: Eine Automation mit versiegter Nachschubquelle (z. B. leere
+  // Urwolke) kann nicht weiter ausgebaut werden und zeigt das auch an.
+  const exhausted = automationSupplyExhausted(state, kind);
   return {
     ...definition,
     level,
     max: definition.maxLevel,
     price: automationCost(kind, level),
-    unlocked: mastery >= definition.mastery.threshold,
-    lockedLabel: definition.mastery.kind === 'starMass'
-      ? 'Protostern erforderlich'
-      : `${formatMatter(mastery)} / ${formatMatter(definition.mastery.threshold)} ${definition.mastery.symbol}`,
+    unlocked: mastery >= definition.mastery.threshold && !exhausted,
+    exhausted,
+    lockedLabel: exhausted && definition.supply
+      ? definition.supply.exhaustedLabel
+      : definition.mastery.kind === 'starMass'
+        ? 'Protostern erforderlich'
+        : `${formatMatter(mastery)} / ${formatMatter(definition.mastery.threshold)} ${definition.mastery.symbol}`,
     action: definition.reaction ? 'buy-reaction-automation' : 'buy-accretion',
     rateAt,
   };
@@ -213,36 +248,48 @@ function automationCard(kind: AutomationKind): string {
     </article>`;
 }
 
-export function timelineNodes(tier: CloudTier = getState().cloudTier): [Stage, string, string][] {
+// Punkt 3: Die Stellare Entwicklung zeigt nur noch den tatsächlich
+// durchlaufenen Weg BIS JETZT plus genau einen offenen „?“-Knoten — keine
+// Zukunftsprognose mehr, denn der Ausgang hängt vom Verhalten des Spielers ab
+// (Akkretion, Windverluste, Brenntempo). Durchlaufene Stadien werden
+// deterministisch aus dem Spielzustand rekonstruiert (Spitzentemperatur,
+// freigeschaltete Reaktionen, Reaktionssummen), sodass keine zusätzliche
+// Historie gespeichert oder migriert werden muss.
+export type TimelineNode = [Stage | 'open', string, string];
+
+export function timelineNodes(tier: CloudTier = getState().cloudTier): TimelineNode[] {
   const state = getState();
   const definition = cloudDefinition(tier);
-  const formation: [Stage, string, string][] = [
-    ['nebula', 'Urwolke', definition.shortName],
-    ['protostar', 'Protostern', '100.000 K'],
-    ['deuterium', 'D-Brennen', '1 Mio. K'],
-  ];
-  const path = cloudGrowthPath(definition.solarMasses);
-  if (path === 'brownDwarf') return [...formation, ['brownDwarf', state.completed ? 'Brauner Zwerg' : 'Sternentwicklung', state.completed ? 'Nicht gezündet' : 'Ausgang offen']];
-  const stellar: [Stage, string, string][] = [
-    ['hydrogen', REACTIONS.hydrogen.title, formatTemperature(REACTIONS.hydrogen.ignitionTemperature)],
-    ['mainSequence', 'Hauptreihe', 'H bleibt aktiv'],
-    ['redGiant', 'Roter Riese', 'Kernkontraktion'],
-    ['helium', REACTIONS.helium.title, formatTemperature(REACTIONS.helium.ignitionTemperature)],
-  ];
-  if (path === 'stellar') return [...formation, ...stellar, ['whiteDwarf', 'Weißer Zwerg', 'Masse entscheidet']];
-  const heavy = (['carbon', 'neon', 'oxygen', 'silicon'] as const).map((id): [Stage, string, string] => [
-    REACTIONS[id].stageOnUnlock,
-    REACTIONS[id].title,
-    formatTemperature(REACTIONS[id].ignitionTemperature),
-  ]);
-  return [...formation, ...stellar, ...heavy, ['ironCore', 'Eisenkern', 'Fusion endet'], ['supernova', 'Supernova', 'Kernkollaps'], [state.outcome === 'blackHole' ? 'blackHole' : 'neutronStar', state.outcome === 'blackHole' ? 'Schwarzes Loch' : 'Sternrest', 'Masse entscheidet']];
+  const unlocked = (id: ReactionId): boolean => state.unlockedReactions.includes(id);
+  const nodes: TimelineNode[] = [['nebula', 'Urwolke', definition.shortName]];
+  if (state.stats.peakTemperature >= THRESHOLDS.protostarTemperature) nodes.push(['protostar', 'Protostern', '100.000 K']);
+  if (state.stats.peakTemperature >= THRESHOLDS.deuteriumTemperature) nodes.push(['deuterium', 'D-Brennen', '1 Mio. K']);
+  if (unlocked('hydrogen')) nodes.push(['hydrogen', REACTIONS.hydrogen.title, formatTemperature(REACTIONS.hydrogen.ignitionTemperature)]);
+  if (state.reactionTotals.hydrogen >= THRESHOLDS.mainSequenceHydrogen) nodes.push(['mainSequence', 'Hauptreihe', 'H bleibt aktiv']);
+  if (state.stage === 'redGiant' || unlocked('helium')) nodes.push(['redGiant', 'Roter Riese', 'Kernkontraktion']);
+  if (unlocked('helium')) nodes.push(['helium', REACTIONS.helium.title, formatTemperature(REACTIONS.helium.ignitionTemperature)]);
+  const heavyIds = (['carbon', 'neon', 'oxygen', 'silicon'] as const).filter(unlocked);
+  if (state.stage === 'massiveStar' || heavyIds.length) nodes.push(['massiveStar', 'Massereicher Stern', 'Späte Brennphasen']);
+  heavyIds.forEach((id) => nodes.push([REACTIONS[id].stageOnUnlock, REACTIONS[id].title, formatTemperature(REACTIONS[id].ignitionTemperature)]));
+  if (state.stage === 'ironCore' || state.outcome === 'neutronStar' || state.outcome === 'blackHole') nodes.push(['ironCore', 'Eisenkern', 'Fusion endet']);
+  if (state.outcome === 'neutronStar' || state.outcome === 'blackHole') nodes.push(['supernova', 'Supernova', 'Kernkollaps']);
+  if (state.completed && state.outcome) {
+    if (!nodes.some(([key]) => key === state.stage)) nodes.push([state.stage, OUTCOME_LABELS[state.outcome], 'Zyklus abgeschlossen']);
+  } else {
+    if (!nodes.some(([key]) => key === state.stage)) nodes.push([state.stage, STAGE_LABELS[state.stage], STAGES[state.stage].detail]);
+    nodes.push(['open', 'Sternentwicklung', 'Ausgang offen']);
+  }
+  return nodes;
 }
 
 export function timelineMarkup(): string {
   const state = getState();
   const nodes = timelineNodes();
   const stageIndex = Math.max(0, nodes.findIndex(([key]) => key === state.stage));
-  return nodes.map(([key, label, detail], index) => `<div class="timeline-node ${index <= stageIndex ? 'done' : ''} ${key === state.stage ? 'current' : ''}"><i>${index < stageIndex ? '✓' : index + 1}</i><span><b>${label}</b><small>${detail}</small></span></div>`).join('');
+  return nodes.map(([key, label, detail], index) => {
+    const isOpen = key === 'open';
+    return `<div class="timeline-node ${!isOpen && index <= stageIndex ? 'done' : ''} ${key === state.stage ? 'current' : ''} ${isOpen ? 'is-open' : ''}"><i>${isOpen ? '?' : index < stageIndex ? '✓' : index + 1}</i><span><b>${label}</b><small>${detail}</small></span></div>`;
+  }).join('');
 }
 
 export function evolutionMapMarkup(): string {

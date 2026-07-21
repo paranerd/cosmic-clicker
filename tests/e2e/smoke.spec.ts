@@ -34,11 +34,21 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   const star = page.getByRole('button', { name: 'Materie einsammeln' });
   const starBox = await star.boundingBox();
   const chamberBox = await page.locator('.star-chamber').boundingBox();
+  // Die Klick-Partikel und die aufsteigende Gewinnanzeige entfernen sich nach
+  // ihrem animationend selbst aus dem DOM. Damit die folgenden Assertions
+  // nicht gegen dieses Aufräumen rennen (bekannter Flake auf langsamen CI-
+  // Runnern), werden die Animationen nur für diesen Test stark verlangsamt.
+  await page.addStyleTag({ content: '.matter-particle, .accretion-gain { animation-duration: 120s !important; }' });
   await star.click();
   const particleCount = await page.locator('.matter-particle').count();
   expect(particleCount).toBeGreaterThanOrEqual(5);
   expect(particleCount).toBeLessThanOrEqual(7);
-  await expect(page.locator('.matter-particle').filter({ hasText: 'He' })).toHaveCount(0);
+  // Seit dem Wolkenwachstum-Rework enthält auch die kleinste Urwolke Helium;
+  // die Partikel zeigen daher H oder He. (Die frühere „kein He“-Assertion war
+  // nur grün, weil die Partikel beim Prüfen bereits wieder entfernt waren.)
+  for (const text of await page.locator('.matter-particle').allTextContents()) {
+    expect(['H', 'He']).toContain(text);
+  }
   const gain = page.locator('.accretion-gain');
   await expect(gain).toHaveText('+48 ME');
   const gainStyle = await gain.evaluate((element) => ({
@@ -78,8 +88,18 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await expect(achievement).toBeVisible();
   await page.getByRole('button', { name: 'Zielhinweis schließen' }).click();
   await expect(achievement).toHaveCount(0);
-  await expect(page.locator('[data-ui="wind-status"]')).toHaveClass(/is-active/);
-  await expect(page.locator('[data-ui="wind-rate"]')).toContainText('ME/s');
+  // Punkt 4: Aktive Warnungen erscheinen nicht mehr im Urwolken-Panel,
+  // sondern als Warnsymbol unten rechts in der Star Chamber mit Popover.
+  const warningCorner = page.locator('[data-ui="warning-corner"]');
+  await expect(warningCorner).toBeVisible();
+  const warningPopover = page.locator('.warning-popover');
+  await expect(warningPopover).not.toBeVisible();
+  await page.getByRole('button', { name: 'Aktive Warnungen anzeigen' }).click();
+  await expect(warningPopover).toBeVisible();
+  await expect(warningPopover).toContainText('Sternwind aktiv');
+  await expect(warningPopover).toContainText('ME/s');
+  await page.locator('.star-button').click({ position: { x: 10, y: 10 }, force: true });
+  await expect(warningPopover).not.toBeVisible();
 });
 
 test('hydrogen burning remains usable after the main-sequence milestone', async ({ page }) => {
@@ -171,7 +191,10 @@ test('chronicle expands from the persistent bottom dock', async ({ page }) => {
   await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   const chronicle = page.getByRole('dialog', { name: 'Lebenswege der Sterne' });
   await expect(chronicle).toBeVisible();
-  await expect(chronicle.locator('.timeline-node')).toHaveCount(4);
+  // Punkt 3: Die Timeline zeigt nur den Stand bis jetzt (frisches Spiel =
+  // Urwolke) plus genau einen offenen „?“-Knoten — keine Zukunftsprognose.
+  await expect(chronicle.locator('.timeline-node')).toHaveCount(2);
+  await expect(chronicle.locator('.timeline-node.is-open')).toHaveText(/\?.*Sternentwicklung.*Ausgang offen/s);
   await expect(chronicle.locator('.evolution-branch')).toHaveCount(6);
   await expect(chronicle).toContainText('Unterhalb der Zündmasse');
   const closeButton = page.getByRole('button', { name: 'Chronik schließen' });
@@ -471,7 +494,7 @@ test('helium burning keeps earlier reactions, previews carbon and reveals matchi
   await expect(reactionPanel.getByRole('heading', { name: 'Heliumfusion' })).toBeVisible();
   await expect(reactionPanel.getByRole('heading', { name: 'Alpha-Einfang' })).toBeVisible();
   await expect(reactionPanel.getByRole('heading', { name: 'Kohlenstofffusion' })).toBeVisible();
-  await expect(page.locator('[data-reaction-card="carbon"] button')).toBeDisabled();
+  await expect(page.locator('[data-reaction-card="carbon"] [data-action="run-reaction"]')).toBeDisabled();
 
   await page.getByRole('tab', { name: /Automationen/ }).click();
   await expect(page.locator('[data-automation-card="fusion"]')).toBeVisible();
@@ -746,12 +769,12 @@ test('the full ordered reaction path keeps available fuel visible and previews c
   await expect(page.getByRole('heading', { name: 'Heliumfusion' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Alpha-Einfang', level: 3 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Kohlenstofffusion', level: 3 })).toBeVisible();
-  await expect(page.locator('[data-reaction-card="carbon"] button')).toBeDisabled();
+  await expect(page.locator('[data-reaction-card="carbon"] [data-action="run-reaction"]')).toBeDisabled();
   // The carbonOxygen stage now carries the Punkt-6 shell wind, which keeps
   // the H/He envelope (and thus the reaction panel) changing every frame.
   // Dispatch the click synchronously in-page rather than racing Playwright's
   // scroll-then-click flow against the next re-render.
-  await page.locator('[data-reaction-card="alphaCapture"] button').evaluate((element) => (element as HTMLButtonElement).click());
+  await page.locator('[data-reaction-card="alphaCapture"] [data-action="run-reaction"]').evaluate((element) => (element as HTMLButtonElement).click());
   await expect(page.locator('[data-matter="oxygen"]')).toBeVisible();
   await expect(page.locator('[data-ui="oxygen-value"]')).not.toHaveText('0%');
 

@@ -62,21 +62,15 @@ export const TEMPERATURE_MODEL = {
 
 export const STELLAR_WIND = {
   fractionOfInitialCloudPerMinute: .0025,
-  startsAtStage: 'protostar' as Stage,
   // Hüllenwind (Punkt 6): entfernt ab der Hauptreihe H/He direkt aus dem Stern
   // selbst, nie schwere Kernelemente. Basis ist die aktuelle Sternmasse.
+  // Welches Stadium mit welcher Rate bläst, steht als `shellWindRate` direkt
+  // an der jeweiligen Stage-Definition unten.
   shell: {
     mainSequenceFractionPerMinute: .0001,
     lateStageFractionPerMinute: .0075,
   },
 } as const;
-
-// Stellare Stadien, in denen der Hüllenwind bereits mit der stärkeren
-// Spätphasen-Rate bläst (Roter Riese, massereicher Stern, alle folgenden
-// Brennstufen bis zum Eisenkern).
-export const LATE_SHELL_WIND_STAGES: readonly Stage[] = [
-  'redGiant', 'helium', 'carbonOxygen', 'carbonBurning', 'neonBurning', 'oxygenBurning', 'siliconBurning', 'massiveStar', 'ironCore',
-];
 
 // Punkt 6: struktureller Wasserstoffverbrauch ab der Hauptreihe, unabhängig
 // von gekauften Automationen. rateReferenceMass entspricht 1 M☉; die Rate
@@ -99,30 +93,36 @@ export interface StageDefinition {
   label: string;
   detail: string;
   temperatureFloor: number;
+  // Datengetriebene Windregeln (Punkt 6), damit die Engine keine einzelnen
+  // Stadien unterscheiden muss: `cloudWind` legt fest, ob der Wolkenwind in
+  // diesem Stadium Materie aus der Urwolke abträgt; `shellWindRate` verweist
+  // auf die Hüllenwind-Rate in STELLAR_WIND.shell (null = kein Hüllenwind).
+  cloudWind: boolean;
+  shellWindRate: keyof typeof STELLAR_WIND.shell | null;
 }
 
 export const STAGES: Record<Stage, StageDefinition> = {
-  nebula: { label: 'Urwolke', detail: 'Kalte Ausgangswolke', temperatureFloor: INITIAL_TEMPERATURE },
-  protostar: { label: 'Protostern', detail: 'Gravitative Kontraktion', temperatureFloor: THRESHOLDS.protostarTemperature },
-  deuterium: { label: 'Deuteriumphase', detail: 'Frühe Kernheizung', temperatureFloor: THRESHOLDS.deuteriumTemperature },
-  hydrogen: { label: 'Wasserstofffusion', detail: 'Wasserstoff wird zu Helium', temperatureFloor: THRESHOLDS.hydrogenTemperature },
-  mainSequence: { label: 'Hauptreihenstern', detail: 'Hydrostatisches Gleichgewicht', temperatureFloor: THRESHOLDS.hydrogenTemperature },
-  redGiant: { label: 'Roter Riese', detail: 'Hülle expandiert', temperatureFloor: THRESHOLDS.hydrogenTemperature },
-  helium: { label: 'Heliumfusion', detail: 'Triple-Alpha-Prozess', temperatureFloor: THRESHOLDS.heliumTemperature },
-  carbonOxygen: { label: 'Kohlenstoff-Sauerstoff-Kern', detail: 'Entarteter C/O-Kern', temperatureFloor: THRESHOLDS.heliumTemperature },
-  carbonBurning: { label: 'Kohlenstofffusion', detail: 'Kohlenstoff wird zu Neon', temperatureFloor: THRESHOLDS.carbonTemperature },
-  neonBurning: { label: 'Neonfusion', detail: 'Neon wird zu Sauerstoff', temperatureFloor: THRESHOLDS.neonTemperature },
-  oxygenBurning: { label: 'Sauerstofffusion', detail: 'Sauerstoff wird zu Silizium', temperatureFloor: THRESHOLDS.oxygenTemperature },
-  siliconBurning: { label: 'Siliziumfusion', detail: 'Silizium wird zur Eisengruppe', temperatureFloor: THRESHOLDS.siliconTemperature },
-  ironCore: { label: 'Eisenkern', detail: 'Fusion liefert keine Energie mehr', temperatureFloor: THRESHOLDS.siliconTemperature },
-  massiveStar: { label: 'Massereicher Stern', detail: 'Späte Brennphasen', temperatureFloor: THRESHOLDS.lateBurningTemperature },
-  supernova: { label: 'Supernova', detail: 'Explosiver Kernkollaps', temperatureFloor: 1_000_000_000 },
-  brownDwarf: { label: 'Brauner Zwerg', detail: 'Unterhalb der Zündmasse', temperatureFloor: INITIAL_TEMPERATURE },
-  heliumWhiteDwarf: { label: 'Helium-Weißer-Zwerg', detail: 'Heliumkern unterhalb der Zündmasse', temperatureFloor: THRESHOLDS.hydrogenTemperature },
-  whiteDwarf: { label: 'Weißer Zwerg', detail: 'Freigelegter C/O-Kern', temperatureFloor: 120_000_000 },
-  oxygenNeonWhiteDwarf: { label: 'O/Ne-Weißer-Zwerg', detail: 'Entarteter Sauerstoff-Neon-Kern', temperatureFloor: THRESHOLDS.carbonTemperature },
-  neutronStar: { label: 'Neutronenstern', detail: 'Entartete Neutronenmaterie', temperatureFloor: 1_000_000_000 },
-  blackHole: { label: 'Schwarzes Loch', detail: 'Ereignishorizont', temperatureFloor: 1_000_000_000 },
+  nebula: { label: 'Urwolke', detail: 'Kalte Ausgangswolke', temperatureFloor: INITIAL_TEMPERATURE, cloudWind: false, shellWindRate: null },
+  protostar: { label: 'Protostern', detail: 'Gravitative Kontraktion', temperatureFloor: THRESHOLDS.protostarTemperature, cloudWind: true, shellWindRate: null },
+  deuterium: { label: 'Deuteriumphase', detail: 'Frühe Kernheizung', temperatureFloor: THRESHOLDS.deuteriumTemperature, cloudWind: true, shellWindRate: null },
+  hydrogen: { label: 'Wasserstofffusion', detail: 'Wasserstoff wird zu Helium', temperatureFloor: THRESHOLDS.hydrogenTemperature, cloudWind: true, shellWindRate: null },
+  mainSequence: { label: 'Hauptreihenstern', detail: 'Hydrostatisches Gleichgewicht', temperatureFloor: THRESHOLDS.hydrogenTemperature, cloudWind: true, shellWindRate: 'mainSequenceFractionPerMinute' },
+  redGiant: { label: 'Roter Riese', detail: 'Hülle expandiert', temperatureFloor: THRESHOLDS.hydrogenTemperature, cloudWind: true, shellWindRate: 'lateStageFractionPerMinute' },
+  helium: { label: 'Heliumfusion', detail: 'Triple-Alpha-Prozess', temperatureFloor: THRESHOLDS.heliumTemperature, cloudWind: true, shellWindRate: 'lateStageFractionPerMinute' },
+  carbonOxygen: { label: 'Kohlenstoff-Sauerstoff-Kern', detail: 'Entarteter C/O-Kern', temperatureFloor: THRESHOLDS.heliumTemperature, cloudWind: true, shellWindRate: 'lateStageFractionPerMinute' },
+  carbonBurning: { label: 'Kohlenstofffusion', detail: 'Kohlenstoff wird zu Neon', temperatureFloor: THRESHOLDS.carbonTemperature, cloudWind: true, shellWindRate: 'lateStageFractionPerMinute' },
+  neonBurning: { label: 'Neonfusion', detail: 'Neon wird zu Sauerstoff', temperatureFloor: THRESHOLDS.neonTemperature, cloudWind: true, shellWindRate: 'lateStageFractionPerMinute' },
+  oxygenBurning: { label: 'Sauerstofffusion', detail: 'Sauerstoff wird zu Silizium', temperatureFloor: THRESHOLDS.oxygenTemperature, cloudWind: true, shellWindRate: 'lateStageFractionPerMinute' },
+  siliconBurning: { label: 'Siliziumfusion', detail: 'Silizium wird zur Eisengruppe', temperatureFloor: THRESHOLDS.siliconTemperature, cloudWind: true, shellWindRate: 'lateStageFractionPerMinute' },
+  ironCore: { label: 'Eisenkern', detail: 'Fusion liefert keine Energie mehr', temperatureFloor: THRESHOLDS.siliconTemperature, cloudWind: true, shellWindRate: 'lateStageFractionPerMinute' },
+  massiveStar: { label: 'Massereicher Stern', detail: 'Späte Brennphasen', temperatureFloor: THRESHOLDS.lateBurningTemperature, cloudWind: true, shellWindRate: 'lateStageFractionPerMinute' },
+  supernova: { label: 'Supernova', detail: 'Explosiver Kernkollaps', temperatureFloor: 1_000_000_000, cloudWind: true, shellWindRate: null },
+  brownDwarf: { label: 'Brauner Zwerg', detail: 'Unterhalb der Zündmasse', temperatureFloor: INITIAL_TEMPERATURE, cloudWind: true, shellWindRate: null },
+  heliumWhiteDwarf: { label: 'Helium-Weißer-Zwerg', detail: 'Heliumkern unterhalb der Zündmasse', temperatureFloor: THRESHOLDS.hydrogenTemperature, cloudWind: true, shellWindRate: null },
+  whiteDwarf: { label: 'Weißer Zwerg', detail: 'Freigelegter C/O-Kern', temperatureFloor: 120_000_000, cloudWind: true, shellWindRate: null },
+  oxygenNeonWhiteDwarf: { label: 'O/Ne-Weißer-Zwerg', detail: 'Entarteter Sauerstoff-Neon-Kern', temperatureFloor: THRESHOLDS.carbonTemperature, cloudWind: true, shellWindRate: null },
+  neutronStar: { label: 'Neutronenstern', detail: 'Entartete Neutronenmaterie', temperatureFloor: 1_000_000_000, cloudWind: true, shellWindRate: null },
+  blackHole: { label: 'Schwarzes Loch', detail: 'Ereignishorizont', temperatureFloor: 1_000_000_000, cloudWind: true, shellWindRate: null },
 };
 
 export const STAGE_LABELS = Object.fromEntries(
@@ -135,7 +135,7 @@ export const STAGE_LABELS = Object.fromEntries(
 // noch den Rundenabschluss, und mehrere STAGES-Einträge (z. B.
 // `carbonOxygen`, `supernova`) werden ihrerseits nie als `state.stage`
 // gesetzt. Die Titel und Texte der frühen Formationsziele stehen als
-// `achievementTitle`/`windWarning` direkt an ihrem OBJECTIVES-Eintrag in
+// `achievementTitle`/`warning` direkt an ihrem OBJECTIVES-Eintrag in
 // `objectives.ts`; die reaktionsbezogenen Erfolgstitel und Windwarnungen
 // liegen direkt bei ihrer Reaktion in `reactions.ts`
-// (ignitionAchievementTitle/completionAchievementTitle/completionWindWarning).
+// (ignitionAchievementTitle/completionAchievementTitle/completionWarning).

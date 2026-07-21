@@ -8,11 +8,9 @@ import {
   cloudMatureAccretionMultiplier,
   cloudSolarMasses,
   DEUTERIUM_TEMPERATURE_MULTIPLIER,
-  DEUTERIUM_UPGRADE_COST,
   EMPTY_MATTER,
   FUSION_MEMORY_BONUS_PER_LEVEL,
   INITIAL_TEMPERATURE,
-  LATE_SHELL_WIND_STAGES,
   LIMITS,
   MAIN_SEQUENCE_BURN,
   MATTER_KEYS,
@@ -23,12 +21,17 @@ import {
   PRESTIGE_PERKS,
   REACTIONS,
   REACTION_ORDER,
+  REACTION_UPGRADE,
   STAGES,
   STELLAR_WIND,
   TEMPERATURE_MODEL,
   THRESHOLDS,
   UPGRADES,
+  type ActiveWarningId,
   type AutomationKind,
+  type UpgradeDefinition,
+  type UpgradeId,
+  type UpgradePurchaseDefinition,
 } from '../content';
 import type {
   CloudTier,
@@ -81,15 +84,23 @@ export const reactionAutomationPerSecond = (state: GameState, reaction: Reaction
   return automationRate(kind, state.automation[kind]) * stellarFusionMultiplier(state);
 };
 
+// Punkt 2: manuelle Fusionsmenge einer Reaktion inklusive Reaktionsausbau
+// (+bonusPerLevel der Basismenge je Stufe) und Fusionsgedächtnis-Perk.
+export const reactionUpgradeCost = (reaction: ReactionId, level: number): number =>
+  Math.round(REACTIONS[reaction].upgradeBaseCost * REACTION_UPGRADE.costGrowth ** level);
+export const reactionManualAmount = (state: GameState, reaction: ReactionId): number =>
+  REACTIONS[reaction].manualAmount
+  * (1 + state.reactionUpgrades[reaction] * REACTION_UPGRADE.bonusPerLevel)
+  * stellarFusionMultiplier(state);
+
 export const stellarWindPerSecond = (state: GameState): number => {
-  if (state.completed || state.stage === 'nebula') return 0;
+  if (state.completed || !STAGES[state.stage].cloudWind) return 0;
   return cloudMassForLevel(state.cloudTier) * STELLAR_WIND.fractionOfInitialCloudPerMinute / 60;
 };
 
 const shellWindFractionPerMinute = (stage: Stage): number => {
-  if (stage === 'mainSequence') return STELLAR_WIND.shell.mainSequenceFractionPerMinute;
-  if (LATE_SHELL_WIND_STAGES.includes(stage)) return STELLAR_WIND.shell.lateStageFractionPerMinute;
-  return 0;
+  const rate = STAGES[stage].shellWindRate;
+  return rate ? STELLAR_WIND.shell[rate] : 0;
 };
 
 // Hüllenwind (Punkt 6): entfernt ab der Hauptreihe Wasserstoff und Helium
@@ -109,6 +120,21 @@ export const shellWindPerSecond = (state: GameState): number => {
 // Automationen und zusätzlich zu manueller Fusion. Skaliert überproportional
 // mit der aktuellen Sternmasse, damit massereichere Sterne die Hauptreihe
 // spürbar schneller durchlaufen als leichte.
+// Punkt 4: Liste der gerade aktiven Warnungen (laufende Verlustprozesse) mit
+// ihrer aktuellen Rate. Die Texte stehen in content/warnings.ts; die
+// Oberfläche zeigt bei mindestens einem Eintrag das Warnsymbol in der Star
+// Chamber. Der Wolkenwind zählt nur als Warnung, solange die Urwolke noch
+// Materie enthält, die verloren gehen kann.
+export interface ActiveWarning { id: ActiveWarningId; ratePerSecond: number }
+export const activeWarnings = (state: GameState): ActiveWarning[] => {
+  const warnings: ActiveWarning[] = [];
+  const cloudRate = stellarWindPerSecond(state);
+  if (cloudRate > 0 && cloudMass(state) > .001) warnings.push({ id: 'cloudWind', ratePerSecond: cloudRate });
+  const shellRate = shellWindPerSecond(state);
+  if (shellRate > 0) warnings.push({ id: 'shellWind', ratePerSecond: shellRate });
+  return warnings;
+};
+
 export const structuralHydrogenBurnPerSecond = (state: GameState): number => {
   if (state.completed || state.stage !== 'mainSequence') return 0;
   const massRatio = starMass(state) / MAIN_SEQUENCE_BURN.referenceMass;
@@ -119,7 +145,18 @@ export const automationCost = (kind: AutomationKind, level: number): number => {
   const definition = AUTOMATIONS[kind];
   return Math.round(definition.baseCost * definition.costGrowth ** level);
 };
-export const gravityCost = (level: number): number => Math.round(UPGRADES.gravity.cost.base * UPGRADES.gravity.cost.growth ** level);
+
+// Generische Upgrade-Helfer (Punkt 6): Stufen, Kosten und Voraussetzungen
+// kommen vollständig aus der jeweiligen Definition in content/upgrades.ts.
+// Boolesche Upgrade-Zustände (einmalige Upgrades) zählen als Stufe 0 oder 1.
+export const upgradeLevel = (state: GameState, id: UpgradeId): number => {
+  const value = state.upgrades[id];
+  return typeof value === 'boolean' ? Number(value) : value;
+};
+export const upgradeCost = (id: UpgradeId, level: number): number => {
+  const definition: UpgradeDefinition = UPGRADES[id];
+  return Math.round(definition.cost.base * definition.cost.growth ** level);
+};
 export const cloudTierCost = PRESTIGE_PERKS.largerCloud.cost;
 export const gravityPerkCost = PRESTIGE_PERKS.permanentGravity.cost;
 export const fusionPerkCost = PRESTIGE_PERKS.fusionMemory.cost;
@@ -266,14 +303,18 @@ const runReaction = (state: GameState, reaction: ReactionId, requested: number, 
   state.stats.energyGenerated += energy;
   if (!automatic) state.stats.manualFusionActions += 1;
 
+  // Datengetriebener Stadienwechsel: z. B. stabilisiert sich der Stern nach
+  // genug fusioniertem Wasserstoff auf der Hauptreihe (siehe reactions.ts).
+  const stabilization = definition.stabilizesInto;
+  if (stabilization && state.reactionTotals[reaction] >= stabilization.fusedAmount && state.stage === definition.stageOnUnlock) {
+    setStage(state, stabilization.stage, stabilization.message);
+  }
+
   if (reaction === 'hydrogen') {
     state.fusedHydrogen += amount;
     state.stats.hydrogenFused += amount;
     if (automatic) state.stats.automaticHydrogenFused += amount;
     if (!automatic) state.manualFusions += 1;
-    if (state.fusedHydrogen >= THRESHOLDS.mainSequenceHydrogen && state.stage === 'hydrogen') {
-      setStage(state, 'mainSequence', 'Hydrostatisches Gleichgewicht: Der Stern erreicht die Hauptreihe. Wasserstofffusion bleibt aktiv.');
-    }
   }
   if (reaction === 'helium') {
     state.fusedHelium += amount;
@@ -421,7 +462,7 @@ export const createInitialState = (
     cloud: cloudMatterForLevel(cloudTier), star: { ...EMPTY_MATTER }, radiatedMass: 0,
     energy: 0, temperature: INITIAL_TEMPERATURE, heatBonus: 0, contractionHeat: 0,
     deuteriumIgnitionCompression: null, unlockedReactions: [], reactionTotals: emptyReactionTotals(),
-    automaticReactionTotals: emptyReactionTotals(), fusedHydrogen: 0, fusedHelium: 0,
+    automaticReactionTotals: emptyReactionTotals(), reactionUpgrades: emptyReactionTotals(), fusedHydrogen: 0, fusedHelium: 0,
     manualFusions: 0, manualHeliumFusions: 0,
     automation: { accretion: 0, fusion: 0, heliumFusion: 0, oxygenSynthesis: 0, carbonFusion: 0, neonFusion: 0, oxygenFusion: 0, siliconFusion: 0 },
     upgrades: { gravity: 0, deuteriumBurning: false }, stardust, perks,
@@ -468,13 +509,47 @@ export const tick = (state: GameState, seconds: number): GameState => {
 };
 
 const reactionMastery = (state: GameState, reaction: ReactionId): number => primaryOutputAmount(reaction, state.reactionTotals[reaction]);
+
+// Punkt 1: Ist die in der Definition hinterlegte Nachschubquelle einer
+// Automation erschöpft (z. B. keine Restmaterie mehr in der Urwolke), kann
+// sie nicht weiter ausgebaut werden.
+export const automationSupplyExhausted = (state: GameState, kind: AutomationKind): boolean => {
+  const supply = AUTOMATIONS[kind].supply;
+  return supply?.kind === 'cloudMatter' ? cloudMass(state) <= .001 : false;
+};
+
+// Kleines Register benannter Kaufwirkungen (Punkt 6): Upgrades referenzieren
+// eine Wirkung per Name in ihrer Definition; die Engine kennt keine einzelnen
+// Upgrade-IDs mehr.
+const UPGRADE_PURCHASE_EFFECTS: Record<NonNullable<UpgradePurchaseDefinition['effect']>, (state: GameState) => void> = {
+  captureCompressionBaseline: (state) => { state.deuteriumIgnitionCompression = compressionHeat(state); },
+};
+
+const upgradeRequirementsMet = (state: GameState, definition: UpgradeDefinition): boolean =>
+  (definition.requirements.minimumStarMass === undefined || starMass(state) >= definition.requirements.minimumStarMass)
+  && (definition.requirements.minimumTemperature === undefined || state.temperature >= definition.requirements.minimumTemperature)
+  && (definition.requirements.maximumTemperature === undefined || state.temperature < definition.requirements.maximumTemperature);
+
+const buyUpgrade = (state: GameState, id: UpgradeId): void => {
+  const definition: UpgradeDefinition = UPGRADES[id];
+  const level = upgradeLevel(state, id);
+  const cost = upgradeCost(id, level);
+  if (level >= definition.maxLevel || !upgradeRequirementsMet(state, definition) || state.energy < cost) return;
+  state.energy -= cost;
+  (state.upgrades as Record<UpgradeId, number | boolean>)[id] = typeof state.upgrades[id] === 'boolean' ? true : level + 1;
+  state.stats.upgradesPurchased += 1;
+  const purchase = definition.purchase;
+  if (purchase?.effect) UPGRADE_PURCHASE_EFFECTS[purchase.effect](state);
+  if (purchase?.statCounter) state.stats[purchase.statCounter] += 1;
+  if (purchase?.log) log(state, purchase.log.text, purchase.log.kind);
+};
 const buyAutomation = (state: GameState, kind: AutomationKind): void => {
   const definition = AUTOMATIONS[kind];
   const level = state.automation[kind];
   const cost = automationCost(kind, level);
   const visible = !definition.reaction || state.unlockedReactions.includes(definition.reaction);
   const mastery = definition.mastery.kind === 'starMass' ? starMass(state) : reactionMastery(state, definition.mastery.reaction);
-  if (visible && mastery >= definition.mastery.threshold && state.energy >= cost && level < definition.maxLevel) {
+  if (visible && mastery >= definition.mastery.threshold && state.energy >= cost && level < definition.maxLevel && !automationSupplyExhausted(state, kind)) {
     state.energy -= cost;
     state.automation[kind] += 1;
     state.stats.automationsPurchased += 1;
@@ -523,19 +598,19 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
   if (action.type === 'ACCRETE') {
     const moved = transferMatter(next, accretionPerClick(next));
     next.stats.manualClicks += 1; next.stats.matterAccreted += moved; next.stats.energyGenerated += moved * ACCRETION.energyPerMatter;
-  } else if (action.type === 'BUY_DEUTERIUM') {
-    if (!next.upgrades.deuteriumBurning && starMass(next) >= THRESHOLDS.protostarMass && next.temperature >= THRESHOLDS.deuteriumTemperature && next.temperature < THRESHOLDS.hydrogenTemperature && next.energy >= DEUTERIUM_UPGRADE_COST) {
-      next.energy -= DEUTERIUM_UPGRADE_COST;
-      next.deuteriumIgnitionCompression = compressionHeat(next);
-      next.upgrades.deuteriumBurning = true;
-      next.stats.deuteriumBurns += 1; next.stats.upgradesPurchased += 1;
-      log(next, 'Deuteriumbrennen beschleunigt ab jetzt die weitere Kompressionswärme.', 'fusion');
-    }
-  } else if (action.type === 'BUY_GRAVITY') {
-    const cost = gravityCost(next.upgrades.gravity);
-    if (next.energy >= cost && next.upgrades.gravity < LIMITS.gravity) { next.energy -= cost; next.upgrades.gravity += 1; next.stats.upgradesPurchased += 1; }
+  } else if (action.type === 'BUY_UPGRADE') {
+    buyUpgrade(next, action.upgrade);
   } else if (action.type === 'RUN_REACTION') {
-    runReaction(next, action.reaction, REACTIONS[action.reaction].manualAmount * stellarFusionMultiplier(next), false);
+    runReaction(next, action.reaction, reactionManualAmount(next, action.reaction), false);
+  } else if (action.type === 'BUY_REACTION_UPGRADE') {
+    const level = next.reactionUpgrades[action.reaction];
+    const cost = reactionUpgradeCost(action.reaction, level);
+    if (next.unlockedReactions.includes(action.reaction) && level < REACTION_UPGRADE.maxLevel && next.energy >= cost) {
+      next.energy -= cost;
+      next.reactionUpgrades[action.reaction] += 1;
+      next.stats.upgradesPurchased += 1;
+      log(next, `${REACTIONS[action.reaction].title}: manuelle Fusionsmenge ausgebaut.`, 'fusion');
+    }
   } else if (action.type === 'BUY_REACTION_AUTOMATION') {
     buyAutomation(next, REACTIONS[action.reaction].automation);
   } else if (action.type === 'BUY_ACCRETION') buyAutomation(next, 'accretion');
@@ -571,7 +646,14 @@ export const objectiveFor = (state: GameState): { id: string; eyebrow: string; t
   }
   if (!state.unlockedReactions.includes('hydrogen')) {
     const objective = OBJECTIVES['ignite-hydrogen'];
-    return { id: 'ignite-hydrogen', eyebrow: objective.eyebrow, title: objective.title, progress: Math.min(100, state.temperature / THRESHOLDS.hydrogenTemperature * 100), detail: objective.detail };
+    // Punkt 5: Die Zündung verlangt Temperatur UND Mindestmasse. Da die
+    // Kompressionswärme bei 10 Mio. K gedeckelt ist, stünde ein reiner
+    // Temperatur-Fortschritt schon auf 100 %, während noch Sternmasse zur
+    // Zündung fehlt — der Fortschritt bildet daher die strengere der beiden
+    // Bedingungen ab.
+    const reaction = REACTIONS.hydrogen;
+    const progress = Math.min(state.temperature / reaction.ignitionTemperature, starMass(state) / reaction.minimumMass);
+    return { id: 'ignite-hydrogen', eyebrow: objective.eyebrow, title: objective.title, progress: Math.min(100, progress * 100), detail: objective.detail };
   }
   const decision = contractionDecision(state);
   if (decision?.kind === 'ignite') {
@@ -589,7 +671,23 @@ export const objectiveFor = (state: GameState): { id: string; eyebrow: string; t
     const objective = OBJECTIVES['stabilize-star'];
     return { id: 'stabilize-star', eyebrow: objective.eyebrow, title: objective.title, progress: Math.min(100, state.fusedHydrogen / THRESHOLDS.mainSequenceHydrogen * 100), detail: objective.detail };
   }
+  // Punkt 7: Explizites Ziel während der aktiven Brennphase — statt eines
+  // fortschrittslosen "Fusioniere den Brennstoff" zeigt das Ziel den Aufbau
+  // des nächsten Kerns: Anteil des bereits ins Hauptprodukt umgewandelten
+  // Brennstoffs (Kern + Restwolke, konsistent zu fuelDepleted). 100 % fallen
+  // damit genau mit der Erschöpfung der Brennstufe zusammen.
   const active = [...REACTION_ORDER].reverse().find((id) => reactionAvailable(state, id)) ?? 'hydrogen';
   const definition = REACTIONS[active];
-  return { id: `burn-${active}`, eyebrow: OBJECTIVE_EYEBROWS.activeBurn, title: definition.title, progress: 0, detail: OBJECTIVE_TEMPLATES.burnDetail(definition.equationInput) };
+  const outputKey = Object.keys(definition.outputs)[0] as keyof Matter;
+  const outputRatio = Object.values(definition.outputs)[0] ?? 1;
+  const fuelLeft = state.star[definition.primaryInput] + state.cloud[definition.primaryInput];
+  const built = state.star[outputKey];
+  const total = built + fuelLeft * outputRatio;
+  return {
+    id: `burn-${active}`,
+    eyebrow: OBJECTIVE_EYEBROWS.activeBurn,
+    title: definition.burnObjective.title,
+    progress: total <= 0 ? 0 : Math.min(100, built / total * 100),
+    detail: definition.burnObjective.detail,
+  };
 };

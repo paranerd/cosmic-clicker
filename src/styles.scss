@@ -142,12 +142,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .cloud-mini-gauge { width: 35px; height: 35px; position: relative; display: grid; place-items: center; }
 .cloud-mini-gauge .gauge-ring { position: absolute; inset: 0; display: block; width: 35px; height: 35px; padding: 0; background: conic-gradient($cyan var(--remaining), rgba(255,255,255,.06) 0); -webkit-mask: radial-gradient(circle, transparent 52%, #000 55%); mask: radial-gradient(circle, transparent 52%, #000 55%); }
 .cloud-mini-gauge b { position: relative; z-index: 1; color: #b7dfe2; font-family: ui-monospace,monospace; font-size: 6px; font-weight: 500; }
-.wind-status { margin-top: 9px; padding: 8px 10px; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; border: 1px solid $line; background: rgba(255,255,255,.012); }
-.wind-status span { color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .1em; }
-.wind-status b { color: #586577; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 400; }
-.wind-status small { grid-column: 1 / -1; color: #4e5a69; font-size: 7px; }
-.wind-status.is-active { border-color: rgba($amber,.25); background: rgba($amber,.035); }
-.wind-status.is-active span, .wind-status.is-active b { color: $amber; }
 .cloud-elements { margin-top: 9px; display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
 .cloud-elements > div { min-width: 0; display: grid; grid-template-columns: 23px 1fr; gap: 5px; align-items: center; }
 .cloud-elements .element { width: 22px; height: 22px; font-size: 8px; }
@@ -194,6 +188,22 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .star-core { width: 28%; height: 28%; left: 36%; top: 36%; background: rgba(255,248,196,.8); filter: blur(12px); mix-blend-mode: screen; opacity: calc(.15 + var(--temp-scale) * .8); }
 .star-noise { inset: 5%; opacity: .26; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); animation: rotate 28s linear infinite; }
 .click-callout { position: absolute; bottom: 66px; text-align: center; z-index: 5; pointer-events: none; }
+// Punkt 4: Warnsymbol unten rechts in der Star Chamber; das Popover listet
+// alle aktiven Warnungen (z. B. Sternwind, Hüllenwind) samt Verlustrate.
+.warning-corner { position: absolute; right: 14px; bottom: 14px; z-index: 30; }
+.warning-toggle { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba($amber,.45); border-radius: 50%; background: rgba($amber,.09); color: $amber; cursor: pointer; transition: .2s; animation: warning-pulse 2.6s ease-in-out infinite; }
+.warning-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.warning-toggle:hover { background: rgba($amber,.16); border-color: rgba($amber,.7); }
+@keyframes warning-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba($amber,.25); } 50% { box-shadow: 0 0 0 7px rgba($amber,0); } }
+@media (prefers-reduced-motion: reduce) { .warning-toggle { animation: none; } }
+.warning-popover { width: 265px; padding: 14px; position: absolute; z-index: 40; right: 0; bottom: 44px; visibility: hidden; opacity: 0; transform: translateY(5px); border: 1px solid rgba($amber,.28); background: rgba(8,13,22,.98); box-shadow: 0 18px 45px rgba(0,0,0,.45); transition: .18s ease; text-align: left; }
+.warning-corner.is-open .warning-popover { visibility: visible; opacity: 1; transform: translateY(0); }
+.warning-popover-title { display: block; color: $amber; font-size: 7px; letter-spacing: .14em; text-transform: uppercase; }
+.warning-entry { margin-top: 11px; display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; align-items: baseline; }
+.warning-entry + .warning-entry { padding-top: 10px; border-top: 1px solid $line; }
+.warning-entry b { font-size: 9px; font-weight: 500; color: $amber; }
+.warning-entry strong { color: #d8b06c; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 400; }
+.warning-entry p { grid-column: 1 / -1; margin: 0; color: $muted; font-size: 8px; line-height: 1.5; }
 .click-callout span { display: block; color: $amber; font-family: ui-monospace, monospace; font-size: 13px; }
 .click-callout small { display: block; margin-top: 5px; color: $muted; font-size: 8px; letter-spacing: .14em; text-transform: uppercase; }
 .phase-dots { position: absolute; bottom: 30px; display: flex; gap: 10px; }
@@ -283,6 +293,17 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .action-copy p { margin: 0; color: $muted; font-size: 10px; line-height: 1.5; }
 .reaction-equation { display: flex; gap: 9px; align-items: center; margin-top: 10px; color: #9aa7b6; font-family: ui-monospace, monospace; font-size: 9px; }
 .reaction-equation b { color: $amber; font-weight: 400; }
+
+// Punkt 2: Reaktionsausbau direkt auf der Karte (mehr Fusion pro Klick).
+.reaction-upgrade { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 14px; align-items: center; margin-top: 2px; padding-top: 10px; border-top: 1px solid $line; }
+.reaction-upgrade-copy span { display: block; color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .1em; }
+.reaction-upgrade-copy small { display: block; margin-top: 2px; color: #4e5a69; font-size: 7px; }
+.reaction-upgrade .level-row { grid-row: 2; grid-column: 1; margin: 6px 0 0; }
+.reaction-upgrade-button { grid-row: 1 / span 2; grid-column: 2; min-width: 108px; min-height: 34px; padding: 4px 11px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid rgba($cyan,.25); background: rgba($cyan,.05); color: #badce0; font-size: 8px; cursor: pointer; transition: .2s; }
+.reaction-upgrade-button span { text-transform: uppercase; letter-spacing: .06em; }
+.reaction-upgrade-button b { font-family: ui-monospace,monospace; font-weight: 400; }
+.reaction-upgrade-button:hover:not(:disabled) { border-color: rgba($cyan,.5); background: rgba($cyan,.1); }
+.reaction-upgrade-button:disabled { color: #4f5a68; border-color: $line; background: transparent; cursor: default; }
 .primary-action, .secondary-action { min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba($amber,.55); background: linear-gradient(135deg, rgba($amber,.95), rgba($orange,.94)); color: #1b110a; cursor: pointer; transition: .2s; }
 .primary-action:hover:not(:disabled), .secondary-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 8px 24px rgba($orange,.16); }
 .primary-action span, .secondary-action span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
@@ -366,6 +387,10 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .timeline-node span { margin-top: 10px; display: flex; flex-direction: column; }
 .timeline-node b { font-size: 9px; font-weight: 500; }
 .timeline-node small { color: $muted; font-size: 7px; margin-top: 3px; }
+// Punkt 3: offener "?"-Knoten am Ende der Timeline — der weitere Weg hängt
+// vom Verhalten des Spielers ab und wird nicht vorweggenommen.
+.timeline-node.is-open > i { color: $amber; border-color: rgba($amber,.35); border-style: dashed; background: rgba($amber,.04); }
+.timeline-node.is-open b, .timeline-node.is-open small { color: #8a7a5e; }
 .chronicle-modal .timeline { justify-content: flex-start; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; scrollbar-color: rgba($cyan,.25) transparent; }
 .chronicle-modal .timeline::before { min-width: calc(100% - 40px); }
 .chronicle-modal .timeline-node { flex: 0 0 92px; }

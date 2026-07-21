@@ -126,6 +126,8 @@ export interface GameState {
   unlockedReactions: ReactionId[];
   reactionTotals: Record<ReactionId, number>;
   automaticReactionTotals: Record<ReactionId, number>;
+  // Punkt 2: Ausbaustufen der manuellen Fusionsmenge je Reaktion.
+  reactionUpgrades: Record<ReactionId, number>;
   fusedHydrogen: number;
   fusedHelium: number;
   manualFusions: number;
@@ -153,9 +155,9 @@ export type GameAction =
   | { type: 'ACCRETE' }
   | { type: 'RUN_REACTION'; reaction: ReactionId }
   | { type: 'BUY_REACTION_AUTOMATION'; reaction: ReactionId }
-  | { type: 'BUY_DEUTERIUM' }
+  | { type: 'BUY_REACTION_UPGRADE'; reaction: ReactionId }
+  | { type: 'BUY_UPGRADE'; upgrade: keyof UpgradeState }
   | { type: 'BUY_ACCRETION' }
-  | { type: 'BUY_GRAVITY' }
   | { type: 'BUY_PERK'; perk: keyof PerkState }
   | { type: 'REMOVE_PERK'; perk: keyof PerkState }
   | { type: 'SELECT_CLOUD_TIER'; tier: CloudTier }

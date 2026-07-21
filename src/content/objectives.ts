@@ -1,8 +1,8 @@
 import type { ReactionId } from '../game/types';
-import { REACTIONS, type WindWarning } from './reactions';
+import { REACTIONS, type Warning } from './reactions';
 import { THRESHOLDS } from './progression';
 
-export type { WindWarning };
+export type { Warning };
 
 export interface ObjectiveDefinition {
   eyebrow: string;
@@ -14,7 +14,7 @@ export interface ObjectiveDefinition {
   achievementTitle?: string;
   // Zusätzlicher Warnhinweis, der beim Erreichen dieses Ziels einmalig im
   // Achievement-Banner erscheint (z. B. "Sternwind setzt ein").
-  windWarning?: WindWarning;
+  warning?: Warning;
 }
 
 export type StaticObjectiveId = 'review-cycle' | 'form-protostar' | 'heat-protostar' | 'ignite-hydrogen' | 'stabilize-star';
@@ -24,7 +24,7 @@ export type StaticObjectiveId = 'review-cycle' | 'form-protostar' | 'heat-protos
 // für die Kernkontraktion vor der nächsten Zündung, `burn-<reaktion>` für die
 // aktive Brennphase) werden dagegen generisch aus REACTIONS gebaut, siehe
 // objectiveFor() in game/engine.ts und OBJECTIVE_EYEBROWS/OBJECTIVE_TEMPLATES
-// unten; ihre Erfolgstitel und Windwarnungen liegen entsprechend direkt bei
+// unten; ihre Erfolgstitel und Warnungen liegen entsprechend direkt bei
 // der jeweiligen Reaktionsdefinition in reactions.ts.
 export const OBJECTIVES: Record<StaticObjectiveId, ObjectiveDefinition> = {
   'review-cycle': {
@@ -37,7 +37,7 @@ export const OBJECTIVES: Record<StaticObjectiveId, ObjectiveDefinition> = {
     title: 'Protostern bilden',
     detail: 'Verdichte die Materie der Urwolke im Zentrum.',
     achievementTitle: 'Protostern gebildet',
-    windWarning: {
+    warning: {
       title: 'Sternwind setzt ein',
       text: 'Er trägt fortan stetig Materie aus der Urwolke ab. Diese Materie kann nicht mehr eingesammelt werden.',
     },
@@ -54,7 +54,7 @@ export const OBJECTIVES: Record<StaticObjectiveId, ObjectiveDefinition> = {
   'ignite-hydrogen': {
     eyebrow: 'Nächstes Ziel',
     title: 'Wasserstoffkern zünden',
-    detail: `Erreiche ${THRESHOLDS.hydrogenTemperature.toLocaleString('de-DE')} K durch weitere Verdichtung.`,
+    detail: `Erreiche ${THRESHOLDS.hydrogenTemperature.toLocaleString('de-DE')} K und mindestens ${THRESHOLDS.hydrogenIgnitionMass.toLocaleString('de-DE')} ME Sternmasse durch weitere Verdichtung.`,
   },
   // Neu (vormals nicht von der generischen Brennphase unterschieden): eigenes
   // Ziel für die Wasserstofffusion vor Erreichen der Hauptreihe.
@@ -71,13 +71,14 @@ export const OBJECTIVE_EYEBROWS = {
   activeBurn: 'Aktive Brennphase',
 } as const;
 
-// Textvorlagen für die generischen, reaktionsbasierten Zielphasen, damit
-// keine Formulierung pro Reaktion dupliziert werden muss.
+// Textvorlagen für die generischen Kontraktions-Zielphasen, damit keine
+// Formulierung pro Reaktion dupliziert werden muss. Die Texte der aktiven
+// Brennphasen stehen seit Punkt 7 als `burnObjective` direkt an der
+// jeweiligen Reaktionsdefinition in reactions.ts.
 export const OBJECTIVE_TEMPLATES = {
   igniteTitle: (reactionTitle: string): string => `${reactionTitle} zünden`,
   igniteDetail: (ignitionTemperature: number, requiredSolarMasses: string): string =>
     `Der erschöpfte Kern kontrahiert bis ${ignitionTemperature.toLocaleString('de-DE')} K (benötigt ≥ ${requiredSolarMasses} M☉).`,
-  burnDetail: (equationInput: string): string => `Fusioniere den verfügbaren ${equationInput}-Brennstoff im Kern.`,
 } as const;
 
 // Generischer Auflöser für Erfolgstitel: zuerst die statischen Formationsziele
@@ -95,13 +96,14 @@ export function achievementTitleFor(objectiveId: string): string | undefined {
   return undefined;
 }
 
-// Generischer Auflöser für Windwarnungen, symmetrisch zu achievementTitleFor:
-// zuerst die statischen Formationsziele (OBJECTIVES[id].windWarning), sonst
-// per Muster `burn-<reaktion>` die reaktionseigene completionWindWarning
-// (aktuell nur bei Wasserstoff gesetzt, siehe reactions.ts).
-export function windWarningFor(objectiveId: string): WindWarning | undefined {
-  if (objectiveId in OBJECTIVES) return OBJECTIVES[objectiveId as StaticObjectiveId].windWarning;
+// Generischer Auflöser für Warnungen (Punkt 4, vormals windWarningFor),
+// symmetrisch zu achievementTitleFor: zuerst die statischen Formationsziele
+// (OBJECTIVES[id].warning), sonst per Muster `burn-<reaktion>` die
+// reaktionseigene completionWarning (aktuell nur bei Wasserstoff gesetzt,
+// siehe reactions.ts).
+export function warningFor(objectiveId: string): Warning | undefined {
+  if (objectiveId in OBJECTIVES) return OBJECTIVES[objectiveId as StaticObjectiveId].warning;
   const burned = /^burn-(.+)$/.exec(objectiveId);
-  if (burned) return REACTIONS[burned[1] as ReactionId]?.completionWindWarning;
+  if (burned) return REACTIONS[burned[1] as ReactionId]?.completionWarning;
   return undefined;
 }

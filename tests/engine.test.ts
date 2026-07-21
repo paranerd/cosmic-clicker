@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CLOUD_GROWTH, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, LATE_SHELL_WIND_STAGES, REACTIONS, REACTION_ORDER, THRESHOLDS } from '../src/content';
+import { CLOUD_GROWTH, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, REACTIONS, REACTION_ORDER, REACTION_UPGRADE, STAGES, THRESHOLDS } from '../src/content';
+import type { Stage } from '../src/game/types';
 import {
   accretionPerClick,
   calculateTemperature,
@@ -7,6 +8,7 @@ import {
   createInitialState,
   objectiveFor,
   reactionCapacity,
+  reactionUpgradeCost,
   reduceGame,
   shellWindPerSecond,
   solarMasses,
@@ -113,7 +115,7 @@ describe('data-driven stellar engine v0.4', () => {
     const state = accreteUntil(createInitialState(), 6_000);
     state.energy = 100;
     const before = state.temperature;
-    const upgraded = reduceGame(state, { type: 'BUY_DEUTERIUM' });
+    const upgraded = reduceGame(state, { type: 'BUY_UPGRADE', upgrade: 'deuteriumBurning' });
     expect(upgraded.upgrades.deuteriumBurning).toBe(true);
     expect(upgraded.temperature).toBeCloseTo(before, 5);
     const normalNext = reduceGame(state, { type: 'ACCRETE' });
@@ -280,6 +282,74 @@ describe('data-driven stellar engine v0.4', () => {
     expect(tick(state, 24 * 60 * 60).elapsed).toBe(8 * 60 * 60);
   });
 
+  it('frames every active burn phase as building the next core, with real progress (Punkt 7)', () => {
+    const state = reactionState('hydrogen', 10_000);
+    state.stage = 'mainSequence';
+    state.reactionTotals.hydrogen = THRESHOLDS.mainSequenceHydrogen;
+    state.fusedHydrogen = THRESHOLDS.mainSequenceHydrogen;
+    const before = objectiveFor(state);
+    expect(before.id).toBe('burn-hydrogen');
+    expect(before.title).toBe(REACTIONS.hydrogen.burnObjective.title);
+    expect(before.title).toContain('Heliumkern');
+    const halfway = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    expect(objectiveFor(halfway).progress).toBeGreaterThan(before.progress);
+    // Kurz vor der Erschöpfung nähert sich der Fortschritt 100 %; ist der
+    // Brennstoff ganz aufgebraucht, übernimmt korrekt das Kontraktionsziel.
+    const nearlyEmpty = structuredClone(state);
+    nearlyEmpty.star.hydrogen = .5;
+    nearlyEmpty.star.helium = 5_000;
+    expect(objectiveFor(nearlyEmpty).id).toBe('burn-hydrogen');
+    expect(objectiveFor(nearlyEmpty).progress).toBeGreaterThan(99.9);
+    const empty = structuredClone(state);
+    empty.star.hydrogen = 0;
+    empty.star.helium = 5_000;
+    expect(objectiveFor(empty).id).toBe('ignite-helium');
+  });
+
+  it('lets the player expand a reaction so each manual click fuses more (Punkt 2)', () => {
+    const state = reactionState('hydrogen', 100_000);
+    state.energy = 10_000;
+    const baseline = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    expect(baseline.reactionTotals.hydrogen).toBeCloseTo(REACTIONS.hydrogen.manualAmount, 5);
+    const upgraded = reduceGame(state, { type: 'BUY_REACTION_UPGRADE', reaction: 'hydrogen' });
+    expect(upgraded.reactionUpgrades.hydrogen).toBe(1);
+    expect(upgraded.energy).toBe(10_000 - reactionUpgradeCost('hydrogen', 0));
+    expect(upgraded.stats.upgradesPurchased).toBe(1);
+    const boosted = reduceGame(upgraded, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    expect(boosted.reactionTotals.hydrogen).toBeCloseTo(REACTIONS.hydrogen.manualAmount * (1 + REACTION_UPGRADE.bonusPerLevel), 5);
+    // Nicht freigeschaltete Reaktionen können nicht ausgebaut werden.
+    const locked = reduceGame(state, { type: 'BUY_REACTION_UPGRADE', reaction: 'silicon' });
+    expect(locked.reactionUpgrades.silicon).toBe(0);
+    expect(locked.energy).toBe(10_000);
+  });
+
+  it('blocks further Akkretionsstrom levels once the primordial cloud is exhausted (Punkt 1)', () => {
+    const state = accreteUntil(createInitialState({ largerCloud: 4 }, 0, 2, { cloudTier: 4 }), THRESHOLDS.protostarMass + 500);
+    state.energy = 1_000_000;
+    const bought = reduceGame(state, { type: 'BUY_ACCRETION' });
+    expect(bought.automation.accretion).toBe(1);
+    bought.cloud = { ...EMPTY_MATTER };
+    bought.energy = 1_000_000;
+    const blocked = reduceGame(bought, { type: 'BUY_ACCRETION' });
+    expect(blocked.automation.accretion).toBe(1);
+    expect(blocked.energy).toBe(1_000_000);
+  });
+
+  it('keeps the hydrogen-ignition progress below 100 % until temperature AND mass suffice (Punkt 5)', () => {
+    // Die Kompressionswärme deckelt die Temperatur exakt bei 10 Mio. K, kurz
+    // bevor die Zündmasse von 12.000 ME erreicht ist. Der Fortschritt darf
+    // trotzdem nie 100 % anzeigen, solange die Reaktion nicht freigeschaltet ist.
+    const state = accreteUntil(createInitialState({ largerCloud: 4 }, 0, 2, { cloudTier: 4 }), THRESHOLDS.hydrogenIgnitionMass - 150);
+    expect(state.temperature).toBe(THRESHOLDS.hydrogenTemperature);
+    expect(state.unlockedReactions).not.toContain('hydrogen');
+    const objective = objectiveFor(state);
+    expect(objective.id).toBe('ignite-hydrogen');
+    expect(objective.progress).toBeLessThan(100);
+    expect(objective.detail).toContain('ME Sternmasse');
+    const ignited = accreteUntil(state, THRESHOLDS.hydrogenIgnitionMass + 200);
+    expect(ignited.unlockedReactions).toContain('hydrogen');
+  });
+
   it('archives the calibrated outcome and persistent settings during prestige', () => {
     const state = accreteUntil(createInitialState(), cloudMass(createInitialState()));
     state.volume = .62;
@@ -336,7 +406,10 @@ describe('data-driven stellar engine v0.4', () => {
     });
 
     it('never lets the shell wind touch heavier core elements, only the H/He envelope, and only in late stages', () => {
-      LATE_SHELL_WIND_STAGES.forEach((stage) => {
+      const lateShellWindStages = (Object.keys(STAGES) as Stage[])
+        .filter((stage) => STAGES[stage].shellWindRate === 'lateStageFractionPerMinute');
+      expect(lateShellWindStages.length).toBeGreaterThan(0);
+      lateShellWindStages.forEach((stage) => {
         const state = mainSequenceState(1);
         state.stage = stage;
         state.star.carbon = 5_000;

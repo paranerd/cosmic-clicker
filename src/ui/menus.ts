@@ -7,12 +7,14 @@ let fullResetArmed = false;
 let resetTimer = 0;
 let perksOpen = false;
 let soundMenuOpen = false;
+let warningsOpen = false;
 let prestigeConfirmationArmed = false;
 let prestigeConfirmationTimer = 0;
 
 export const isFullResetArmed = (): boolean => fullResetArmed;
 export const isPerksOpen = (): boolean => perksOpen;
 export const isSoundMenuOpen = (): boolean => soundMenuOpen;
+export const isWarningsOpen = (): boolean => warningsOpen;
 export const isPrestigeConfirmationArmed = (): boolean => prestigeConfirmationArmed;
 
 export function closeResetMenu(): void {
@@ -48,6 +50,13 @@ export function setSoundMenuOpen(open: boolean): void {
   soundMenuOpen = open;
   app.querySelector('.sound-menu')?.classList.toggle('is-open', open);
   app.querySelector('[data-action="toggle-sound-menu"]')?.setAttribute('aria-expanded', String(open));
+}
+
+// Punkt 4: Popover mit allen aktiven Warnungen am Warnsymbol der Star Chamber.
+export function setWarningsOpen(open: boolean): void {
+  warningsOpen = open;
+  app.querySelector('.warning-corner')?.classList.toggle('is-open', open);
+  app.querySelector('[data-action="toggle-warnings"]')?.setAttribute('aria-expanded', String(open));
 }
 
 export function hasAffordableSummaryPerk(): boolean {

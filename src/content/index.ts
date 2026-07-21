@@ -7,3 +7,4 @@ export * from './reactions';
 export * from './resources';
 export * from './tutorial';
 export * from './upgrades';
+export * from './warnings';

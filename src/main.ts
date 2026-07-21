@@ -1,5 +1,6 @@
 import './styles.scss';
 import { playSound } from './audio';
+import { UPGRADE_ORDER, UPGRADES } from './content';
 import { calculateTemperature, createInitialState, reactionAutomationPerSecond, reduceGame, tick } from './game/engine';
 import { clearSave, normalizeGameState, saveGame } from './game/storage';
 import type { GameAction, ReactionId } from './game/types';
@@ -17,8 +18,10 @@ import {
   isPerksOpen,
   isPrestigeConfirmationArmed,
   isSoundMenuOpen,
+  isWarningsOpen,
   setPerksOpen,
   setSoundMenuOpen,
+  setWarningsOpen,
   toggleResetMenu,
 } from './ui/menus';
 import { clearAchievements, clearToasts, dismissAchievement, showToast } from './ui/notifications';
@@ -44,7 +47,7 @@ function dispatch(action: GameAction): void {
     makeSummaryExclusive();
     playSound('complete', state.soundEnabled, state.volume);
   }
-  if (['BUY_DEUTERIUM', 'BUY_GRAVITY', 'BUY_ACCRETION', 'BUY_REACTION_AUTOMATION', 'BUY_PERK'].includes(action.type)) switchPanel(getActivePanel(), false);
+  if (['BUY_UPGRADE', 'BUY_ACCRETION', 'BUY_REACTION_AUTOMATION', 'BUY_REACTION_UPGRADE', 'BUY_PERK'].includes(action.type)) switchPanel(getActivePanel(), false);
   updateUI(true);
 }
 
@@ -72,6 +75,8 @@ app.addEventListener('click', (event) => {
   if (isPerksOpen() && !insidePerkMenu) setPerksOpen(false);
   const insideSoundMenu = target.closest('.sound-menu');
   if (isSoundMenuOpen() && !insideSoundMenu) setSoundMenuOpen(false);
+  const insideWarningCorner = target.closest('.warning-corner');
+  if (isWarningsOpen() && !insideWarningCorner) setWarningsOpen(false);
   if (target.dataset.overlayDismiss === 'chronicle') { setChronicleOpen(false); return; }
   if (target.dataset.overlayDismiss === 'stats') { setStatsOpen(false); return; }
   const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); advanceTutorial('panel'); return; }
@@ -88,6 +93,7 @@ app.addEventListener('click', (event) => {
   if (action === 'reset-full') { if (isFullResetArmed()) performReset('full'); else armFullReset(); return; }
   if (action === 'toggle-perks') { setPerksOpen(!isPerksOpen()); return; }
   if (action === 'toggle-sound-menu') { setSoundMenuOpen(!isSoundMenuOpen()); return; }
+  if (action === 'toggle-warnings') { setWarningsOpen(!isWarningsOpen()); return; }
   if (action === 'open-stats') { setStatsOpen(true); return; }
   if (action === 'close-stats') { setStatsOpen(false); return; }
   if (action === 'open-chronicle') { setChronicleOpen(true); advanceTutorial('open-chronicle'); return; }
@@ -103,8 +109,11 @@ app.addEventListener('click', (event) => {
   }
   if (action.startsWith('buy-perk-') || action.startsWith('remove-perk-')) clearPrestigeConfirmation();
   if (action === 'run-reaction' && button.dataset.reaction) {
+    // Punkt 8: Energiedifferenz messen, damit das Klick-Feedback die
+    // tatsächlich gewonnene Energie aufsteigen lassen kann.
+    const energyBefore = getState().energy;
     dispatch({ type: 'RUN_REACTION', reaction: button.dataset.reaction as ReactionId });
-    playActionFeedback(action, event as MouseEvent);
+    playActionFeedback(action, event as MouseEvent, { energyGained: getState().energy - energyBefore });
     return;
   }
   if (action === 'buy-reaction-automation' && button.dataset.reaction) {
@@ -112,8 +121,16 @@ app.addEventListener('click', (event) => {
     playActionFeedback(action, event as MouseEvent);
     return;
   }
+  if (action === 'buy-reaction-upgrade' && button.dataset.reaction) {
+    dispatch({ type: 'BUY_REACTION_UPGRADE', reaction: button.dataset.reaction as ReactionId });
+    playActionFeedback(action, event as MouseEvent);
+    return;
+  }
   const actions: Record<string, GameAction> = {
-    accrete: { type: 'ACCRETE' }, 'buy-deuterium': { type: 'BUY_DEUTERIUM' }, 'buy-gravity': { type: 'BUY_GRAVITY' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, 'buy-perk-fusion': { type: 'BUY_PERK', perk: 'fusionMemory' }, 'remove-perk-cloud': { type: 'REMOVE_PERK', perk: 'largerCloud' }, 'remove-perk-gravity': { type: 'REMOVE_PERK', perk: 'permanentGravity' }, 'remove-perk-fusion': { type: 'REMOVE_PERK', perk: 'fusionMemory' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
+    // Upgrade-Kaufaktionen kommen generisch aus den Definitionen (Punkt 6):
+    // ein neues Upgrade in content/upgrades.ts braucht hier keine Änderung.
+    ...Object.fromEntries(UPGRADE_ORDER.map((id) => [UPGRADES[id].action, { type: 'BUY_UPGRADE', upgrade: id } satisfies GameAction])),
+    accrete: { type: 'ACCRETE' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, 'buy-perk-fusion': { type: 'BUY_PERK', perk: 'fusionMemory' }, 'remove-perk-cloud': { type: 'REMOVE_PERK', perk: 'largerCloud' }, 'remove-perk-gravity': { type: 'REMOVE_PERK', perk: 'permanentGravity' }, 'remove-perk-fusion': { type: 'REMOVE_PERK', perk: 'fusionMemory' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
   };
   if (actions[action]) { dispatch(actions[action]); playActionFeedback(action, event as MouseEvent); if (action === 'accrete') advanceTutorial('accrete'); }
   if (action === 'export') exportSave();

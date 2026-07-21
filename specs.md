@@ -191,11 +191,27 @@ Implementierte manuelle Reaktionen:
 - Höhere Brennstufen sperren frühere, weiterhin mit Brennstoff versorgte
   Reaktionen nicht. Mehrere Reaktionen können deshalb gleichzeitig verfügbar
   sein.
+- Jede freigeschaltete Reaktion kann direkt auf ihrer Reaktionskarte
+  ausgebaut werden („Reaktionsausbau“): Jede Stufe erhöht die manuelle
+  Fusionsmenge pro Klick um 25 % der Basismenge (linear, acht Stufen,
+  Kostenfaktor 1,9). Die Energie-Basiskosten stehen je Reaktion in der
+  zentralen Reaktionsdefinition und liegen unter den Kosten der zugehörigen
+  Automation. Automatische Raten bleiben vom Reaktionsausbau unberührt;
+  Fusionsgedächtnis wirkt weiterhin multiplikativ auf beides.
+- Beim manuellen Fusionieren steigt als Klick-Feedback die tatsächlich
+  gewonnene Energie auf (z. B. „+68 Energie“); die Reaktionsgleichung steht
+  ohnehin dauerhaft auf der Karte. Die Reaktionskarten werden bei
+  Wertänderungen gezielt aktualisiert statt neu aufgebaut, damit Buttons
+  beim Überfahren nicht flackern und den Fokus behalten.
 
 ### Automationen
 
 - Akkretionsstrom wird ab dem Protostern kaufbar, besitzt acht Stufen, startet
   mit 17 ME/s je Stufe und kostet anfangs 65 Energie bei Kostenfaktor 1,85.
+- Sobald die Urwolke keine Restmaterie mehr enthält, kann der Akkretionsstrom
+  nicht weiter ausgebaut werden; der Kaufbutton zeigt dann „Urwolke
+  erschöpft“. Die Nachschubquelle einer Automation steht deklarativ in ihrer
+  Definition, sodass die Regel für künftige Automationen wiederverwendbar ist.
 - Stabile Wasserstofffusion wird erst zusammen mit der manuellen Reaktion
   sichtbar und nach 5.000 selbst erzeugten He-ME kaufbar. Basisrate 64 H/s,
   Anfangskosten 280 Energie, acht Stufen, Kostenfaktor 1,9.
@@ -223,6 +239,18 @@ Implementierte manuelle Reaktionen:
   relevante Upgrades stehen dahinter.
 - Neue Upgrades benötigen keine eigene Renderfunktion. Neue Zustandsfelder und
   Wirkungen können weiterhin eine Erweiterung des Spielkerns erfordern.
+- Auch der Kauf läuft generisch: Es gibt eine einzige `BUY_UPGRADE`-Aktion,
+  deren Voraussetzungen (Mindestmasse, Temperaturfenster), Kosten, Stufen und
+  Kaufwirkungen vollständig aus der Upgrade-Definition kommen. Besondere
+  Zusatzwirkungen (z. B. das Speichern der Kompressions-Basislinie beim
+  Deuteriumbrennen) referenziert die Definition per Namen aus einem kleinen
+  Effekt-Register der Engine; die Engine kennt keine einzelnen Upgrade-IDs.
+- Dasselbe gilt für stadienabhängige Regeln: Ob der Wolkenwind in einem
+  Stadium bläst und mit welcher Hüllenwind-Rate, steht als Daten-Flag an der
+  jeweiligen Stage-Definition; der Wechsel auf die Hauptreihe nach 15.000
+  fusionierten H-ME steht als Stabilisierungsregel an der
+  Wasserstoff-Reaktionsdefinition. Die Engine prüft nur noch Daten, keine
+  einzelnen Stadien- oder Reaktionsnamen.
 - Deklarative Namen, Texte, Kosten, Schwellenwerte, Raten und Sichtbarkeiten
   liegen nach Fachgebiet in `src/content/`: Ressourcen, Wolken, Reaktionen,
   Automationen, Upgrades, Fortschritt, Ziele/Erfolge, Prestige und Tutorial.
@@ -301,10 +329,36 @@ Implementierte manuelle Reaktionen:
   den Reaktionsdefinitionen erzeugt, ebenso ihre Erfolgstitel. Beim
   Rundenabschluss selbst erscheint kein weiteres Ziel-Banner, da an dessen
   Stelle die Rundenzusammenfassung übernimmt.
+- Der Fortschritt von „Wasserstoffkern zünden“ bildet die strengere der
+  beiden Zündbedingungen ab (10 Mio. K UND 12.000 ME Sternmasse) und steht
+  deshalb nie auf 100 %, solange die Zündung noch aussteht; der Zieltext
+  nennt beide Bedingungen.
+- Jede aktive Brennphase hat ein explizites Ziel „nächsten Kern aufbauen“
+  (z. B. „Heliumkern aufbauen“ auf der Hauptreihe, „Eisenkern aufbauen“ beim
+  Siliziumbrennen), definiert an der jeweiligen Reaktion. Der Fortschritt ist
+  der Anteil des bereits ins Hauptprodukt umgewandelten Brennstoffs (Kern und
+  Restwolke) und erreicht 100 % genau mit der Erschöpfung der Brennstufe.
+- Einmalige Wendepunkt-Warnungen (vormals „Windwarnungen“) sind generische
+  `warning`-Einträge an Zielen bzw. Reaktionen und erscheinen weiterhin im
+  Ziel-Banner. Laufende Verlustprozesse (Sternwind, Hüllenwind) werden
+  dagegen nicht mehr im Urwolken-Panel angezeigt: Ist mindestens eine solche
+  Warnung aktiv, erscheint ein pulsierendes Warnsymbol unten rechts in der
+  Star Chamber; ein Klick öffnet ein Popover mit allen aktiven Warnungen samt
+  aktueller Verlustrate. Der Wolkenwind zählt nur als aktive Warnung, solange
+  die Urwolke noch Materie enthält.
 - Kurzmeldungen werden als gestapelte, automatisch verschwindende Toasts von
   oben eingeblendet.
 - Die Chronik zeigt den aktuellen Entwicklungspfad, bekannte Endzustände und
   ein Sternenlogbuch.
+- Die Stellare Entwicklung (Timeline in Dock und Chronik) zeigt nur den
+  tatsächlich durchlaufenen Weg BIS JETZT plus genau einen offenen
+  „?“-Knoten („Ausgang offen“) — keine Zukunftsprognose, denn der Ausgang
+  hängt vom Verhalten des Spielers ab (Akkretion, Windverluste, Brenntempo).
+  Durchlaufene Stadien werden deterministisch aus dem Spielzustand
+  rekonstruiert (Spitzentemperatur, freigeschaltete Reaktionen,
+  Reaktionssummen), ohne zusätzliche gespeicherte Historie. Die
+  Entwicklungsübersicht der Chronik mit bekannten und unentdeckten
+  Abzweigungen bleibt davon unberührt.
 - Ton, Lautstärke, Tutorialstatus, bekannte Ergebnisse, Statistiken und
   Rundenhistorie werden gespeichert.
 
@@ -316,8 +370,9 @@ Implementierte manuelle Reaktionen:
   Sauerstoff, erzeugte Energie, die je Runde höchste erreichte Kerntemperatur,
   Käufe, Offline-Zeit, Rundendauer und Sternenstaub.
 - Speicherstände der Versionen 1 bis 5 werden normalisiert. Version 5 speichert
-  Reaktionsfreischaltungen, Reaktionssummen, Kontraktionswärme, schwere
-  Elemente und die zusätzlichen Automationen und Endzustände.
+  Reaktionsfreischaltungen, Reaktionssummen, Reaktionsausbau-Stufen,
+  Kontraktionswärme, schwere Elemente und die zusätzlichen Automationen und
+  Endzustände; ältere Spielstände starten mit Ausbaustufe 0 je Reaktion.
 - Jeder neue Reaktions- oder Entwicklungspfad benötigt Engine-Tests für
   Brennstoffverbrauch, Massenerhaltung, Energie, Freischaltungen und Endzustand.
 - Sichtbarkeit, Sortierung, gerundete ME-Anzeigen, mobile Darstellung,

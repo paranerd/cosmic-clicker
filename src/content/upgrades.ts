@@ -1,7 +1,19 @@
-import type { PerkState, Stage, UpgradeState } from '../game/types';
+import type { LogEntry, PerkState, RunStatistics, Stage, UpgradeState } from '../game/types';
 import { ACCRETION, LIMITS, TEMPERATURE_MODEL, THRESHOLDS } from './progression';
 
 export type UpgradeId = keyof UpgradeState;
+
+// Deklarative Kaufwirkung eines Upgrades (Punkt 6): die Engine kennt keine
+// einzelnen Upgrades mehr, sondern führt nur noch aus, was hier hinterlegt
+// ist. `effect` referenziert eine benannte Zusatzwirkung aus dem kleinen
+// Effekt-Register der Engine ('captureCompressionBaseline' speichert die beim
+// Kauf erreichte Kompressionswärme als Basiswert der Deuterium-Beschleunigung,
+// damit die Temperatur nicht rückwirkend springt).
+export interface UpgradePurchaseDefinition {
+  effect?: 'captureCompressionBaseline';
+  log?: { text: string; kind: LogEntry['kind'] };
+  statCounter?: keyof RunStatistics;
+}
 
 interface UpgradeCostDefinition {
   base: number;
@@ -41,6 +53,7 @@ export interface UpgradeDefinition {
   value: UpgradeValueDefinition;
   detail: { inactive: string; active: string };
   button: { purchase: string; locked: string; expired: string; complete: string };
+  purchase?: UpgradePurchaseDefinition;
 }
 
 export const UPGRADES = {
@@ -85,6 +98,11 @@ export const UPGRADES = {
     value: { kind: 'toggle', inactive: 'inaktiv', active: '×1,35' },
     detail: { inactive: 'Einmaliges Upgrade für die Protosternphase', active: 'Erwärmung beschleunigt' },
     button: { purchase: 'Aktivieren', locked: 'Ab 1 Mio. K', expired: 'Phase beendet', complete: 'Aktiv' },
+    purchase: {
+      effect: 'captureCompressionBaseline',
+      log: { text: 'Deuteriumbrennen beschleunigt ab jetzt die weitere Kompressionswärme.', kind: 'fusion' },
+      statCounter: 'deuteriumBurns',
+    },
   },
 } as const satisfies Record<UpgradeId, UpgradeDefinition>;
 
