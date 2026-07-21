@@ -18,6 +18,15 @@ export const formatCompact = (value: number): string => value < 1_000_000
 export const formatMatter = (value: number): string => formatCompact(Math.round(value));
 export const formatSolarMasses = (value: number): string => `${formatNumber(value, 2)} M☉`;
 
+// For small rates (e.g. a faint shell wind well under 1 ME/s), formatMatter's
+// whole-ME rounding collapses the value to "0" while a sign is still shown
+// next to it ("−0 ME/s"). Scale precision up for small values instead.
+export const formatRate = (value: number): string => {
+  if (value < 1) return formatNumber(value, 2);
+  if (value < 10) return formatNumber(value, 1);
+  return formatMatter(value);
+};
+
 export function formatTemperature(value: number): string {
   if (value >= 1_000_000_000) return `${formatNumber(value / 1_000_000_000, 2)} Mrd. K`;
   if (value >= 1_000_000) return `${formatNumber(value / 1_000_000, 2)} Mio. K`;

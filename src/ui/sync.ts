@@ -23,7 +23,7 @@ import {
 } from '../game/engine';
 import type { CloudTier } from '../game/types';
 import { syncDebug } from './debug';
-import { formatCompact, formatDuration, formatMatter, formatNumber, formatSolarMasses, formatTemperature, icons, matterPercent, progress, temperatureScale } from './format';
+import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, matterPercent, progress, temperatureScale } from './format';
 import { markOpportunitiesSeen, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
 import { syncOverlay } from './overlay';
 import { app, getActivePanel, getState, setActivePanel, type Panel } from './store';
@@ -202,10 +202,10 @@ export function updateUI(forcePanel = false): void {
   app.querySelectorAll<HTMLElement>('[data-phase]').forEach((dot) => { const normalizedStage = nodes.length <= 1 ? 7 : Math.round(stageIndex / (nodes.length - 1) * 7); dot.classList.toggle('active', Number(dot.dataset.phase) <= normalizedStage); });
   const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatMatter(remaining)} ME`); setText('cloud-initial', `von ${formatMatter(initialCloud)} ME`); app.querySelector<HTMLElement>('.gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
   const windRate = stellarWindPerSecond(state);
-  setText('wind-rate', windRate > 0 ? `−${formatMatter(windRate)} ME/s` : 'inaktiv');
+  setText('wind-rate', windRate > 0 ? `−${formatRate(windRate)} ME/s` : 'inaktiv');
   app.querySelector<HTMLElement>('[data-ui="wind-status"]')?.classList.toggle('is-active', windRate > 0);
   const shellWindRate = shellWindPerSecond(state);
-  setText('shell-wind-rate', shellWindRate > 0 ? `−${formatMatter(shellWindRate)} ME/s` : 'inaktiv');
+  setText('shell-wind-rate', shellWindRate > 0 ? `−${formatRate(shellWindRate)} ME/s` : 'inaktiv');
   app.querySelector<HTMLElement>('[data-ui="shell-wind-status"]')?.classList.toggle('is-active', shellWindRate > 0);
   const soundButton = app.querySelector<HTMLButtonElement>('[data-action="toggle-sound-menu"]'); if (soundButton) { soundButton.innerHTML = state.soundEnabled ? icons.sound : icons.soundOff; soundButton.ariaLabel = 'Audioeinstellungen öffnen'; }
   const volumeInput = app.querySelector<HTMLInputElement>('[data-action="set-volume"]'); if (volumeInput && Number(volumeInput.value) !== Math.round(state.volume * 100)) volumeInput.value = String(Math.round(state.volume * 100));
