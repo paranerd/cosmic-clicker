@@ -295,7 +295,7 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .evolution-action { background: linear-gradient(90deg, rgba($cyan,.04), transparent 56%); }
 .reaction-equation { display: flex; gap: 9px; align-items: center; margin-top: 10px; color: #9aa7b6; font-family: ui-monospace, monospace; font-size: 9px; }
 .reaction-equation b { color: $amber; font-weight: 400; }
-.primary-action, .secondary-action { min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba($amber,.55); background: linear-gradient(135deg, rgba($amber,.95), rgba($orange,.94)); color: #1b110a; cursor: pointer; transition: .2s; }
+.primary-action, .secondary-action { min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba($amber,.55); background: linear-gradient(135deg, rgba($amber,.95), rgba($orange,.94)); color: #1b110a; cursor: pointer; transition: .2s; touch-action: manipulation; }
 // Punkt 4: Der Fusionsbutton hat bei Automations-/Upgradekarten keine
 // Entsprechung; Abstand zur Gleichung/Beschreibung sowie die volle
 // Kartenbreite (wie beim Zyklus-Ende-Modal, siehe .summary-modal
@@ -375,6 +375,7 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
   border: 1px solid rgba($cyan,.3); border-radius: 3px;
   background: linear-gradient(to top, rgba($cyan,.16) var(--tile-fill), rgba(255,255,255,.03) 0);
   color: #9db8bd; cursor: pointer; transition: border-color .2s ease, color .2s ease;
+  touch-action: manipulation;
 }
 .tile-action-icon { display: flex; }
 .tile-action-icon svg { width: 14px; height: 14px; }
