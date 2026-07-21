@@ -1,4 +1,4 @@
-import { EMPTY_MATTER, LIMITS, MATTER_KEYS, REACTIONS, REACTION_ORDER } from '../content';
+import { CLOUD_GROWTH, EMPTY_MATTER, LIMITS, MATTER_KEYS, REACTIONS, REACTION_ORDER, THRESHOLDS } from '../content';
 import { compressionHeat, createInitialState, createRunStatistics, tick } from './engine';
 import type { CloudTier, GameState, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState } from './types';
 
@@ -16,13 +16,16 @@ type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star'
 
 const normalizeMatter = (matter?: Partial<Matter>): Matter => ({ ...EMPTY_MATTER, ...matter });
 const matterTotal = (matter: Matter): number => MATTER_KEYS.reduce((sum, key) => sum + matter[key], 0);
-const isCloudTier = (value: unknown): value is CloudTier => value === 0 || value === 1 || value === 2;
+const isCloudTier = (value: unknown): value is CloudTier => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
+// Ältere Spielstände kennen keine Wolkenwachstums-Stufe (nur die feste
+// 0/1/2-Wolkenstufe oder gar keine). Die Stufe wird aus der ursprünglichen
+// Gesamtmasse zurückgerechnet, konsistent mit der Verdopplung pro Perk-Stufe.
 const inferCloudTier = (cloud: Matter, star: Matter): CloudTier => {
   const initialMatter = matterTotal(cloud) + matterTotal(star);
-  if (initialMatter <= 20_000) return 0;
-  if (initialMatter <= 100_000) return 1;
-  return 2;
+  const baseMatter = CLOUD_GROWTH.baseSolarMasses * THRESHOLDS.matterPerSolarMass;
+  if (initialMatter <= baseMatter) return 0;
+  return Math.max(0, Math.round(Math.log(initialMatter / baseMatter) / Math.log(CLOUD_GROWTH.growthFactorPerLevel)));
 };
 
 const normalizeOutcome = (value: unknown, legacyCompleted: boolean): StellarOutcome | null => {
@@ -39,16 +42,16 @@ export const normalizeGameState = (value: unknown): GameState | null => {
   const star = normalizeMatter(parsed.star);
   const cloudTier = isCloudTier(parsed.cloudTier) ? parsed.cloudTier : inferCloudTier(cloud, star);
   const perks: PerkState = {
-    largerCloud: Math.max(0, Math.min(LIMITS.cloudTier, parsed.perks?.largerCloud ?? 0)),
+    largerCloud: Math.max(0, Math.min(LIMITS.cloudGrowthLevel, parsed.perks?.largerCloud ?? 0)),
     permanentGravity: Math.max(0, Math.min(LIMITS.permanentGravity, parsed.perks?.permanentGravity ?? 0)),
     fusionMemory: Math.max(0, Math.min(LIMITS.fusionMemory, parsed.perks?.fusionMemory ?? 0)),
   };
   const pendingPerks: PerkState = {
-    largerCloud: Math.max(0, Math.min(LIMITS.cloudTier - perks.largerCloud, parsed.pendingPerks?.largerCloud ?? 0)),
+    largerCloud: Math.max(0, Math.min(LIMITS.cloudGrowthLevel - perks.largerCloud, parsed.pendingPerks?.largerCloud ?? 0)),
     permanentGravity: Math.max(0, Math.min(LIMITS.permanentGravity - perks.permanentGravity, parsed.pendingPerks?.permanentGravity ?? 0)),
     fusionMemory: Math.max(0, Math.min(LIMITS.fusionMemory - perks.fusionMemory, parsed.pendingPerks?.fusionMemory ?? 0)),
   };
-  const unlockedTier = Math.min(LIMITS.cloudTier, perks.largerCloud + pendingPerks.largerCloud) as CloudTier;
+  const unlockedTier = Math.min(LIMITS.cloudGrowthLevel, perks.largerCloud + pendingPerks.largerCloud) as CloudTier;
   const nextCloudTier = isCloudTier(parsed.nextCloudTier) && parsed.nextCloudTier <= unlockedTier ? parsed.nextCloudTier : unlockedTier;
   const fallback = createInitialState(perks, parsed.stardust, parsed.run, { cloudTier, nextCloudTier });
   const legacyCompleted = Boolean(parsed.completed);
@@ -67,7 +70,7 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     run: record.run ?? 1,
     duration: record.duration ?? 0,
     finalMass: record.finalMass ?? 0,
-    cloudTier: isCloudTier(record.cloudTier) ? record.cloudTier : 1,
+    cloudTier: isCloudTier(record.cloudTier) ? record.cloudTier : 0,
     outcome: normalizeOutcome(record.outcome, true) ?? 'legacyMainSequence',
   })) : [];
   const discoveredOutcomes: StellarOutcome[] = Array.isArray(parsed.discoveredOutcomes)

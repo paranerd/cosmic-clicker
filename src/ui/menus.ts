@@ -1,5 +1,5 @@
-import { CLOUD_TIERS, LIMITS } from '../content';
-import { cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost } from '../game/engine';
+import { LIMITS } from '../content';
+import { cloudDefinition, cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost } from '../game/engine';
 import { app, getState } from './store';
 
 let resetMenuOpen = false;
@@ -53,7 +53,7 @@ export function setSoundMenuOpen(open: boolean): void {
 export function hasAffordableSummaryPerk(): boolean {
   const state = getState();
   const perks = effectivePerks(state);
-  return perks.largerCloud < LIMITS.cloudTier && state.stardust >= cloudTierCost(perks.largerCloud)
+  return perks.largerCloud < LIMITS.cloudGrowthLevel && state.stardust >= cloudTierCost(perks.largerCloud)
     || perks.permanentGravity < LIMITS.permanentGravity && state.stardust >= gravityPerkCost(perks.permanentGravity)
     || perks.fusionMemory < LIMITS.fusionMemory && state.stardust >= fusionPerkCost(perks.fusionMemory);
 }
@@ -79,7 +79,7 @@ export function clearPrestigeConfirmation(): void {
   const button = app.querySelector<HTMLButtonElement>('[data-action="prestige"]');
   if (!button) return;
   button.classList.remove('is-confirming');
-  button.textContent = `Mit ${CLOUD_TIERS[getState().nextCloudTier].name} beginnen`;
+  button.textContent = `Mit ${cloudDefinition(getState().nextCloudTier).name} beginnen`;
 }
 
 export function armPrestigeConfirmation(): void {

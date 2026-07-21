@@ -120,9 +120,16 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByText('Automatische Akkretion', { exact: true })).toHaveCount(0);
   await expect(page.locator('.left-panel .cloud-stats')).toContainText('Urwolke');
   await expect(page.locator('.cloud-mini-gauge [data-ui="cloud-percent"]')).toHaveText('100%');
-  await expect(page.locator('[data-cloud-matter="hydrogen"]')).toContainText('10.490');
-  await expect(page.locator('[data-cloud-matter="helium"]')).toBeHidden();
-  await expect(page.locator('[data-cloud-matter="deuterium"]')).toBeHidden();
+  // The smallest cloud now shares the same realistic primordial composition
+  // as every other cloud size (~75 % H, ~25 % He, a small D trace) instead of
+  // a hydrogen-only special case.
+  await expect(page.locator('[data-cloud-matter="hydrogen"]')).toContainText('7.867');
+  await expect(page.locator('[data-cloud-matter="helium"]')).toBeVisible();
+  await expect(page.locator('[data-cloud-matter="helium"]')).toContainText('2.622');
+  // Deuterium is intentionally never shown in the composition grid
+  // (RESOURCES.deuterium.visibleInComposition is false), independent of the
+  // cloud's actual composition.
+  await expect(page.locator('[data-cloud-matter="deuterium"]')).toHaveCount(0);
   await expect(page.locator('.chronicle-dock')).toBeVisible();
   await expect(page.locator('.star-chamber .orbit')).toHaveCount(0);
   await expect.poll(() => page.locator('.star-chamber').evaluate((element) => [
@@ -658,12 +665,13 @@ test('multiple perk levels can be staged and deselected before prestige', async 
   await cloudPerk.getByRole('button', { name: '+2 ✦' }).click();
   await cloudPerk.getByRole('button', { name: '+5 ✦' }).click();
   await expect(cloudPerk).toContainText('+2 gewählt');
-  await expect(summary.getByRole('button', { name: 'Massereich Supernova' })).toBeVisible();
+  await expect(summary.locator('.cloud-slider input[type="range"]')).toHaveValue('2');
+  await expect(summary.locator('.cloud-slider-summary')).toContainText('Stellare Urwolke');
   await expect(page.locator('[data-ui="stardust"]')).toHaveText('0');
 
   await cloudPerk.getByRole('button', { name: 'Wolkenwachstum abwählen' }).click();
   await expect(cloudPerk).toContainText('+1 gewählt');
-  await expect(summary.getByRole('button', { name: 'Massereich Supernova' })).toHaveCount(0);
+  await expect(summary.locator('.cloud-slider input[type="range"]')).toHaveAttribute('max', '1');
   await expect(page.locator('[data-ui="stardust"]')).toHaveText('5');
 
   await summary.getByRole('button', { name: 'Mit Stellare Urwolke beginnen' }).click();
@@ -713,7 +721,8 @@ test('the first brown dwarf reward unlocks the stellar cloud for cycle two', asy
   await expect(summary).toContainText('Brauner Zwerg');
   const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenwachstum' });
   await cloudPerk.getByRole('button', { name: '+2 ✦' }).click();
-  await expect(summary.getByRole('button', { name: 'Stellar Weißer Zwerg' })).toBeVisible();
+  await expect(summary.locator('.cloud-slider-summary')).toContainText('Stellare Urwolke');
+  await expect(summary.locator('.cloud-slider-summary')).toContainText('Weißer Zwerg');
   await summary.getByRole('button', { name: 'Mit Stellare Urwolke beginnen' }).click();
 
   await expect(page.locator('[data-ui="cloud-name"]')).toHaveText('Stellare Urwolke');

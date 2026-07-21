@@ -4,7 +4,7 @@ Ein responsives Browser-Spiel über die Entstehung und Entwicklung eines Sterns 
 
 ## Enthalten
 
-- Physikalisch neu kalibrierte Urwolken von 0,07 bis 25 Sonnenmassen
+- Stufenloses, prozentuales Wolkenwachstum ab einer kalibrierten 0,07-Sonnenmassen-Urwolke mit realistischer, einheitlicher Ur-Zusammensetzung
 - Aktive und automatische Akkretion
 - Temperatur- und Druckentwicklung durch gravitative Kontraktion
 - Deuteriumbrennen als zeitlich begrenztes Upgrade sowie eine konfigurationsgetriebene Brennkette von Wasserstoff bis zur Eisengruppe

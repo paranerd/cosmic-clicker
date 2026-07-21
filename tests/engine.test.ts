@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLOUD_TIERS, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, LATE_SHELL_WIND_STAGES, REACTIONS, REACTION_ORDER, THRESHOLDS } from '../src/content';
+import { CLOUD_GROWTH, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, LATE_SHELL_WIND_STAGES, REACTIONS, REACTION_ORDER, THRESHOLDS } from '../src/content';
 import {
   accretionPerClick,
   calculateTemperature,
@@ -14,7 +14,7 @@ import {
   structuralHydrogenBurnPerSecond,
   tick,
 } from '../src/game/engine';
-import type { CloudTier, GameState, ReactionId } from '../src/game/types';
+import type { GameState, Matter, ReactionId } from '../src/game/types';
 
 const accreteUntil = (initial: GameState, targetMass: number, guardLimit = 20_000): GameState => {
   let state = initial;
@@ -41,13 +41,26 @@ const reactionState = (reaction: ReactionId, fuel = 1_000): GameState => {
   return state;
 };
 
+// Realistic primordial composition for an arbitrary target mass, independent
+// of any particular cloud-growth level — the structural main-sequence burn
+// model (Punkt 6) is calibrated against physical solar masses, not against
+// whichever perk level happens to unlock that mass.
+const cloudMatterForSolarMasses = (targetSolarMasses: number): Matter => {
+  const total = targetSolarMasses * THRESHOLDS.matterPerSolarMass;
+  const deuterium = total * CLOUD_GROWTH.deuteriumMassFraction;
+  const remaining = total - deuterium;
+  const helium = remaining * CLOUD_GROWTH.heliumMassFraction;
+  const hydrogen = remaining - helium;
+  return { ...EMPTY_MATTER, hydrogen, helium, deuterium };
+};
+
 // Punkt 6: a star that just crossed the 15,000-fused-H main-sequence
 // milestone with the cloud's full composition already accreted, no residual
 // cloud left and no purchased fusion automation — the deterministic floor
 // case for structural hydrogen burn and its calibrated duration.
-const mainSequenceState = (tier: CloudTier): GameState => {
-  const state = createInitialState({ largerCloud: tier }, 0, tier + 1, { cloudTier: tier });
-  const full = CLOUD_TIERS[tier].matter;
+const mainSequenceState = (targetSolarMasses: number): GameState => {
+  const state = createInitialState();
+  const full = cloudMatterForSolarMasses(targetSolarMasses);
   const fused = THRESHOLDS.mainSequenceHydrogen;
   state.star = {
     ...EMPTY_MATTER,
@@ -64,8 +77,8 @@ const mainSequenceState = (tier: CloudTier): GameState => {
   return state;
 };
 
-const mainSequenceDurationSeconds = (tier: CloudTier, guardSeconds = 20 * 60): number => {
-  let state = mainSequenceState(tier);
+const mainSequenceDurationSeconds = (targetSolarMasses: number, guardSeconds = 20 * 60): number => {
+  let state = mainSequenceState(targetSolarMasses);
   let seconds = 0;
   while (state.stage === 'mainSequence' && seconds < guardSeconds) {
     state = tick(state, 1);
@@ -75,13 +88,15 @@ const mainSequenceDurationSeconds = (tier: CloudTier, guardSeconds = 20 * 60): n
 };
 
 describe('data-driven stellar engine v0.4', () => {
-  it('uses the calibrated solar-mass scale and cloud masses', () => {
+  it('doubles the cloud size with every purchased Wolkenwachstum level from a calibrated 0.07 solar-mass base', () => {
     const small = createInitialState();
-    const stellar = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
-    const massive = createInitialState({ largerCloud: 2 }, 0, 3, { cloudTier: 2 });
-    expect(cloudMass(small) / THRESHOLDS.matterPerSolarMass).toBeCloseTo(.07, 5);
-    expect(cloudMass(stellar) / THRESHOLDS.matterPerSolarMass).toBeCloseTo(1, 5);
-    expect(cloudMass(massive) / THRESHOLDS.matterPerSolarMass).toBeCloseTo(25, 5);
+    const oneLevelUp = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
+    expect(cloudMass(small) / THRESHOLDS.matterPerSolarMass).toBeCloseTo(cloudSolarMasses(0), 5);
+    expect(cloudSolarMasses(0)).toBeCloseTo(.07, 5);
+    expect(cloudMass(oneLevelUp) / THRESHOLDS.matterPerSolarMass).toBeCloseTo(cloudSolarMasses(1), 5);
+    expect(cloudSolarMasses(1)).toBeCloseTo(.14, 5);
+    expect(cloudSolarMasses(4)).toBeCloseTo(1.12, 5);
+    expect(cloudSolarMasses(9)).toBeCloseTo(35.84, 5);
   });
 
   it('forms a protostar after roughly fifty impulses', () => {
@@ -107,7 +122,7 @@ describe('data-driven stellar engine v0.4', () => {
   });
 
   it('ends the 0.07 solar-mass cloud as a rewarded brown dwarf', () => {
-    const state = accreteUntil(createInitialState(), CLOUD_TIERS[0].matter.hydrogen + CLOUD_TIERS[0].matter.deuterium);
+    const state = accreteUntil(createInitialState(), cloudMass(createInitialState()));
     expect(state.completed).toBe(true);
     expect(state.outcome).toBe('brownDwarf');
     expect(state.stardust).toBe(2);
@@ -254,7 +269,7 @@ describe('data-driven stellar engine v0.4', () => {
 
   it('scales mature accretion with larger calibrated clouds', () => {
     const small = createInitialState();
-    const massive = createInitialState({ largerCloud: 2 }, 0, 3, { cloudTier: 2 });
+    const massive = createInitialState({ largerCloud: 9 }, 0, 3, { cloudTier: 9 });
     massive.unlockedReactions.push('hydrogen');
     expect(accretionPerClick(massive)).toBeGreaterThan(accretionPerClick(small) * 100);
   });
@@ -297,12 +312,12 @@ describe('data-driven stellar engine v0.4', () => {
     });
 
     it('runs the 25 solar-mass main sequence three to five times faster than the 1 solar-mass one', () => {
-      const factor = mainSequenceDurationSeconds(1) / mainSequenceDurationSeconds(2);
+      const factor = mainSequenceDurationSeconds(1) / mainSequenceDurationSeconds(25);
       expect(factor).toBeGreaterThanOrEqual(3);
       expect(factor).toBeLessThanOrEqual(5);
       // per-second structural burn rate itself must scale super-linearly with mass
       // (α > 1) for the compressed 3–5× factor to emerge at all.
-      expect(structuralHydrogenBurnPerSecond(mainSequenceState(2))).toBeGreaterThan(structuralHydrogenBurnPerSecond(mainSequenceState(1)) * 3);
+      expect(structuralHydrogenBurnPerSecond(mainSequenceState(25))).toBeGreaterThan(structuralHydrogenBurnPerSecond(mainSequenceState(1)) * 3);
     });
 
     it('keeps the shell wind inactive before the main sequence and only removes H/He afterward', () => {

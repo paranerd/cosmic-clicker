@@ -68,12 +68,30 @@ konkretere Festlegung in diesem Abschnitt.
 
 ### Aktuelle Urwolken
 
-| Stufe | Name | Ausgangsmaterie | Spielerischer Zweck |
-| --- | --- | --- | --- |
-| 0 | Kleine Urwolke | 10.490 H, implizit 10 D = 0,07 M☉ | Reicht ohne künstliche Rundengrenze nicht bis zum Wasserstoffbrennen; entdeckt typischerweise den Braunen Zwerg |
-| 1 | Stellare Urwolke | 105.000 H, 44.800 He, implizit 200 D = 1 M☉ | Sonnenähnlicher Entwicklungsweg und Weißer Zwerg |
-| 2 | Massereiche Urwolke | 2.625.000 H, 1.123.000 He, implizit 2.000 D = 25 M☉ | Vollständige schwere Brennkette, Supernova und kompakter Rest |
-
+- Die Urwolke wächst stufenlos über den Perk „Wolkenwachstum“: Jede gekaufte
+  Stufe verdoppelt die Wolkenmasse gegenüber der vorherigen Stufe
+  (+100 % pro Stufe), ausgehend von einer kalibrierten Basisgröße von
+  0,07 M☉. Der Perk ist beliebig oft kaufbar; es gibt keine feste Obergrenze
+  von wenigen Wolkengrößen mehr.
+- Die Elementverteilung ist für jede Wolkengröße einheitlich aus einer
+  realistischen Ur-Zusammensetzung abgeleitet (~75 % Wasserstoff, ~25 % Helium
+  nach Masse, dazu ein kleiner Deuterium-Spurenanteil) und wird nicht mehr für
+  einzelne Stufen fest als absolute Zahl hinterlegt. Auch die kleinste Wolke
+  enthält dadurch bereits etwas Helium; der frühere Sonderfall „nur
+  Wasserstoff“ entfällt.
+- Zur Einordnung im Spiel wird die aktuelle Wolkengröße einem von drei
+  Entwicklungspfaden zugeordnet, der sich rein aus der tatsächlichen
+  Wolkenmasse ergibt (nicht aus einer künstlich vergebenen Stufennummer):
+  „Kleine Urwolke“ unterhalb der Zündmasse für Wasserstoffbrennen (typischer
+  Ausgang: Brauner Zwerg), „Stellare Urwolke“ bis zur Zündmasse für
+  Kohlenstoffbrennen (typischer Ausgang: Weißer Zwerg) und „Massereiche
+  Urwolke“ darüber (öffnet Supernova, Neutronenstern und Schwarzes Loch).
+- Beim Rundenwechsel wählt ein Schieberegler stufenlos zwischen der kleinsten
+  und der zuletzt freigeschalteten Wolkengröße; bereits freigeschaltete
+  kleinere Wolken bleiben so weiterhin auswählbar.
+- Die manuelle und automatische Akkretion mit gezündetem Wasserstoff
+  skaliert als Formel mit der tatsächlichen Wolkenmasse (kalibriert auf
+  ×6,25 bei 1 M☉ und ×187,5 bei 25 M☉) statt als feste Tabelle je Stufe.
 - Jede neue Runde startet mit einer vom Spieler bereits freigeschalteten
   Wolkengröße. Freigeschaltete kleinere Wolken bleiben auswählbar.
 - Der Sternwind setzt mit der Bildung des Protosterns ein und entfernt pro
@@ -401,10 +419,10 @@ Festgelegte Progression:
 - Jedes vollständig neue Spiel beginnt mit derselben kleinen Wasserstoffwolke bei 10 K. Isotope wie Deuterium werden nicht separat ausgewiesen.
 - Jede Runde beginnt ergebnisoffen. Entwicklungsstufen werden ausschließlich aus Masse, Temperatur, Zusammensetzung und Reaktionen abgeleitet; es gibt keinen Sonderfall, der den ersten Zyklus auf einen Braunen Zwerg begrenzt.
 - Die kleine Ausgangswolke enthält implizit zu wenig Wasserstoff, um 10 Mio. K und damit dauerhaftes Wasserstoffbrennen zu erreichen. Wird eine Wolke vor der Zündung vollständig gebunden, entsteht daraus ein Brauner Zwerg.
-- Der Braune Zwerg gilt als erste erfolgreiche Entdeckung, nicht als Niederlage. Er gewährt garantiert genug Sternenstaub für die nächste Wolkenstufe.
-- Der permanente Perk „Wolkenwachstum“ schaltet nacheinander eine stellare und eine massereiche Urwolke frei. Bereits freigeschaltete Größen bleiben für spätere Zyklen auswählbar.
-- Die stellare Urwolke ermöglicht den Pfad über Wasserstoffbrennen, Hauptreihe, Roten Riesen, Heliumbrennen und einen Kohlenstoff-Sauerstoff-Kern bis zum Weißen Zwerg.
-- Die massereiche Urwolke führt nach den detaillierten Wasserstoff- und Heliumphasen über Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen zur Supernova. Die akkretierte Endmasse entscheidet zwischen Neutronenstern und Schwarzem Loch.
+- Der Braune Zwerg gilt als erste erfolgreiche Entdeckung, nicht als Niederlage. Er gewährt garantiert genug Sternenstaub für die erste Stufe des Wolkenwachstums.
+- Der permanente Perk „Wolkenwachstum“ vergrößert die Urwolke prozentual in beliebig vielen Stufen, statt eine feste Anzahl Wolkengrößen freizuschalten. Bereits freigeschaltete Größen bleiben für spätere Zyklen über den Schieberegler auswählbar.
+- Sobald die Wolkenmasse für Kohlenstoffbrennen ausreicht, ermöglicht sie den vollständigen Pfad über Wasserstoffbrennen, Hauptreihe, Roten Riesen, Heliumbrennen und einen Kohlenstoff-Sauerstoff-Kern bis zum Weißen Zwerg.
+- Reicht die Wolkenmasse zusätzlich für Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen, führt der Weg zur Supernova. Die akkretierte Endmasse entscheidet zwischen Neutronenstern und Schwarzem Loch.
 - Heliumbrennen wird als Triple-Alpha-Prozess umgesetzt. Kohlenstoff und Sauerstoff sind sichtbare, gespeicherte Kernressourcen; Sauerstoff entsteht durch Alpha-Einfang an Kohlenstoff.
 - Kohlenstoff-, Neon-, Sauerstoff- und Siliziumbrennen besitzen eigene Ressourcen, Reaktionskarten und Automationen.
 - Der bestehende Sternenstaub bleibt die einzige Prestige-Währung. Der Vermächtnis-Baum erhält die Äste Wolkenwachstum, Akkretion und Fusion.

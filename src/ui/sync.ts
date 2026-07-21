@@ -1,6 +1,5 @@
 import {
   AUTOMATION_ORDER,
-  CLOUD_TIERS,
   DISPLAY_MATTER_KEYS,
   INITIAL_TEMPERATURE,
   MATTER_KEYS,
@@ -13,6 +12,7 @@ import {
 import {
   accretionPerClick,
   accretionPerSecond,
+  cloudDefinition,
   cloudMass,
   objectiveFor,
   pressureProgress,
@@ -21,7 +21,6 @@ import {
   starMass,
   stellarWindPerSecond,
 } from '../game/engine';
-import type { CloudTier } from '../game/types';
 import { syncDebug } from './debug';
 import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, matterPercent, progress, temperatureScale } from './format';
 import { markOpportunitiesSeen, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
@@ -81,7 +80,7 @@ export function renderShell(): void {
         </aside>
       </section>
 
-      <section class="chronicle-dock"><div class="dock-timeline"><div class="section-label"><span>Stellare Entwicklung</span><small>PFAD ${state.cloudTier + 1}</small></div><div class="timeline" data-ui="dock-timeline">${timelineMarkup()}</div></div><div class="dock-log"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list" data-ui="dock-log">${logMarkup(2)}</div></div><button class="chronicle-expand" data-action="open-chronicle" aria-label="Chronik öffnen">↗</button></section>
+      <section class="chronicle-dock"><div class="dock-timeline"><div class="section-label"><span>Stellare Entwicklung</span><small>${cloudDefinition(state.cloudTier).shortName.toUpperCase()} · ≈ ${formatSolarMasses(cloudDefinition(state.cloudTier).solarMasses)}</small></div><div class="timeline" data-ui="dock-timeline">${timelineMarkup()}</div></div><div class="dock-log"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list" data-ui="dock-log">${logMarkup(2)}</div></div><button class="chronicle-expand" data-action="open-chronicle" aria-label="Chronik öffnen">↗</button></section>
     </main>
 
     <footer><span>COSMIC CLICKER · PROTOTYP 0.3</span><p>Wissenschaftlich plausibel · spielerisch komprimiert</p><button data-action="import">Spielstand importieren</button><input id="save-import" type="file" accept="application/json" hidden /></footer>
@@ -162,13 +161,14 @@ export function updateUI(forcePanel = false): void {
   const mass = starMass(state);
   const remaining = cloudMass(state);
   const starTotal = Math.max(1, mass);
-  const initialCloud = MATTER_KEYS.reduce((sum, key) => sum + CLOUD_TIERS[state.cloudTier].matter[key], 0);
+  const currentCloudDefinition = cloudDefinition(state.cloudTier);
+  const initialCloud = MATTER_KEYS.reduce((sum, key) => sum + currentCloudDefinition.matter[key], 0);
   const scale = temperatureScale(state.temperature);
   const nodes = timelineNodes();
   const stageIndex = Math.max(0, nodes.findIndex(([stage]) => stage === state.stage));
   const stageChanged = state.stage !== lastStage;
 
-  setText('run', `ZYKLUS ${state.run.toString().padStart(2, '0')}`); setText('stardust', formatNumber(state.stardust)); setText('elapsed', formatDuration(state.elapsed)); setText('cloud-perk-name', CLOUD_TIERS[state.perks.largerCloud as CloudTier].name); setText('gravity-perk-level', String(state.perks.permanentGravity)); setText('fusion-perk-level', String(state.perks.fusionMemory));
+  setText('run', `ZYKLUS ${state.run.toString().padStart(2, '0')}`); setText('stardust', formatNumber(state.stardust)); setText('elapsed', formatDuration(state.elapsed)); setText('cloud-perk-name', cloudDefinition(state.perks.largerCloud).name); setText('gravity-perk-level', String(state.perks.permanentGravity)); setText('fusion-perk-level', String(state.perks.fusionMemory));
   setText('objective-eyebrow', objective.eyebrow); setText('objective-title', objective.title); setText('objective-detail', objective.detail); setText('objective-percent', `${formatNumber(objective.progress, 1)}%`); setWidth('objective-bar', objective.progress);
   syncObjectiveAchievement(objective);
   setText('temperature', formatTemperature(state.temperature)); setText('temperature-max', scale.label); app.querySelector<HTMLElement>('[data-ui="temperature-bar"]')?.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
@@ -180,13 +180,11 @@ export function updateUI(forcePanel = false): void {
     setText(`cloud-${key}`, formatMatter(state.cloud[key]));
     const coreElement = app.querySelector<HTMLElement>(`[data-matter="${key}"]`);
     const cloudElement = app.querySelector<HTMLElement>(`[data-cloud-matter="${key}"]`);
-    if (coreElement) coreElement.hidden = state.star[key] <= 0 && CLOUD_TIERS[state.cloudTier].matter[key] <= 0;
-    if (cloudElement) cloudElement.hidden = CLOUD_TIERS[state.cloudTier].matter[key] <= 0;
+    if (coreElement) coreElement.hidden = state.star[key] <= 0 && currentCloudDefinition.matter[key] <= 0;
+    if (cloudElement) cloudElement.hidden = currentCloudDefinition.matter[key] <= 0;
   });
-  const hydrogenOnly = state.cloudTier === 0;
-  app.querySelector('.cloud-elements')?.classList.toggle('hydrogen-only', hydrogenOnly);
-  app.querySelectorAll<HTMLElement>('[data-auto-particle]').forEach((particle, index) => { particle.textContent = hydrogenOnly || index % 5 !== 4 ? 'H' : 'He'; });
-  setText('stage', STAGE_LABELS[state.stage]); setText('stage-detail', STAGES[state.stage].detail); setText('cloud-name', CLOUD_TIERS[state.cloudTier].name);
+  app.querySelectorAll<HTMLElement>('[data-auto-particle]').forEach((particle, index) => { particle.textContent = index % 5 !== 4 ? 'H' : 'He'; });
+  setText('stage', STAGE_LABELS[state.stage]); setText('stage-detail', STAGES[state.stage].detail); setText('cloud-name', currentCloudDefinition.name);
   const star = app.querySelector<HTMLButtonElement>('.star-button');
   if (star) {
     star.className = `star-button stage-${state.stage}`;

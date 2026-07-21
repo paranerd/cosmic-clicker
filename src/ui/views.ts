@@ -2,7 +2,9 @@ import {
   ACCRETION,
   AUTOMATIONS,
   AUTOMATION_ORDER,
-  CLOUD_TIERS,
+  CLOUD_PATH_ORDER,
+  cloudGrowthPath,
+  cloudPathName,
   OUTCOME_LABELS,
   REACTIONS,
   REACTION_ORDER,
@@ -10,12 +12,14 @@ import {
   UPGRADE_ORDER,
   UPGRADES,
   type AutomationKind,
+  type CloudGrowthPath,
   type UpgradeDefinition,
   type UpgradeId,
 } from '../content';
 import {
   automationCost,
   accretionPerClick,
+  cloudDefinition,
   reactionAutomationPerSecond,
   reactionAvailable,
   reactionCapacity,
@@ -211,19 +215,21 @@ function automationCard(kind: AutomationKind): string {
 
 export function timelineNodes(tier: CloudTier = getState().cloudTier): [Stage, string, string][] {
   const state = getState();
+  const definition = cloudDefinition(tier);
   const formation: [Stage, string, string][] = [
-    ['nebula', 'Urwolke', CLOUD_TIERS[tier].shortName],
+    ['nebula', 'Urwolke', definition.shortName],
     ['protostar', 'Protostern', '100.000 K'],
     ['deuterium', 'D-Brennen', '1 Mio. K'],
   ];
-  if (tier === 0) return [...formation, ['brownDwarf', state.completed ? 'Brauner Zwerg' : 'Sternentwicklung', state.completed ? 'Nicht gezündet' : 'Ausgang offen']];
+  const path = cloudGrowthPath(definition.solarMasses);
+  if (path === 'brownDwarf') return [...formation, ['brownDwarf', state.completed ? 'Brauner Zwerg' : 'Sternentwicklung', state.completed ? 'Nicht gezündet' : 'Ausgang offen']];
   const stellar: [Stage, string, string][] = [
     ['hydrogen', REACTIONS.hydrogen.title, formatTemperature(REACTIONS.hydrogen.ignitionTemperature)],
     ['mainSequence', 'Hauptreihe', 'H bleibt aktiv'],
     ['redGiant', 'Roter Riese', 'Kernkontraktion'],
     ['helium', REACTIONS.helium.title, formatTemperature(REACTIONS.helium.ignitionTemperature)],
   ];
-  if (tier === 1) return [...formation, ...stellar, ['whiteDwarf', 'Weißer Zwerg', 'Masse entscheidet']];
+  if (path === 'stellar') return [...formation, ...stellar, ['whiteDwarf', 'Weißer Zwerg', 'Masse entscheidet']];
   const heavy = (['carbon', 'neon', 'oxygen', 'silicon'] as const).map((id): [Stage, string, string] => [
     REACTIONS[id].stageOnUnlock,
     REACTIONS[id].title,
@@ -242,22 +248,26 @@ export function timelineMarkup(): string {
 export function evolutionMapMarkup(): string {
   const state = getState();
   const discovered = new Set(state.discoveredOutcomes);
-  const branch = (tier: CloudTier, outcome: StellarOutcome, detail: string) => {
-    const unlocked = tier <= state.perks.largerCloud;
+  const maxUnlockedSolarMasses = cloudDefinition(state.perks.largerCloud).solarMasses;
+  const maxUnlockedPath = cloudGrowthPath(maxUnlockedSolarMasses);
+  const currentPath = cloudGrowthPath(cloudDefinition(state.cloudTier).solarMasses);
+  const branch = (path: CloudGrowthPath, outcome: StellarOutcome, detail: string) => {
+    const unlocked = CLOUD_PATH_ORDER.indexOf(maxUnlockedPath) >= CLOUD_PATH_ORDER.indexOf(path);
     const known = discovered.has(outcome);
-    const current = state.cloudTier === tier;
-    return `<article class="evolution-branch ${unlocked ? 'is-unlocked' : 'is-locked'} ${known ? 'is-discovered' : ''} ${current ? 'is-current' : ''}"><span>WOLKE ${tier + 1}</span><h3>${unlocked ? CLOUD_TIERS[tier].name : 'Unbekannte Wolke'}</h3><p>${unlocked ? detail : 'Über Wolkenwachstum freischalten.'}</p><strong>${known ? `Entdeckt: ${OUTCOME_LABELS[outcome]}` : unlocked ? 'Noch nicht entdeckt' : 'Gesperrt'}</strong></article>`;
+    const current = currentPath === path;
+    const label = cloudPathName(path);
+    return `<article class="evolution-branch ${unlocked ? 'is-unlocked' : 'is-locked'} ${known ? 'is-discovered' : ''} ${current ? 'is-current' : ''}"><span>${label.shortName.toUpperCase()}</span><h3>${unlocked ? label.name : 'Unbekannte Wolke'}</h3><p>${unlocked ? detail : 'Über Wolkenwachstum freischalten.'}</p><strong>${known ? `Entdeckt: ${OUTCOME_LABELS[outcome]}` : unlocked ? 'Noch nicht entdeckt' : 'Gesperrt'}</strong></article>`;
   };
   return `<div class="evolution-map">
-    ${branch(0, 'brownDwarf', 'Unterhalb der Zündmasse → Brauner Zwerg')}
+    ${branch('brownDwarf', 'brownDwarf', 'Unterhalb der Zündmasse → Brauner Zwerg')}
     <div class="massive-branches">
-      ${branch(1, 'heliumWhiteDwarf', 'Wasserstoff endet früh → Helium-Weißer-Zwerg')}
-      ${branch(1, 'whiteDwarf', 'Heliumbrennen → Kohlenstoff-Sauerstoff-Weißer-Zwerg')}
+      ${branch('stellar', 'heliumWhiteDwarf', 'Wasserstoff endet früh → Helium-Weißer-Zwerg')}
+      ${branch('stellar', 'whiteDwarf', 'Heliumbrennen → Kohlenstoff-Sauerstoff-Weißer-Zwerg')}
     </div>
     <div class="massive-branches">
-      ${branch(2, 'oxygenNeonWhiteDwarf', 'Fortgeschrittenes Brennen stoppt → O/Ne-Weißer-Zwerg')}
-      ${branch(2, 'neutronStar', 'Eisenkern kollabiert → Neutronenstern')}
-      ${branch(2, 'blackHole', 'Sehr massereicher Eisenkern → Schwarzes Loch')}
+      ${branch('massive', 'oxygenNeonWhiteDwarf', 'Fortgeschrittenes Brennen stoppt → O/Ne-Weißer-Zwerg')}
+      ${branch('massive', 'neutronStar', 'Eisenkern kollabiert → Neutronenstern')}
+      ${branch('massive', 'blackHole', 'Sehr massereicher Eisenkern → Schwarzes Loch')}
     </div>
   </div>`;
 }

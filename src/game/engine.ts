@@ -2,7 +2,11 @@ import {
   ACCRETION,
   AUTOMATIONS,
   AUTOMATION_ORDER,
-  CLOUD_TIERS,
+  cloudDefinitionForLevel,
+  cloudMassForLevel,
+  cloudMatterForLevel,
+  cloudMatureAccretionMultiplier,
+  cloudSolarMasses,
   DEUTERIUM_TEMPERATURE_MULTIPLIER,
   DEUTERIUM_UPGRADE_COST,
   EMPTY_MATTER,
@@ -47,12 +51,12 @@ const END_STAGES: Record<Exclude<StellarOutcome, 'legacyMainSequence'>, Stage> =
 };
 
 const totalMatter = (matter: Matter): number => MATTER_KEYS.reduce((sum, key) => sum + matter[key], 0);
-const clampCloudTier = (tier: number): CloudTier => Math.max(0, Math.min(LIMITS.cloudTier, Math.floor(tier))) as CloudTier;
+const clampCloudTier = (tier: number): CloudTier => Math.max(0, Math.min(LIMITS.cloudGrowthLevel, Math.floor(tier)));
 const emptyReactionTotals = (): Record<ReactionId, number> => Object.fromEntries(REACTION_ORDER.map((id) => [id, 0])) as Record<ReactionId, number>;
 
 export const starMass = (state: GameState): number => totalMatter(state.star);
 export const cloudMass = (state: GameState): number => totalMatter(state.cloud);
-export const cloudDefinition = (tier: CloudTier) => CLOUD_TIERS[tier];
+export const cloudDefinition = (tier: CloudTier) => cloudDefinitionForLevel(tier);
 export const solarMasses = (state: GameState): number => starMass(state) / THRESHOLDS.matterPerSolarMass;
 
 export const gravityMultiplier = (state: GameState): number =>
@@ -60,7 +64,7 @@ export const gravityMultiplier = (state: GameState): number =>
 export const stellarFusionMultiplier = (state: GameState): number => 1 + state.perks.fusionMemory * FUSION_MEMORY_BONUS_PER_LEVEL;
 
 const matureAccretionMultiplier = (state: GameState): number =>
-  state.unlockedReactions.includes('hydrogen') ? CLOUD_TIERS[state.cloudTier].matureAccretionMultiplier : 1;
+  state.unlockedReactions.includes('hydrogen') ? cloudMatureAccretionMultiplier(cloudSolarMasses(state.cloudTier)) : 1;
 export const accretionPerClick = (state: GameState): number => ACCRETION.manualBase * matureAccretionMultiplier(state) * gravityMultiplier(state);
 export const accretionPerSecond = (state: GameState): number =>
   state.automation.accretion * AUTOMATIONS.accretion.baseRate * matureAccretionMultiplier(state) * gravityMultiplier(state);
@@ -76,7 +80,7 @@ export const reactionAutomationPerSecond = (state: GameState, reaction: Reaction
 
 export const stellarWindPerSecond = (state: GameState): number => {
   if (state.completed || state.stage === 'nebula') return 0;
-  return totalMatter(CLOUD_TIERS[state.cloudTier].matter) * STELLAR_WIND.fractionOfInitialCloudPerMinute / 60;
+  return cloudMassForLevel(state.cloudTier) * STELLAR_WIND.fractionOfInitialCloudPerMinute / 60;
 };
 
 const shellWindFractionPerMinute = (stage: Stage): number => {
@@ -402,7 +406,7 @@ export const createInitialState = (
   return {
     version: 5, run, startedAt: now, lastTick: now, elapsed: 0, stage: 'nebula', cloudTier,
     nextCloudTier: clampCloudTier(Math.min(persistent.nextCloudTier ?? cloudTier, unlockedTier)),
-    cloud: structuredClone(CLOUD_TIERS[cloudTier].matter), star: { ...EMPTY_MATTER }, radiatedMass: 0,
+    cloud: cloudMatterForLevel(cloudTier), star: { ...EMPTY_MATTER }, radiatedMass: 0,
     energy: 0, temperature: INITIAL_TEMPERATURE, heatBonus: 0, contractionHeat: 0,
     deuteriumIgnitionCompression: null, unlockedReactions: [], reactionTotals: emptyReactionTotals(),
     automaticReactionTotals: emptyReactionTotals(), fusedHydrogen: 0, fusedHelium: 0,
@@ -415,7 +419,7 @@ export const createInitialState = (
     tutorial: persistent.tutorial ? { ...persistent.tutorial } : { introSeen: false, cosmosToastPending: true, completed: false, step: 0 },
     stats: createRunStatistics(), history: persistent.history ? structuredClone(persistent.history).slice(0, 20) : [],
     seenOpportunities: [], seenObjectives: [],
-    log: [{ id: now, text: `${CLOUD_TIERS[cloudTier].name} bei 10 K wartet auf ihren ersten Impuls.`, kind: 'info' }],
+    log: [{ id: now, text: `${cloudDefinitionForLevel(cloudTier).name} bei 10 K wartet auf ihren ersten Impuls.`, kind: 'info' }],
   };
 };
 
@@ -485,7 +489,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
   if (action.type === 'BUY_PERK') {
     const level = effectivePerks(next)[action.perk];
     const costs = { largerCloud: cloudTierCost(level), permanentGravity: gravityPerkCost(level), fusionMemory: fusionPerkCost(level) };
-    const limits = { largerCloud: LIMITS.cloudTier, permanentGravity: LIMITS.permanentGravity, fusionMemory: LIMITS.fusionMemory };
+    const limits = { largerCloud: LIMITS.cloudGrowthLevel, permanentGravity: LIMITS.permanentGravity, fusionMemory: LIMITS.fusionMemory };
     const cost = costs[action.perk];
     if (next.completed && level < limits[action.perk] && next.stardust >= cost) {
       next.stardust -= cost; next.pendingPerks[action.perk] += 1;

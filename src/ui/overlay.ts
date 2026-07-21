@@ -1,8 +1,7 @@
-import { CLOUD_TIERS, LIMITS, OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS } from '../content';
-import { cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost, starMass } from '../game/engine';
-import type { CloudTier } from '../game/types';
+import { LIMITS, OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS } from '../content';
+import { cloudDefinition, cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost, starMass } from '../game/engine';
 import { setDebugOpen, syncDebug } from './debug';
-import { disabled, formatDuration, formatMatter, icons } from './format';
+import { disabled, formatDuration, formatMatter, formatSolarMasses, icons } from './format';
 import { clearPrestigeConfirmation, closeResetMenu, setPerksOpen, setSoundMenuOpen } from './menus';
 import { clearAchievements, clearToasts } from './notifications';
 import { app, getState } from './store';
@@ -54,7 +53,7 @@ export function syncOverlay(): void {
     const chronicleSignature = `chronicle:${state.stage}:${state.log.map((entry) => entry.id).join(',')}`;
     if (chronicleSignature === overlaySignature) return;
     overlaySignature = chronicleSignature;
-    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="chronicle" role="presentation"><section class="chronicle-modal" role="dialog" aria-modal="true" aria-labelledby="chronicle-title"><div class="chronicle-modal-heading"><div><small>KOSMISCHE CHRONIK</small><h2 id="chronicle-title">Lebenswege der Sterne</h2></div><button data-action="close-chronicle" aria-label="Chronik schließen">×</button></div><div class="chronicle-layout"><div class="timeline-card"><div class="section-label"><span>Aktueller Entwicklungspfad</span><small>${CLOUD_TIERS[state.cloudTier].name}</small></div><div class="timeline">${timelineMarkup()}</div>${evolutionMapMarkup()}</div><div class="log-card"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list">${logMarkup(10)}</div></div></div></section></div>`;
+    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="chronicle" role="presentation"><section class="chronicle-modal" role="dialog" aria-modal="true" aria-labelledby="chronicle-title"><div class="chronicle-modal-heading"><div><small>KOSMISCHE CHRONIK</small><h2 id="chronicle-title">Lebenswege der Sterne</h2></div><button data-action="close-chronicle" aria-label="Chronik schließen">×</button></div><div class="chronicle-layout"><div class="timeline-card"><div class="section-label"><span>Aktueller Entwicklungspfad</span><small>${cloudDefinition(state.cloudTier).name}</small></div><div class="timeline">${timelineMarkup()}</div>${evolutionMapMarkup()}</div><div class="log-card"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list">${logMarkup(10)}</div></div></div></section></div>`;
     return;
   }
   if (statsOpen && !state.summaryOpen) {
@@ -79,7 +78,7 @@ export function syncOverlay(): void {
   const cloudCost = cloudTierCost(previewPerks.largerCloud);
   const gravityCostValue = gravityPerkCost(previewPerks.permanentGravity);
   const fusionCostValue = fusionPerkCost(previewPerks.fusionMemory);
-  const cloudMax = previewPerks.largerCloud >= LIMITS.cloudTier;
+  const cloudMax = previewPerks.largerCloud >= LIMITS.cloudGrowthLevel;
   const gravityMax = previewPerks.permanentGravity >= LIMITS.permanentGravity;
   const fusionMax = previewPerks.fusionMemory >= LIMITS.fusionMemory;
   const showPerkAttention = summaryAttentionRun !== state.run;
@@ -88,7 +87,13 @@ export function syncOverlay(): void {
   const fusionAttention = showPerkAttention && !fusionMax && state.stardust >= fusionCostValue ? 'perk-attention' : '';
   const outcome = state.outcome ?? 'legacyMainSequence';
   const outcomeCopy = OUTCOMES[outcome];
-  const cloudChoices = ([0, 1, 2] as CloudTier[]).filter((tier) => tier <= previewPerks.largerCloud).map((tier) => `<button class="cloud-choice ${state.nextCloudTier === tier ? 'is-selected' : ''}" data-action="select-cloud-${tier}"><span>${CLOUD_TIERS[tier].shortName}</span><small>${CLOUD_TIERS[tier].expectedOutcome}</small></button>`).join('');
+  const unlockedCloudLevel = previewPerks.largerCloud;
+  const selectedCloudLevel = Math.min(state.nextCloudTier, unlockedCloudLevel);
+  const selectedCloudDefinition = cloudDefinition(selectedCloudLevel);
+  const cloudSlider = unlockedCloudLevel > 0
+    ? `<div class="cloud-slider"><input type="range" min="0" max="${unlockedCloudLevel}" step="1" value="${selectedCloudLevel}" data-action="select-cloud-level" aria-label="Wolkengröße wählen"><div class="cloud-slider-scale"><span>${cloudDefinition(0).shortName}</span><span>${cloudDefinition(unlockedCloudLevel).shortName}</span></div></div>`
+    : '';
+  const cloudSelector = `${cloudSlider}<p class="cloud-slider-summary"><b>${selectedCloudDefinition.name}</b> · ≈ ${formatSolarMasses(selectedCloudDefinition.solarMasses)} · voraussichtlich ${selectedCloudDefinition.expectedOutcome}</p>`;
   const perkControls = (kind: 'cloud' | 'gravity' | 'fusion', label: string, pending: number, max: boolean, cost: number): string => `<div class="summary-perk-controls"><button class="perk-remove" data-action="remove-perk-${kind}" aria-label="${label} abwählen" ${disabled(pending <= 0)}>−</button><button data-action="buy-perk-${kind}" ${disabled(max || state.stardust < cost)}>${max ? 'MAX' : `+${cost} ✦`}</button></div>`;
   root.innerHTML = `<div class="modal-backdrop" role="presentation">
     <section class="summary-modal" role="dialog" aria-modal="true" aria-labelledby="summary-title">
@@ -97,13 +102,13 @@ export function syncOverlay(): void {
       <div class="summary-detail"><div class="summary-section-title"><span>Rundenauswertung</span><small>ZYKLUS ${state.run.toString().padStart(2, '0')}</small></div><div class="run-stat-grid compact">${statsGridMarkup()}</div></div>
       <div class="summary-legacy"><div class="summary-section-title"><span>Vermächtnis wählen</span><small>DAUERHAFTE EFFEKTE</small></div>
         <div class="summary-perk-grid">
-          <article class="${cloudAttention} ${state.pendingPerks.largerCloud ? 'has-selection' : ''}"><span class="perk-orbit">01</span><div><h3>${PRESTIGE_PERKS.largerCloud.title}</h3><p>${PRESTIGE_PERKS.largerCloud.description}</p><strong>${CLOUD_TIERS[Math.min(2, previewPerks.largerCloud) as CloudTier].name}${state.pendingPerks.largerCloud ? ` · +${state.pendingPerks.largerCloud} gewählt` : ''}</strong></div>${perkControls('cloud', PRESTIGE_PERKS.largerCloud.title, state.pendingPerks.largerCloud, cloudMax, cloudCost)}</article>
+          <article class="${cloudAttention} ${state.pendingPerks.largerCloud ? 'has-selection' : ''}"><span class="perk-orbit">01</span><div><h3>${PRESTIGE_PERKS.largerCloud.title}</h3><p>${PRESTIGE_PERKS.largerCloud.description}</p><strong>${cloudDefinition(previewPerks.largerCloud).name} · ≈ ${formatSolarMasses(cloudDefinition(previewPerks.largerCloud).solarMasses)}${state.pendingPerks.largerCloud ? ` · +${state.pendingPerks.largerCloud} gewählt` : ''}</strong></div>${perkControls('cloud', PRESTIGE_PERKS.largerCloud.title, state.pendingPerks.largerCloud, cloudMax, cloudCost)}</article>
           <article class="${gravityAttention} ${state.pendingPerks.permanentGravity ? 'has-selection' : ''}"><span class="perk-orbit">02</span><div><h3>${PRESTIGE_PERKS.permanentGravity.title}</h3><p>${PRESTIGE_PERKS.permanentGravity.description}</p><strong>Stufe ${previewPerks.permanentGravity}${state.pendingPerks.permanentGravity ? ` · +${state.pendingPerks.permanentGravity} gewählt` : ''}</strong></div>${perkControls('gravity', PRESTIGE_PERKS.permanentGravity.title, state.pendingPerks.permanentGravity, gravityMax, gravityCostValue)}</article>
           <article class="${fusionAttention} ${state.pendingPerks.fusionMemory ? 'has-selection' : ''}"><span class="perk-orbit">03</span><div><h3>${PRESTIGE_PERKS.fusionMemory.title}</h3><p>${PRESTIGE_PERKS.fusionMemory.description}</p><strong>Stufe ${previewPerks.fusionMemory}${state.pendingPerks.fusionMemory ? ` · +${state.pendingPerks.fusionMemory} gewählt` : ''}</strong></div>${perkControls('fusion', PRESTIGE_PERKS.fusionMemory.title, state.pendingPerks.fusionMemory, fusionMax, fusionCostValue)}</article>
         </div>
-        <div class="cloud-selection"><div class="summary-section-title"><span>Nächste Urwolke</span><small>${CLOUD_TIERS[state.nextCloudTier].description}</small></div><div>${cloudChoices}</div></div>
+        <div class="cloud-selection"><div class="summary-section-title"><span>Nächste Urwolke</span><small>${cloudDefinition(state.nextCloudTier).description}</small></div>${cloudSelector}</div>
       </div>
-      <div class="summary-actions"><button class="primary-action" data-action="prestige">Mit ${CLOUD_TIERS[state.nextCloudTier].name} beginnen</button><button class="text-action" data-action="close-summary">Später entscheiden</button></div>
+      <div class="summary-actions"><button class="primary-action" data-action="prestige">Mit ${cloudDefinition(state.nextCloudTier).name} beginnen</button><button class="text-action" data-action="close-summary">Später entscheiden</button></div>
     </section>
   </div>`;
   if (previousSummary) {

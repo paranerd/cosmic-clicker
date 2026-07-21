@@ -23,7 +23,7 @@ function playAccretionFeedback(event: MouseEvent): void {
     const angle = Math.random() * Math.PI * 2; const radius = Math.max(chamberRect.width, chamberRect.height) * (.32 + Math.random() * .24);
     const particle = document.createElement('span'); particle.className = 'matter-particle';
     particle.style.left = `${targetX}px`; particle.style.top = `${targetY}px`; particle.style.setProperty('--from-x', `${Math.cos(angle) * radius}px`); particle.style.setProperty('--from-y', `${Math.sin(angle) * radius}px`); particle.style.setProperty('--particle-delay', `${index * 28}ms`);
-    particle.textContent = state.cloudTier === 0 || Math.random() <= .82 ? 'H' : 'He';
+    particle.textContent = Math.random() <= .82 ? 'H' : 'He';
     chamber.append(particle); particle.addEventListener('animationend', () => particle.remove(), { once: true });
   }
   const gainX = targetX + (Math.random() - .5) * 36; const gainY = targetY - 20 - Math.random() * 22;

@@ -1,4 +1,5 @@
 import type { StellarOutcome } from '../game/types';
+import { CLOUD_GROWTH } from './clouds';
 import { ACCRETION, LIMITS } from './progression';
 
 export const FUSION_MEMORY_BONUS_PER_LEVEL = .15;
@@ -26,9 +27,9 @@ export const OUTCOMES: Record<StellarOutcome, { title: string; description: stri
 export const PRESTIGE_PERKS = {
   largerCloud: {
     title: 'Wolkenwachstum',
-    description: 'Schaltet die nächste Wolkengröße und neue Sternpfade frei.',
-    maxLevel: LIMITS.cloudTier,
-    cost: (level: number): number => level === 0 ? 2 : level === 1 ? 5 : Number.POSITIVE_INFINITY,
+    description: `+${(CLOUD_GROWTH.growthFactorPerLevel - 1) * 100} % Wolkenmasse pro Stufe · Elementverteilung bleibt realistisch`,
+    maxLevel: LIMITS.cloudGrowthLevel,
+    cost: (level: number): number => 2 + level * 3,
   },
   permanentGravity: {
     title: 'Gravitatives Gedächtnis',

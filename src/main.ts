@@ -2,7 +2,7 @@ import './styles.scss';
 import { playSound } from './audio';
 import { calculateTemperature, createInitialState, reactionAutomationPerSecond, reduceGame, tick } from './game/engine';
 import { clearSave, normalizeGameState, saveGame } from './game/storage';
-import type { CloudTier, GameAction, ReactionId } from './game/types';
+import type { GameAction, ReactionId } from './game/types';
 import { isDebugOpen, runDebugAction, setDebugOpen, syncDebug } from './ui/debug';
 import { playActionFeedback } from './ui/feedback';
 import { formatDuration } from './ui/format';
@@ -101,7 +101,6 @@ app.addEventListener('click', (event) => {
     switchPanel('reactions', false);
     return;
   }
-  if (action.startsWith('select-cloud-')) { clearPrestigeConfirmation(); dispatch({ type: 'SELECT_CLOUD_TIER', tier: Number(action.slice(-1)) as CloudTier }); return; }
   if (action.startsWith('buy-perk-') || action.startsWith('remove-perk-')) clearPrestigeConfirmation();
   if (action === 'run-reaction' && button.dataset.reaction) {
     dispatch({ type: 'RUN_REACTION', reaction: button.dataset.reaction as ReactionId });
@@ -123,8 +122,8 @@ app.addEventListener('click', (event) => {
 
 app.addEventListener('input', (event) => {
   const input = event.target as HTMLInputElement;
-  if (input.dataset.action !== 'set-volume') return;
-  dispatch({ type: 'SET_VOLUME', volume: Number(input.value) / 100 });
+  if (input.dataset.action === 'set-volume') { dispatch({ type: 'SET_VOLUME', volume: Number(input.value) / 100 }); return; }
+  if (input.dataset.action === 'select-cloud-level') { clearPrestigeConfirmation(); dispatch({ type: 'SELECT_CLOUD_TIER', tier: Number(input.value) }); }
 });
 
 app.addEventListener('change', async (event) => {

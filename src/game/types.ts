@@ -1,4 +1,6 @@
-export type CloudTier = 0 | 1 | 2;
+// Wolkenwachstums-Stufe: keine feste 0|1|2-Stufe mehr, sondern eine offene
+// Zahl, die über den Perk "Wolkenwachstum" prozentual weiterwächst.
+export type CloudTier = number;
 
 export type Stage =
   | 'nebula'
