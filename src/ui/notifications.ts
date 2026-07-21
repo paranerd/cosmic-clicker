@@ -1,5 +1,5 @@
 import { playSound } from '../audio';
-import { achievementTitleFor, windWarningFor } from '../content';
+import { achievementTitleFor, warningFor } from '../content';
 import { objectiveFor } from '../game/engine';
 import { saveGame } from '../game/storage';
 import { app, getActivePanel, getState, type Panel } from './store';
@@ -143,9 +143,9 @@ function displayNextAchievement(): void {
   if (!activeAchievement) { root.innerHTML = ''; return; }
   const title = achievementTitleFor(activeAchievement.completedObjective);
   if (!title) { activeAchievement = null; displayNextAchievement(); return; }
-  const warning = windWarningFor(activeAchievement.completedObjective);
-  const windWarning = warning ? `<div class="achievement-warning"><b>${warning.title}</b><span>${warning.text}</span></div>` : '';
-  root.innerHTML = `<aside class="achievement-banner" role="region" aria-labelledby="achievement-title"><button class="achievement-close" data-action="dismiss-achievement" aria-label="Zielhinweis schließen">×</button><div class="achievement-announcement" role="status" aria-live="polite" aria-atomic="true"><small>ZIEL ERREICHT</small><h2 id="achievement-title">${title}</h2></div>${windWarning}<div class="achievement-next"><span>Als Nächstes</span><b>${activeAchievement.next.title}</b><p>${activeAchievement.next.detail}</p></div></aside>`;
+  const warning = warningFor(activeAchievement.completedObjective);
+  const warningMarkup = warning ? `<div class="achievement-warning"><b>${warning.title}</b><span>${warning.text}</span></div>` : '';
+  root.innerHTML = `<aside class="achievement-banner" role="region" aria-labelledby="achievement-title"><button class="achievement-close" data-action="dismiss-achievement" aria-label="Zielhinweis schließen">×</button><div class="achievement-announcement" role="status" aria-live="polite" aria-atomic="true"><small>ZIEL ERREICHT</small><h2 id="achievement-title">${title}</h2></div>${warningMarkup}<div class="achievement-next"><span>Als Nächstes</span><b>${activeAchievement.next.title}</b><p>${activeAchievement.next.detail}</p></div></aside>`;
   const banner = root.querySelector<HTMLElement>('.achievement-banner');
   window.requestAnimationFrame(() => banner?.classList.add('is-visible'));
   playSound('unlock', state.soundEnabled, state.volume);
