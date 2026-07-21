@@ -414,7 +414,10 @@ test('upgrade and automation cards use compact heading rows with the rate moved 
   await expect(page.locator('.upgrade-heading').first()).not.toContainText('ME/s');
   const accretionCard = page.locator('[data-automation-card="accretion"]');
   await expect(accretionCard.locator('.tile-rate')).toContainText('0 ME/s');
-  await expect(accretionCard).toContainText('Nächste Stufe: +17 ME/s');
+  // Punkt 4: "Nächste Stufe" zeigt den Gesamtwert nach der nächsten
+  // Ausbaustufe (hier identisch mit dem alten Inkrement, weil die aktuelle
+  // Rate bei Stufe 0 noch 0 ist), nicht mehr nur die Differenz.
+  await expect(accretionCard).toContainText('Nächste Stufe: 17 ME/s');
   await expect(page.getByRole('button', { name: /Protostern erforderlich/ })).toBeDisabled();
   await expect(page.locator('[data-automation-card="fusion"]')).toHaveCount(0);
   await expect(page.getByText('Automation', { exact: true })).toHaveCount(0);
@@ -457,7 +460,9 @@ test('deuterium burning appears at the protostar and is available in the first c
   // (Punkt 2/Q4-Entscheidung) und bekommt daher keine Aktuell/Nächste-Stufe-
   // Zeile mit dem Multiplikator — die Bestätigung läuft über den
   // Beschreibungstext und den Button-Zustand.
-  await upgrade.getByRole('button', { name: 'Aktivieren 75 E' }).click();
+  // Punkt 2/9: Kein Tooltip mehr — der Preis steht direkt im Button, das
+  // aria-label liest sich wie ein Satz statt "Label Preis".
+  await upgrade.getByRole('button', { name: 'Aktivieren für 75 Energie' }).click();
   await expect(upgrade).toContainText('Erwärmung beschleunigt');
   await expect(upgrade.locator('.tile-action-button')).toHaveClass(/is-complete/);
   await expect(page.locator('[data-matter="deuterium"]')).toHaveCount(0);
@@ -529,7 +534,10 @@ test('terminal upgrades render the corner button as complete, not as a purchase 
   await page.goto('/');
   await page.getByRole('tab', { name: 'Upgrades' }).click();
 
-  const button = page.locator('.deuterium-upgrade').getByRole('button', { name: 'Aktiv —' });
+  // Punkt 5: Sobald voll ausgebaut, verschwindet der Preis (bzw. hier: das
+  // "—") komplett aus dem aria-label statt ihn wie zuvor als Tooltip-Rest
+  // mitzuschleppen.
+  const button = page.locator('.deuterium-upgrade').getByRole('button', { name: 'Aktiv', exact: true });
   await expect(button).toHaveClass(/is-complete/);
   await expect(button).not.toHaveClass(/is-buildable/);
   await expect(button.locator('i')).toHaveCount(0);

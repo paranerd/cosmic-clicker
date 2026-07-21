@@ -6,7 +6,6 @@ import {
   MATTER_KEYS,
   PRESTIGE_PERKS,
   REACTION_ORDER,
-  REACTION_UPGRADE,
   RESOURCES,
   STAGES,
   STAGE_LABELS,
@@ -23,7 +22,7 @@ import {
   starMass,
 } from '../game/engine';
 import { syncDebug } from './debug';
-import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, levelPips, matterPercent, temperatureScale } from './format';
+import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, matterPercent, temperatureScale } from './format';
 import { isWarningsOpen, setWarningsOpen } from './menus';
 import { markOpportunitiesSeen, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
 import { syncOverlay } from './overlay';
@@ -37,6 +36,7 @@ import {
   orderedUpgradeCards,
   panelMarkup,
   reactionView,
+  tileButtonInner,
   timelineMarkup,
   timelineNodes,
   upgradeOrderSignature,
@@ -109,6 +109,7 @@ function setWidth(name: string, value: number): void {
 // des Panels ändert sich jetzt nur noch, wenn eine neue Reaktion freigeschaltet
 // wird (siehe dynamicPanelSignature in updateUI).
 function syncReactionPanel(): void {
+  const state = getState();
   REACTION_ORDER.forEach((id) => {
     const card = app.querySelector<HTMLElement>(`[data-reaction-card="${id}"]`);
     if (!card) return;
@@ -124,36 +125,50 @@ function syncReactionPanel(): void {
     }
     const upgradeButton = card.querySelector<HTMLButtonElement>('[data-action="buy-reaction-upgrade"]');
     if (upgradeButton) {
-      const tooltip = `${view.upgradeMax ? 'Maximum' : 'Ausbauen'} ${view.upgradeMax ? '—' : `${view.upgradePrice} E`}`;
-      syncTileButton(upgradeButton, view.upgradeMax, true, view.upgradeAffordable, tooltip);
-      const pips = card.querySelector<HTMLElement>(`[data-reaction-upgrade-levels="${id}"]`);
-      const pipMarkup = levelPips(view.upgradeLevel, REACTION_UPGRADE.maxLevel);
-      if (pips && pips.innerHTML !== pipMarkup) pips.innerHTML = pipMarkup;
-      const cost = card.querySelector<HTMLElement>(`[data-reaction-upgrade-cost="${id}"]`);
-      const costText = view.upgradeMax ? '—' : `${view.upgradePrice} E`;
-      if (cost && cost.textContent !== costText) cost.textContent = costText;
+      // Der Ausbaupreis ändert sich nur mit der Ausbaustufe, und die ist Teil
+      // der dynamicPanelSignature (siehe updateUI) — ein Stufenwechsel löst
+      // also ohnehin einen Strukturrebuild aus. Hier bleibt daher nur die pro
+      // Tick schwankende Bezahlbarkeit (Energie) zu aktualisieren.
+      const fillPercent = view.upgradeMax ? 0 : state.energy / view.upgradePrice * 100;
+      const costText = view.upgradeMax ? '' : `${view.upgradePrice} E`;
+      const ariaLabel = view.upgradeMax ? 'Reaktionsausbau voll ausgebaut' : `Reaktionsausbau für ${view.upgradePrice} Energie`;
+      syncTileButton(upgradeButton, view.upgradeMax, true, view.upgradeAffordable, fillPercent, costText, ariaLabel);
     }
   });
 }
 
-// Punkt 3/4/6/7: Gemeinsame In-place-Aktualisierung für die Eck-Ausbaubuttons
-// (Automationen, Upgrades, Reaktionsausbau). Icon/Zustandsklassen wechseln
-// nur bei einem echten Zustandswechsel (Ausbaustufe erreicht Maximum,
-// Voraussetzung erfüllt/verliert sich) — die reine Bezahlbarkeit (Energie
-// reicht gerade so) wird dagegen bei jedem Tick aktualisiert, damit der
-// Amber-Glow sofort an-/ausgeht.
-function syncTileButton(button: HTMLButtonElement | null, complete: boolean, unlocked: boolean, affordable: boolean, tooltip: string): void {
+// Punkt 3/4/6/7/9: Gemeinsame In-place-Aktualisierung für die Eck-Ausbaubuttons
+// (Automationen, Upgrades, Reaktionsausbau). Icon/Zustandsklassen und der im
+// Button stehende Preis wechseln nur bei einem echten Zustandswechsel
+// (Ausbaustufe erreicht Maximum, Voraussetzung erfüllt/verliert sich) — die
+// reine Bezahlbarkeit (Energie reicht gerade so) und der Fortschritts-Fill
+// werden dagegen bei jedem Tick aktualisiert, damit der Amber-Glow sofort
+// an-/ausgeht und der Fill flüssig mitwächst. Tooltips gibt es bewusst nicht
+// mehr (Punkt 2) — aria-label bleibt nur für Screenreader erhalten.
+function syncTileButton(
+  button: HTMLButtonElement | null,
+  complete: boolean,
+  unlocked: boolean,
+  affordable: boolean,
+  fillPercent: number,
+  costText: string,
+  ariaLabel: string,
+): void {
   if (!button) return;
   button.disabled = !affordable;
   button.classList.toggle('is-buildable', affordable);
+  button.style.setProperty('--tile-fill', `${Math.max(0, Math.min(100, fillPercent))}%`);
   const tileState = complete ? 'complete' : !unlocked ? 'locked' : 'open';
   if (button.dataset.tileState !== tileState) {
     button.classList.toggle('is-complete', complete);
     button.classList.toggle('is-locked', !complete && !unlocked);
-    button.innerHTML = complete ? icons.check : !unlocked ? icons.lock : icons.buildUp;
+    button.innerHTML = tileButtonInner(complete, unlocked, costText);
     button.dataset.tileState = tileState;
+  } else {
+    const priceSpan = button.querySelector<HTMLElement>('[data-tile-price]');
+    if (priceSpan && priceSpan.textContent !== costText) priceSpan.textContent = costText;
   }
-  if (button.title !== tooltip) { button.title = tooltip; button.setAttribute('aria-label', tooltip); }
+  if (button.getAttribute('aria-label') !== ariaLabel) button.setAttribute('aria-label', ariaLabel);
 }
 
 function syncActivePanel(): void {
@@ -164,8 +179,12 @@ function syncActivePanel(): void {
     orderedUpgradeCards().forEach(({ view }) => {
       const button = app.querySelector<HTMLButtonElement>(`[data-action="${view.definition.action}"]`);
       const affordable = !view.complete && view.unlocked && state.energy >= view.price;
-      const tooltip = `${view.label} ${view.complete ? '—' : `${view.price} E`}`;
-      syncTileButton(button, view.complete, view.unlocked, affordable, tooltip);
+      const fillPercent = view.complete ? 0 : !view.unlocked ? view.unlockProgress * 100 : state.energy / view.price * 100;
+      const costText = view.complete ? '' : `${view.price} E`;
+      const ariaLabel = view.complete ? view.definition.button.complete
+        : !view.unlocked ? (view.expired ? view.definition.button.expired : view.definition.button.locked)
+          : `${view.definition.button.purchase} für ${view.price} Energie`;
+      syncTileButton(button, view.complete, view.unlocked, affordable, fillPercent, costText, ariaLabel);
     });
   }
   if (activePanel === 'automation') {
@@ -174,14 +193,18 @@ function syncActivePanel(): void {
       const isMax = view.level >= view.max;
       const button = app.querySelector<HTMLButtonElement>(`[data-automation-card="${kind}"] button`);
       const affordable = !isMax && view.unlocked && state.energy >= view.price;
-      const tooltip = `${isMax ? 'Maximum' : view.unlocked ? 'Ausbauen' : view.lockedLabel} ${isMax ? '—' : `${view.price} E`}`;
-      syncTileButton(button, isMax, view.unlocked, affordable, tooltip);
+      const fillPercent = isMax ? 0 : !view.unlocked ? view.unlockProgress * 100 : state.energy / view.price * 100;
+      const costText = isMax ? '' : `${view.price} E`;
+      const ariaLabel = isMax ? 'Maximum' : !view.unlocked ? view.lockedLabel : `Ausbauen für ${view.price} Energie`;
+      syncTileButton(button, isMax, view.unlocked, affordable, fillPercent, costText, ariaLabel);
       // Der Sperrgrund-Fortschritt (z. B. "998 / 1.500 C") wächst kontinuierlich
       // mit der Reaktionsleistung — anders als der Ausbaupreis muss dieser Text
       // daher bei jedem Tick aktualisiert werden, nicht erst beim Strukturrebuild.
+      // Das Element existiert nur, solange die Automation gesperrt ist (siehe
+      // automationCard) — der Übergang selbst löst über dynamicPanelSignature
+      // einen Strukturrebuild aus.
       const cost = app.querySelector<HTMLElement>(`[data-automation-cost="${kind}"]`);
-      const costText = isMax ? '—' : view.unlocked ? `${view.price} E` : view.lockedLabel;
-      if (cost && cost.textContent !== costText) cost.textContent = costText;
+      if (cost && cost.textContent !== view.lockedLabel) cost.textContent = view.lockedLabel;
     });
   }
 }
@@ -274,11 +297,18 @@ export function updateUI(forcePanel = false): void {
   const currentUpgradeOrder = activePanel === 'upgrades' ? upgradeOrderSignature() : '';
   const upgradeOrderChanged = activePanel === 'upgrades' && currentUpgradeOrder !== lastUpgradeOrderSignature;
   // Punkt 8: Für das Reaktionspanel zählt nur noch die Struktur (welche
-  // Karten existieren) — alle Werte darin aktualisiert syncReactionPanel()
-  // in-place, ohne die Buttons neu zu bauen.
+  // Karten existieren, welche Reaktionsausbaustufe sie gerade zeigen) — alle
+  // sonstigen Werte darin aktualisiert syncReactionPanel() in-place, ohne die
+  // Buttons neu zu bauen. Die Ausbaustufe gehört mit in die Signatur, weil der
+  // „Voll ausgebaut"-Zustand (Punkt 5/6) den Kosten-Block strukturell
+  // entfernt statt ihn nur per Text zu leeren. Für Automationen gilt dasselbe
+  // zusätzlich für den Freischalt-Zustand (Meisterschaftsschwelle erreicht),
+  // der unabhängig von einem Stufenwechsel eintreten kann.
   const dynamicPanelSignature = activePanel === 'reactions'
-    ? state.unlockedReactions.join(',')
-    : activePanel === 'automation' ? `${state.unlockedReactions.join(',')}:${Object.values(state.automation).join(',')}` : '';
+    ? `${state.unlockedReactions.join(',')}:${Object.values(state.reactionUpgrades).join(',')}`
+    : activePanel === 'automation'
+      ? `${state.unlockedReactions.join(',')}:${Object.values(state.automation).join(',')}:${AUTOMATION_ORDER.map((kind) => automationView(kind).unlocked).join(',')}`
+      : '';
   const dynamicPanelChanged = dynamicPanelSignature !== lastDynamicPanelSignature;
   if (forcePanel || stageChanged || upgradeOrderChanged || dynamicPanelChanged) { const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(activePanel); lastStage = state.stage; lastUpgradeOrderSignature = currentUpgradeOrder; lastDynamicPanelSignature = dynamicPanelSignature; }
   syncNotifications(); syncActivePanel(); syncChronicleDock(); syncOverlay(); syncTutorial(); syncToast();

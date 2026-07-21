@@ -86,12 +86,18 @@ export const reactionAutomationPerSecond = (state: GameState, reaction: Reaction
 
 // Punkt 2: manuelle Fusionsmenge einer Reaktion inklusive Reaktionsausbau
 // (+bonusPerLevel der Basismenge je Stufe) und Fusionsgedächtnis-Perk.
+// reactionManualAmountAtLevel ist von der tatsächlich gespeicherten Stufe
+// entkoppelt, damit die Oberfläche den Wert einer hypothetischen nächsten
+// Stufe für die "Aktuell/Nächste Stufe"-Anzeige der Reaktionskarte
+// vorausberechnen kann (Punkt 7 des Kachel-Redesigns).
 export const reactionUpgradeCost = (reaction: ReactionId, level: number): number =>
   Math.round(REACTIONS[reaction].upgradeBaseCost * REACTION_UPGRADE.costGrowth ** level);
-export const reactionManualAmount = (state: GameState, reaction: ReactionId): number =>
+export const reactionManualAmountAtLevel = (state: GameState, reaction: ReactionId, level: number): number =>
   REACTIONS[reaction].manualAmount
-  * (1 + state.reactionUpgrades[reaction] * REACTION_UPGRADE.bonusPerLevel)
+  * (1 + level * REACTION_UPGRADE.bonusPerLevel)
   * stellarFusionMultiplier(state);
+export const reactionManualAmount = (state: GameState, reaction: ReactionId): number =>
+  reactionManualAmountAtLevel(state, reaction, state.reactionUpgrades[reaction]);
 
 export const stellarWindPerSecond = (state: GameState): number => {
   if (state.completed || !STAGES[state.stage].cloudWind) return 0;
