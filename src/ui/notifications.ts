@@ -1,5 +1,5 @@
 import { playSound } from '../audio';
-import { ACHIEVEMENT_TITLES, PROTOSTAR_WIND_WARNING } from '../content';
+import { ACHIEVEMENT_TITLES, PROTOSTAR_WIND_WARNING, SHELL_WIND_WARNING } from '../content';
 import { objectiveFor } from '../game/engine';
 import { saveGame } from '../game/storage';
 import { app, getActivePanel, getState, type Panel } from './store';
@@ -145,7 +145,9 @@ function displayNextAchievement(): void {
   if (!title) { activeAchievement = null; displayNextAchievement(); return; }
   const windWarning = activeAchievement.completedObjective === 'form-protostar'
     ? `<div class="achievement-warning"><b>${PROTOSTAR_WIND_WARNING.title}</b><span>${PROTOSTAR_WIND_WARNING.text}</span></div>`
-    : '';
+    : activeAchievement.completedObjective === 'burn-hydrogen'
+      ? `<div class="achievement-warning"><b>${SHELL_WIND_WARNING.title}</b><span>${SHELL_WIND_WARNING.text}</span></div>`
+      : '';
   root.innerHTML = `<aside class="achievement-banner" role="region" aria-labelledby="achievement-title"><button class="achievement-close" data-action="dismiss-achievement" aria-label="Zielhinweis schließen">×</button><div class="achievement-announcement" role="status" aria-live="polite" aria-atomic="true"><small>ZIEL ERREICHT</small><h2 id="achievement-title">${title}</h2></div>${windWarning}<div class="achievement-next"><span>Als Nächstes</span><b>${activeAchievement.next.title}</b><p>${activeAchievement.next.detail}</p></div></aside>`;
   const banner = root.querySelector<HTMLElement>('.achievement-banner');
   window.requestAnimationFrame(() => banner?.classList.add('is-visible'));

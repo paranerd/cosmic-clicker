@@ -16,6 +16,7 @@ export const formatCompact = (value: number): string => value < 1_000_000
   ? formatNumber(value)
   : new Intl.NumberFormat('de-DE', { notation: 'compact', maximumFractionDigits: 1 }).format(Math.round(value));
 export const formatMatter = (value: number): string => formatCompact(Math.round(value));
+export const formatSolarMasses = (value: number): string => `${formatNumber(value, 2)} M☉`;
 
 export function formatTemperature(value: number): string {
   if (value >= 1_000_000_000) return `${formatNumber(value / 1_000_000_000, 2)} Mrd. K`;

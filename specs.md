@@ -79,8 +79,33 @@ konkretere Festlegung in diesem Abschnitt.
 - Der Sternwind setzt mit der Bildung des Protosterns ein und entfernt pro
   Minute 0,25 % der ursprünglichen Wolkenmasse. Der Verlust gilt auch offline
   und ist nicht rückgängig zu machen.
-- 150.000 ME entsprechen im Modell einer Sonnenmasse. Die UI darf zusätzlich
-  zur ME-Anzeige an Entwicklungsschwellen das Symbol M☉ erläutern.
+- Ab Erreichen der Hauptreihe verbrennt der Kern Wasserstoff zusätzlich
+  strukturell und automatisch mit einer Basisrate, die unabhängig von
+  gekauften Automationen läuft und zusätzlich zu manueller Fusion sowie
+  Automationen wirkt. Die Basisrate skaliert überproportional mit der
+  aktuellen Sternmasse (Exponent > 1 bezogen auf 150.000 ME), sodass die
+  Hauptreihe bei der stellaren Urwolke (1 M☉) rechnerisch rund fünf Minuten
+  dauert und bei der massereichen Urwolke (25 M☉) etwa drei- bis fünfmal
+  kürzer verläuft als bei der stellaren Urwolke – deutlich komprimiert
+  gegenüber dem realen Verhältnis von rund 3.000×. Die Phase endet, sobald
+  Kern- und Restwolkenwasserstoff erschöpft sind; die 15.000-H-ME-Grenze
+  bleibt weiterhin nur der Startpunkt und schließt Wasserstoffbrennen nicht ab.
+- Ab der Hauptreihe verliert der Stern zusätzlich über einen Hüllenwind
+  eigenständig Wasserstoff und Helium direkt aus seiner Hülle, nie schwerere
+  Kernelemente einer aktiven Brennstufe. Die Rate ist auf der Hauptreihe mit
+  rund 0,01 % pro Minute der aktuellen Sternmasse fast vernachlässigbar und
+  steigt ab dem Roten Riesen bzw. massereichen Stern sowie allen folgenden
+  Brennstufen auf rund 0,75 % pro Minute. Der bestehende Wolkenwind läuft
+  unverändert und unabhängig davon weiter, solange die Restwolke Materie
+  enthält. Anhaltender Massenverlust durch den Hüllenwind kann den späteren
+  stellaren Rest tatsächlich verändern; es gibt dafür keinen
+  Schutzmechanismus. Wendepunkte dürfen dabei auch offline durchlaufen
+  werden (Acht-Stunden-Cap bleibt bestehen) und sind über Logbuch und
+  Chronik nachvollziehbar.
+- 150.000 ME entsprechen im Modell einer Sonnenmasse. Die Kerndaten zeigen
+  die Sternmasse dauerhaft zusätzlich in M☉ (zwei Nachkommastellen), und
+  Ziel-Banner sowie Ziele erläutern an Entwicklungsschwellen ebenfalls die
+  M☉-Entsprechung.
 - Bis zur ersten Wasserstoffzündung bleibt die Akkretionsmenge bei allen Wolken
   klein und gut beobachtbar. Danach skalieren manuelle und automatische
   Akkretion mit der Wolkengröße, damit große Sterne ohne tausende monotone
@@ -139,6 +164,12 @@ Implementierte manuelle Reaktionen:
 - Die feste Grenze von 15.000 fusionierten H-ME markiert nur die stabilisierte
   Hauptreihe und beendet niemals die Möglichkeit zum Wasserstoffbrennen.
   Wasserstoff kann bis zur Erschöpfung des Kernvorrats fusioniert werden.
+- Ab der Hauptreihe läuft Wasserstoffbrennen zusätzlich strukturell und
+  automatisch ab, unabhängig von gekauften Automationen (siehe Abschnitt
+  „Aktuelle Urwolken“ für Rate und Kalibrierung). Dieser strukturelle
+  Verbrauch nutzt dieselbe zentrale Reaktionsdefinition wie manuelle und
+  automatische Fusion, damit Massenbilanz, Energie und Statistiken
+  konsistent bleiben.
 - Höhere Brennstufen sperren frühere, weiterhin mit Brennstoff versorgte
   Reaktionen nicht. Mehrere Reaktionen können deshalb gleichzeitig verfügbar
   sein.
@@ -202,6 +233,11 @@ Implementierte manuelle Reaktionen:
   Sonnenmassen beziehungsweise 75.000 ME.
 - Entsprechende masseabhängige Abzweigungen gelten auch beim Scheitern späterer
   Brennstufen.
+- Der Hüllenwind der Hauptreihe und aller folgenden Phasen entnimmt
+  fortlaufend Masse aus dem Stern und kann dadurch auch den späteren
+  stellaren Rest verändern, etwa wenn eine ursprünglich für ein Schwarzes
+  Loch ausreichende Masse durch langes Warten unter die entsprechende
+  Schwelle fällt.
 - Die vollständige spielbare Brennkette bis zum Eisenkern umfasst
   Wasserstoffbrennen, Heliumbrennen, Alpha-Einfang,
   Kohlenstoffbrennen, Neonbrennen, Sauerstoffbrennen und Siliziumbrennen.
@@ -245,7 +281,8 @@ Implementierte manuelle Reaktionen:
 ### Statistiken und Qualitätssicherung
 
 - Erfasst werden manuelle Klicks und Reaktionen, gesamte und automatische
-  Akkretion, Sternwindverlust, fusionierter Wasserstoff und Helium, erzeugter
+  Akkretion, gesamter Sternwindverlust (mit gesondertem Zähler für den Anteil
+  des Hüllenwinds), fusionierter Wasserstoff und Helium, erzeugter
   Sauerstoff, erzeugte Energie, Käufe, Offline-Zeit, Rundendauer und
   Sternenstaub.
 - Speicherstände der Versionen 1 bis 5 werden normalisiert. Version 5 speichert
@@ -389,12 +426,11 @@ Festgelegte Progression:
 Nach dem aktuellen Lebenszyklus können folgende Vertiefungen umgesetzt werden:
 
 - Zusätzliche Reaktionskanäle und Zwischenprodukte innerhalb der bereits spielbaren Brennstufen
-- Ergänzende Anzeigen in Sonnen- und Jupitermassen neben den auf 150.000 ME pro Sonnenmasse kalibrierten Materieeinheiten
+- Ergänzende Anzeige in Jupitermassen neben den bereits vorhandenen ME- und M☉-Anzeigen
 - Metallizität, unterschiedliche chemische Zusammensetzungen und weitere Typen von Sternentstehungswolken
 - Detailliertere Brauner-Zwerg-Entwicklung einschließlich Deuterium- und gegebenenfalls Lithiumbrennen
-- Zeitabhängige Hauptreihen- und Abkühlphasen mit stärkerer Offline-Progression
 - Weitere masseabhängige Unterklassen von Weißen Zwergen, Supernovae, Neutronensternen und Schwarzen Löchern
-- Rotation, Magnetfelder, Masseverlust und stellare Winde als neue Einflussgrößen
+- Rotation und Magnetfelder als neue Einflussgrößen
 - Binärsterne, Massentransfer und alternative Supernova-Pfade
 - Weitere Balance- und Komfortstufen für die bereits vorhandenen Automationen der schweren Brennphasen
 - Entdeckungsarchiv mit wissenschaftlichen Kurzartikeln zu allen beobachteten Entwicklungsstufen

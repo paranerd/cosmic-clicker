@@ -61,6 +61,31 @@ export const TEMPERATURE_MODEL = {
 export const STELLAR_WIND = {
   fractionOfInitialCloudPerMinute: .0025,
   startsAtStage: 'protostar' as Stage,
+  // Hüllenwind (Punkt 6): entfernt ab der Hauptreihe H/He direkt aus dem Stern
+  // selbst, nie schwere Kernelemente. Basis ist die aktuelle Sternmasse.
+  shell: {
+    mainSequenceFractionPerMinute: .0001,
+    lateStageFractionPerMinute: .0075,
+  },
+} as const;
+
+// Stellare Stadien, in denen der Hüllenwind bereits mit der stärkeren
+// Spätphasen-Rate bläst (Roter Riese, massereicher Stern, alle folgenden
+// Brennstufen bis zum Eisenkern).
+export const LATE_SHELL_WIND_STAGES: readonly Stage[] = [
+  'redGiant', 'helium', 'carbonOxygen', 'carbonBurning', 'neonBurning', 'oxygenBurning', 'siliconBurning', 'massiveStar', 'ironCore',
+];
+
+// Punkt 6: struktureller Wasserstoffverbrauch ab der Hauptreihe, unabhängig
+// von gekauften Automationen. rateReferenceMass entspricht 1 M☉; die Rate
+// skaliert überproportional mit der Sternmasse (massExponent > 1), sodass
+// massereichere Sterne die Hauptreihe deutlich schneller durchlaufen als
+// leichte, aber nicht im realen Verhältnis (~3.000×), sondern komprimiert
+// auf den Faktor 3–5 zwischen der 1- und der 25-Sonnenmassen-Wolke.
+export const MAIN_SEQUENCE_BURN = {
+  ratePerSecond: 300,
+  referenceMass: THRESHOLDS.matterPerSolarMass,
+  massExponent: 1.46,
 } as const;
 
 // Aliases retained for older prototype imports.
@@ -130,4 +155,9 @@ export const ACHIEVEMENT_TITLES: Record<string, string> = {
 export const PROTOSTAR_WIND_WARNING = {
   title: 'Sternwind setzt ein',
   text: 'Er trägt fortan stetig Materie aus der Urwolke ab. Diese Materie kann nicht mehr eingesammelt werden.',
+} as const;
+
+export const SHELL_WIND_WARNING = {
+  title: 'Hüllenwind verstärkt sich',
+  text: 'Der Stern verliert ab jetzt spürbar Wasserstoff und Helium aus seiner eigenen Hülle. Hält der Massenverlust an, kann er den späteren Sternrest verändern.',
 } as const;

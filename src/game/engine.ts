@@ -8,7 +8,9 @@ import {
   EMPTY_MATTER,
   FUSION_MEMORY_BONUS_PER_LEVEL,
   INITIAL_TEMPERATURE,
+  LATE_SHELL_WIND_STAGES,
   LIMITS,
+  MAIN_SEQUENCE_BURN,
   MATTER_KEYS,
   OUTCOMES,
   PRESTIGE_PERKS,
@@ -77,6 +79,35 @@ export const stellarWindPerSecond = (state: GameState): number => {
   return totalMatter(CLOUD_TIERS[state.cloudTier].matter) * STELLAR_WIND.fractionOfInitialCloudPerMinute / 60;
 };
 
+const shellWindFractionPerMinute = (stage: Stage): number => {
+  if (stage === 'mainSequence') return STELLAR_WIND.shell.mainSequenceFractionPerMinute;
+  if (LATE_SHELL_WIND_STAGES.includes(stage)) return STELLAR_WIND.shell.lateStageFractionPerMinute;
+  return 0;
+};
+
+// Hüllenwind (Punkt 6): entfernt ab der Hauptreihe Wasserstoff und Helium
+// direkt aus dem Stern selbst, nie schwere Kernelemente einer aktiven
+// Spätbrennstufe. Der bestehende Wolkenwind (stellarWindPerSecond) bleibt
+// davon unberührt und läuft unverändert weiter, solange die Restwolke Materie
+// enthält.
+export const shellWindPerSecond = (state: GameState): number => {
+  if (state.completed) return 0;
+  const fraction = shellWindFractionPerMinute(state.stage);
+  if (fraction <= 0) return 0;
+  return (state.star.hydrogen + state.star.helium) * fraction / 60;
+};
+
+// Struktureller Wasserstoffverbrauch der Hauptreihe (Punkt 6): brennt ab
+// Erreichen der Hauptreihe von selbst, unabhängig von gekauften
+// Automationen und zusätzlich zu manueller Fusion. Skaliert überproportional
+// mit der aktuellen Sternmasse, damit massereichere Sterne die Hauptreihe
+// spürbar schneller durchlaufen als leichte.
+export const structuralHydrogenBurnPerSecond = (state: GameState): number => {
+  if (state.completed || state.stage !== 'mainSequence') return 0;
+  const massRatio = starMass(state) / MAIN_SEQUENCE_BURN.referenceMass;
+  return MAIN_SEQUENCE_BURN.ratePerSecond * massRatio ** MAIN_SEQUENCE_BURN.massExponent;
+};
+
 export const automationCost = (kind: AutomationKind, level: number): number => {
   const definition = AUTOMATIONS[kind];
   return Math.round(definition.baseCost * definition.costGrowth ** level);
@@ -133,7 +164,7 @@ const setStage = (state: GameState, stage: Stage, message?: string): void => {
 
 export const createRunStatistics = (): RunStatistics => ({
   manualClicks: 0, deuteriumBurns: 0, manualFusionActions: 0, manualHeliumActions: 0,
-  matterAccreted: 0, automaticMatterAccreted: 0, matterLostToWind: 0,
+  matterAccreted: 0, automaticMatterAccreted: 0, matterLostToWind: 0, matterLostToShellWind: 0,
   hydrogenFused: 0, automaticHydrogenFused: 0, heliumFused: 0, automaticHeliumFused: 0,
   oxygenCreated: 0, automaticOxygenCreated: 0, energyGenerated: 0,
   upgradesPurchased: 0, automationsPurchased: 0, offlineSeconds: 0, stardustEarned: 0,
@@ -159,6 +190,19 @@ const disperseCloudMatter = (state: GameState, requested: number): number => {
   if (amount <= 0) return 0;
   const ratio = amount / available;
   MATTER_KEYS.forEach((key) => { state.cloud[key] -= state.cloud[key] * ratio; });
+  return amount;
+};
+
+// Hüllenwind entfernt ausschließlich H und He aus dem Stern selbst, nie
+// schwere Kernelemente (sonst würde der Wind den Brennstoff der aktiven
+// Spätbrennstufe auffressen statt nur die verbliebene Hülle abzutragen).
+const disperseStarEnvelope = (state: GameState, requested: number): number => {
+  const available = state.star.hydrogen + state.star.helium;
+  const amount = Math.min(requested, available);
+  if (amount <= 0) return 0;
+  const ratio = amount / available;
+  state.star.hydrogen -= state.star.hydrogen * ratio;
+  state.star.helium -= state.star.helium * ratio;
   return amount;
 };
 
@@ -383,6 +427,9 @@ export const tick = (state: GameState, seconds: number): GameState => {
   if (next.completed) return next;
   const dispersed = disperseCloudMatter(next, stellarWindPerSecond(next) * dt);
   next.stats.matterLostToWind += dispersed;
+  const shellDispersed = disperseStarEnvelope(next, shellWindPerSecond(next) * dt);
+  next.stats.matterLostToWind += shellDispersed;
+  next.stats.matterLostToShellWind += shellDispersed;
   const accreted = transferMatter(next, accretionPerSecond(next) * dt);
   next.stats.matterAccreted += accreted;
   next.stats.automaticMatterAccreted += accreted;
@@ -395,6 +442,8 @@ export const tick = (state: GameState, seconds: number): GameState => {
     if (!definition.reaction || next.automation[kind] <= 0) return;
     runReaction(next, definition.reaction, automationRate(kind, next.automation[kind]) * stellarFusionMultiplier(next) * dt, true);
   });
+  const structuralBurn = structuralHydrogenBurnPerSecond(next) * dt;
+  if (structuralBurn > 0) runReaction(next, 'hydrogen', structuralBurn, true);
   next.heatBonus = Math.max(0, next.heatBonus - dt * TEMPERATURE_MODEL.heatLossPerSecond);
   evaluateEvolution(next);
   applyContraction(next, dt);
@@ -489,7 +538,8 @@ export const objectiveFor = (state: GameState): { id: string; eyebrow: string; t
   const decision = contractionDecision(state);
   if (decision?.kind === 'ignite') {
     const reaction = REACTIONS[decision.next];
-    return { id: `ignite-${decision.next}`, eyebrow: 'Kernkontraktion', title: `${reaction.title} zünden`, progress: Math.min(100, state.temperature / reaction.ignitionTemperature * 100), detail: `Der erschöpfte Kern kontrahiert bis ${reaction.ignitionTemperature.toLocaleString('de-DE')} K.` };
+    const requiredSolarMasses = (reaction.minimumMass / THRESHOLDS.matterPerSolarMass).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return { id: `ignite-${decision.next}`, eyebrow: 'Kernkontraktion', title: `${reaction.title} zünden`, progress: Math.min(100, state.temperature / reaction.ignitionTemperature * 100), detail: `Der erschöpfte Kern kontrahiert bis ${reaction.ignitionTemperature.toLocaleString('de-DE')} K (benötigt ≥ ${requiredSolarMasses} M☉).` };
   }
   const active = [...REACTION_ORDER].reverse().find((id) => reactionAvailable(state, id)) ?? 'hydrogen';
   const definition = REACTIONS[active];

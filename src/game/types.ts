@@ -74,6 +74,7 @@ export interface RunStatistics {
   matterAccreted: number;
   automaticMatterAccreted: number;
   matterLostToWind: number;
+  matterLostToShellWind: number;
   hydrogenFused: number;
   automaticHydrogenFused: number;
   heliumFused: number;

@@ -9,6 +9,8 @@ Ein responsives Browser-Spiel über die Entstehung und Entwicklung eines Sterns 
 - Temperatur- und Druckentwicklung durch gravitative Kontraktion
 - Deuteriumbrennen als zeitlich begrenztes Upgrade sowie eine konfigurationsgetriebene Brennkette von Wasserstoff bis zur Eisengruppe
 - Massenabhängige Entwicklung zu Braunem Zwerg, mehreren Weißer-Zwerg-Typen, Neutronenstern oder Schwarzem Loch
+- Zeitbasierte Hauptreihe mit strukturellem Wasserstoffbrennen und massenabhängigem Hüllenwind, der den späteren Sternrest beeinflussen kann
+- Sternmasse zusätzlich als Sonnenmassen-Anzeige (M☉) in den Kerndaten und an Entwicklungsschwellen
 - Upgrades, Automationen und ein permanentes Prestige-System
 - Wissenschaftliche Kurzinfos und Sternenlogbuch
 - Automatische Speicherung, bis zu acht Stunden Offline-Fortschritt sowie Import/Export

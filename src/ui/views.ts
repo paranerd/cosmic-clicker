@@ -298,6 +298,7 @@ export function statsEntries(): [string, string, string][] {
     ['matter', 'Eingesammelte Materie', `${formatMatter(stats.matterAccreted)} ME`],
     ['automatic-matter', 'Davon automatisch', `${formatMatter(stats.automaticMatterAccreted)} ME`],
     ['stellar-wind', 'Durch Sternwind verloren', `${formatMatter(stats.matterLostToWind)} ME`],
+    ['shell-wind', 'Davon durch Hüllenwind', `${formatMatter(stats.matterLostToShellWind)} ME`],
     ['fusion', 'Manuelle Fusionen', formatNumber(stats.manualFusionActions)],
     ['hydrogen', 'Wasserstoff fusioniert', `${formatMatter(stats.hydrogenFused)} H`],
     ['helium', 'Helium fusioniert', `${formatMatter(stats.heliumFused)} He`],

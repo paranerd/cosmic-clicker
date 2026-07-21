@@ -95,8 +95,12 @@ test('hydrogen burning remains usable after the main-sequence milestone', async 
   });
   await page.goto('/');
 
+  // Structural main-sequence hydrogen burn (Punkt 6) keeps this seed's star
+  // mass changing every animation frame, so the reaction panel re-renders
+  // continuously. Dispatch the click synchronously in-page instead of
+  // Playwright's normal scroll-then-click flow, which can race a re-render.
   const hydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
-  await hydrogenCard.getByRole('button', { name: /H fusionieren/ }).click();
+  await hydrogenCard.getByRole('button', { name: /H fusionieren/ }).evaluate((element) => (element as HTMLButtonElement).click());
   await expect(hydrogenCard).toBeVisible();
   await expect(hydrogenCard.getByRole('button', { name: /H fusionieren/ })).toBeEnabled();
   await expect(page.getByText('Hauptreihe verlassen', { exact: true })).toHaveCount(0);
@@ -734,7 +738,11 @@ test('the full ordered reaction path keeps available fuel visible and previews c
   await expect(page.getByRole('heading', { name: 'Alpha-Einfang', level: 3 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Kohlenstoffbrennen', level: 3 })).toBeVisible();
   await expect(page.locator('[data-reaction-card="carbon"] button')).toBeDisabled();
-  await page.locator('[data-reaction-card="alphaCapture"] button').click();
+  // The carbonOxygen stage now carries the Punkt-6 shell wind, which keeps
+  // the H/He envelope (and thus the reaction panel) changing every frame.
+  // Dispatch the click synchronously in-page rather than racing Playwright's
+  // scroll-then-click flow against the next re-render.
+  await page.locator('[data-reaction-card="alphaCapture"] button').evaluate((element) => (element as HTMLButtonElement).click());
   await expect(page.locator('[data-matter="oxygen"]')).toBeVisible();
   await expect(page.locator('[data-ui="oxygen-value"]')).not.toHaveText('0%');
 
