@@ -116,7 +116,10 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 
 .stellar-lab { min-height: 600px; display: grid; grid-template-columns: minmax(280px, 345px) minmax(400px, 1fr) var(--action-panel-width); border-bottom: 1px solid $line; }
 .data-panel { padding: 30px; background: linear-gradient(180deg, rgba(12,18,29,.5), rgba(8,13,22,.35)); }
-.left-panel { border-right: 1px solid $line; }
+.left-panel { min-height: 0; border-right: 1px solid $line; background: linear-gradient(180deg, rgba(12,18,29,.5), rgba(8,13,22,.35)); }
+.core-panel { background: none; }
+.cloud-panel { border-top: 1px solid $line; background: rgba(8,13,22,.28); }
+.cloud-panel[hidden] { display: none; }
 .right-panel { border-left: 1px solid $line; }
 .panel-heading { display: flex; align-items: center; gap: 13px; margin-bottom: 30px; }
 .panel-heading .index { color: rgba($cyan, .35); font-family: ui-monospace, monospace; font-size: 10px; }
@@ -138,7 +141,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .section-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 17px; }
 .section-label > span { font-size: 9px; letter-spacing: .15em; text-transform: uppercase; color: #a9b4c1; }
 .section-label > small { color: #4e5a6b; font-family: ui-monospace, monospace; font-size: 8px; }
-.composition-row { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; margin: 12px 0; }
 .element { width: 27px; height: 27px; border-radius: 50%; display: grid; place-items: center; font-family: Georgia, serif; font-size: 11px; border: 1px solid; }
 .element.h { color: #9bdde3; border-color: rgba($cyan,.45); background: rgba($cyan,.08); }
 .element.he { color: #f2be73; border-color: rgba($amber,.42); background: rgba($amber,.08); }
@@ -148,9 +150,8 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .element.ne { color: #dc9cff; border-color: rgba(#c979f4,.48); background: rgba(#c979f4,.08); }
 .element.si { color: #e9b784; border-color: rgba(#d99b60,.48); background: rgba(#d99b60,.08); }
 .element.fe { color: #d38b72; border-color: rgba(#c66c54,.5); background: rgba(#c66c54,.09); }
-.composition-row > div b { display: block; font-size: 10px; font-weight: 500; margin-bottom: 6px; }
-.composition-row strong { color: $muted; font-family: ui-monospace, monospace; font-size: 9px; font-weight: 400; }
-.cloud-stats { margin-top: 18px; padding-top: 16px; border-top: 1px solid $line; }
+.cloud-panel-heading { margin-bottom: 22px; }
+.cloud-stats { margin: 0; padding: 0; border: 0; }
 .cloud-summary { display: grid; grid-template-columns: 1fr 42px; align-items: center; }
 .cloud-summary > div:first-child { display: flex; flex-direction: column; }
 .cloud-summary span { color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .08em; }
@@ -159,15 +160,14 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .cloud-mini-gauge { width: 35px; height: 35px; position: relative; display: grid; place-items: center; }
 .cloud-mini-gauge .gauge-ring { position: absolute; inset: 0; display: block; width: 35px; height: 35px; padding: 0; background: conic-gradient($cyan var(--remaining), rgba(255,255,255,.06) 0); -webkit-mask: radial-gradient(circle, transparent 52%, #000 55%); mask: radial-gradient(circle, transparent 52%, #000 55%); }
 .cloud-mini-gauge b { position: relative; z-index: 1; color: #b7dfe2; font-family: ui-monospace,monospace; font-size: 6px; font-weight: 500; }
-.cloud-elements { margin-top: 9px; display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
-.cloud-elements > div { min-width: 0; display: grid; grid-template-columns: 23px 1fr; gap: 5px; align-items: center; }
-.cloud-elements .element { width: 22px; height: 22px; font-size: 8px; }
-.cloud-elements p { min-width: 0; margin: 0; display: flex; flex-direction: column; }
-.cloud-elements p b { overflow: hidden; color: $muted; font-size: 7px; font-weight: 400; text-overflow: ellipsis; }
-.cloud-elements strong { font-family: ui-monospace,monospace; font-size: 8px; font-weight: 400; }
+.cloud-composition-label { margin: 20px 0 10px; }
+.matter-elements { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px 12px; }
+.matter-elements > div { min-width: 0; display: grid; grid-template-columns: 27px 1fr; gap: 8px; align-items: center; }
+.matter-elements .element { width: 26px; height: 26px; font-size: 9px; }
+.matter-elements p { min-width: 0; margin: 0; display: flex; flex-direction: column; }
+.matter-elements p b { overflow: hidden; color: $muted; font-size: 8px; font-weight: 400; text-overflow: ellipsis; }
+.matter-elements strong { margin-top: 2px; font-family: ui-monospace,monospace; font-size: 9px; font-weight: 400; }
 [data-matter][hidden], [data-cloud-matter][hidden] { display: none; }
-.cloud-elements.hydrogen-only { grid-template-columns: 1fr; }
-.cloud-elements.hydrogen-only > div { max-width: 130px; }
 
 .star-chamber { position: relative; overflow: hidden; min-height: 600px; display: grid; place-items: center; isolation: isolate; background: radial-gradient(circle at center, rgba(83, 70, 51, calc(.08 + var(--temp-scale) * .09)), transparent 48%); }
 .stage-label { position: absolute; z-index: 4; top: 34px; text-align: center; }
@@ -300,17 +300,9 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 // der Titel-Zeile, statt die geteilte .card-kicker-Basisregel zu ändern (die
 // auch die Missionsleiste oben nutzt).
 .action-card .card-kicker { display: block; margin-bottom: 6px; }
-// Farbvariante je Element — Größe/Form kommen jetzt von .upgrade-icon
-// (gemeinsam mit dem Symbol-Span in der Karten-Markup verwendet); kein Glow
-// mehr, damit sich das Symbol optisch nicht mehr von Automations-/
-// Upgrade-Icons unterscheidet.
-.reaction-symbol.deuterium { color: #a89ce5; border-color: rgba(#9e8fe5,.4); }
-.reaction-symbol.hydrogen { color: $amber; border-color: rgba($amber,.4); }
-.reaction-symbol.helium { color: #f4c57f; border-color: rgba($amber,.42); }
-.reaction-symbol.oxygen { color: #87b7f5; border-color: rgba(#75a8eb,.45); }
-.reaction-symbol.carbon { color: #d7dbe0; border-color: rgba(#d7dbe0,.42); }
-.reaction-symbol.neon { color: #dc9cff; border-color: rgba(#c979f4,.45); }
-.reaction-symbol.silicon { color: #e9b784; border-color: rgba(#d99b60,.45); }
+// Das Reaktionssymbol verwendet direkt die .element-Farbklasse seines
+// Haupterzeugnisses. So sind Symbol, Rahmen und Hintergrund identisch mit der
+// Kernzusammensetzung; .upgrade-icon liefert lediglich die Kartengröße.
 .reaction-symbol.evolution { color: $cyan; border-color: rgba($cyan,.45); }
 .evolution-action { background: linear-gradient(90deg, rgba($cyan,.04), transparent 56%); }
 .primary-action, .secondary-action { min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba($amber,.55); background: linear-gradient(135deg, rgba($amber,.95), rgba($orange,.94)); color: #1b110a; cursor: pointer; transition: .2s; touch-action: manipulation; }
@@ -326,6 +318,7 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .primary-action span, .secondary-action span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .primary-action .reaction-conversion { font-family: ui-monospace, monospace; font-size: 9px; text-transform: none; letter-spacing: .02em; white-space: nowrap; }
 .primary-action small, .secondary-action small { margin-top: 3px; font-size: 8px; opacity: .65; }
+.primary-action small:empty, .secondary-action small:empty { display: none; }
 .secondary-action { border-color: rgba(#9e8fe5,.4); color: #c5bced; background: rgba(#9e8fe5,.06); }
 .primary-action:disabled, .secondary-action:disabled { border-color: $line; background: rgba(255,255,255,.025); color: #596678; }
 .upgrade-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
@@ -689,11 +682,10 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .metric-grid { margin-bottom: 7px; }
   .metric { min-height: 48px; padding: 5px 9px; }
   .composition .section-label { margin-bottom: 6px; }
-  .composition-row { margin: 3px 0; }
-  .composition-row .element { width: 24px; height: 24px; }
-  .cloud-stats { margin-top: 10px; padding-top: 9px; }
-  .cloud-stats .section-label { margin-bottom: 4px; }
-  .cloud-elements { margin-top: 6px; }
+  .cloud-panel { padding-top: 12px; padding-bottom: 12px; }
+  .cloud-panel-heading { margin-bottom: 8px; }
+  .cloud-composition-label { margin: 9px 0 5px; }
+  .matter-elements { gap: 5px 10px; }
   .cloud-gauge { padding-bottom: 13px; }
   .gauge-ring { width: 68px; height: 68px; }
   .reservoir-list { padding: 5px 0; }

@@ -277,8 +277,20 @@ describe('data-driven stellar engine v0.4', () => {
     expect(accretionPerClick(massive)).toBeGreaterThan(accretionPerClick(small) * 100);
   });
 
-  it('starts every cloud with the protostar objective and caps offline time', () => {
+  it('starts every cloud by collecting 1,000 ME hydrogen before forming the protostar and caps offline time', () => {
     const state = createInitialState({ largerCloud: 2 }, 0, 3, { cloudTier: 2 });
+    expect(objectiveFor(state)).toMatchObject({
+      id: 'collect-hydrogen',
+      title: 'Sammle 1.000 ME Wasserstoff ein',
+      progress: 0,
+    });
+
+    state.star.hydrogen = THRESHOLDS.firstHydrogenCollection / 2;
+    state.cloud.hydrogen -= THRESHOLDS.firstHydrogenCollection / 2;
+    expect(objectiveFor(state).progress).toBe(50);
+
+    state.star.hydrogen = THRESHOLDS.firstHydrogenCollection;
+    state.cloud.hydrogen -= THRESHOLDS.firstHydrogenCollection / 2;
     expect(objectiveFor(state).id).toBe('form-protostar');
     expect(tick(state, 24 * 60 * 60).elapsed).toBe(8 * 60 * 60);
   });

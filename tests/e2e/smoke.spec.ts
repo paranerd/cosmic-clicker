@@ -64,6 +64,24 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   await expect(page.locator('[data-matter="hydrogen"] strong')).not.toContainText('%');
 });
 
+test('the first objective collects 1,000 ME hydrogen before protostar formation', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 4, stage: 'nebula', cloudTier: 0, nextCloudTier: 0,
+    cloud: { hydrogen: 9_010, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 990, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+    seenObjectives: ['collect-hydrogen'],
+  });
+  await page.goto('/');
+
+  await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Sammle 1.000 ME Wasserstoff ein');
+  await expect(page.locator('[data-ui="objective-percent"]')).toHaveText('99%');
+  await page.getByRole('button', { name: 'Materie einsammeln' }).click();
+
+  await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Protostern bilden');
+  await expect(page.locator('.achievement-banner')).toContainText('1.000 ME Wasserstoff gesammelt');
+});
+
 test('reaching an objective uses a non-blocking achievement banner and warns about stellar wind', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, stage: 'nebula', cloudTier: 0, nextCloudTier: 0,
@@ -141,7 +159,26 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByRole('tab', { name: /Vermächtnis/ })).toHaveCount(0);
   await expect(page.locator('.action-sidepanel')).toContainText('Kontrollzentrum');
   await expect(page.getByText('Automatische Akkretion', { exact: true })).toHaveCount(0);
-  await expect(page.locator('.left-panel .cloud-stats')).toContainText('Urwolke');
+  const cloudPanel = page.locator('[data-ui="cloud-panel"]');
+  const coreComposition = page.locator('.core-elements');
+  await expect(coreComposition.locator('[data-matter="hydrogen"]')).toContainText('Wasserstoff');
+  await expect(coreComposition.locator('[data-matter="hydrogen"]')).toContainText('ME');
+  await expect(coreComposition.locator('.mini-track')).toHaveCount(0);
+  await expect(coreComposition).toHaveCSS('grid-template-columns', /\d+(?:\.\d+)?px \d+(?:\.\d+)?px/);
+  await expect(cloudPanel).toContainText('Kleine Urwolke');
+  await expect(cloudPanel).toContainText('Zusammensetzung');
+  await expect(cloudPanel.locator('.cloud-elements')).toHaveCSS('grid-template-columns', /\d+(?:\.\d+)?px \d+(?:\.\d+)?px/);
+  const panelFlow = await page.locator('.left-panel').evaluate((leftPanel) => {
+    const core = leftPanel.querySelector('.core-panel')?.getBoundingClientRect();
+    const cloud = leftPanel.querySelector('.cloud-panel')?.getBoundingClientRect();
+    const left = leftPanel.getBoundingClientRect();
+    return {
+      sectionGap: core && cloud ? cloud.top - core.bottom : Number.NaN,
+      spaceBelowCloud: cloud ? left.bottom - cloud.bottom : Number.NaN,
+    };
+  });
+  expect(Math.abs(panelFlow.sectionGap)).toBeLessThanOrEqual(1);
+  expect(panelFlow.spaceBelowCloud).toBeGreaterThan(12);
   await expect(page.locator('.cloud-mini-gauge [data-ui="cloud-percent"]')).toHaveText('100%');
   // The smallest cloud now shares the same realistic primordial composition
   // as every other cloud size (~75 % H, ~25 % He, a small D trace) instead of
@@ -454,7 +491,11 @@ test('active accretion automation continuously streams particles into the star',
 
 test('upgrade and automation cards use compact heading rows with the rate moved below the title', async ({ page }) => {
   await gotoGame(page);
-  await expect(page.locator('[data-reaction-card="hydrogen"]')).toContainText('Wasserstofffusion');
+  const lockedHydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
+  await expect(lockedHydrogenCard).toContainText('Wasserstofffusion');
+  await expect(lockedHydrogenCard.locator('[data-button-detail]')).toHaveText('');
+  await expect(lockedHydrogenCard.locator('[data-button-detail]')).toBeHidden();
+  await expect(lockedHydrogenCard.locator('.reaction-symbol.element.he')).toHaveText('He');
   await expect(page.getByRole('button', { name: /Zünden/ })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Upgrades' }).click();
   const gravityCard = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' });
@@ -896,6 +937,8 @@ test('cycle completion slides in a compact notice and opens the summary only on 
 
   await page.getByRole('button', { name: 'Materie einsammeln' }).evaluate((button: HTMLButtonElement) => button.click());
 
+  await expect(page.locator('[data-ui="cloud-panel"]')).toBeHidden();
+
   const cycleEnd = page.locator('.cycle-end-banner');
   await expect(cycleEnd).toBeVisible();
   await expect(cycleEnd).toContainText('ZYKLUS 01 ABGESCHLOSSEN');
@@ -1074,6 +1117,10 @@ test('the full ordered reaction path keeps available fuel visible and previews c
   await expect(page.getByRole('heading', { name: 'Heliumfusion' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Alpha-Einfang', level: 3 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Kohlenstofffusion', level: 3 })).toBeVisible();
+  await expect(page.locator('[data-reaction-card="hydrogen"] .reaction-symbol.element.he')).toHaveText('He');
+  await expect(page.locator('[data-reaction-card="helium"] .reaction-symbol.element.c')).toHaveText('C');
+  await expect(page.locator('[data-reaction-card="alphaCapture"] .reaction-symbol.element.o')).toHaveText('O');
+  await expect(page.locator('[data-reaction-card="carbon"] .reaction-symbol.element.ne')).toHaveText('Ne');
   await expect(page.locator('[data-reaction-card="carbon"] [data-action="run-reaction"]')).toBeDisabled();
   // The carbonOxygen stage now carries the Punkt-6 shell wind, which keeps
   // the H/He envelope (and thus the reaction panel) changing every frame.

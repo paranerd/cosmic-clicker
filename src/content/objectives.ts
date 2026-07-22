@@ -17,7 +17,7 @@ export interface ObjectiveDefinition {
   warning?: Warning;
 }
 
-export type StaticObjectiveId = 'review-cycle' | 'form-protostar' | 'heat-protostar' | 'ignite-hydrogen' | 'stabilize-star';
+export type StaticObjectiveId = 'review-cycle' | 'collect-hydrogen' | 'form-protostar' | 'heat-protostar' | 'ignite-hydrogen' | 'stabilize-star';
 
 // Ziele der frühen Formationsphasen und des Rundenabschlusses, die keiner
 // Reaktion entsprechen. Die reaktionsbezogenen Zielphasen (`ignite-<reaktion>`
@@ -32,10 +32,16 @@ export const OBJECTIVES: Record<StaticObjectiveId, ObjectiveDefinition> = {
     title: 'Runde auswerten',
     detail: 'Investiere Sternenstaub oder beginne den nächsten Zyklus.',
   },
-  'form-protostar': {
+  'collect-hydrogen': {
     eyebrow: 'Erstes Ziel',
+    title: 'Sammle 1.000 ME Wasserstoff ein',
+    detail: 'Ziehe Wasserstoff aus der Urwolke in den entstehenden Stern.',
+    achievementTitle: '1.000 ME Wasserstoff gesammelt',
+  },
+  'form-protostar': {
+    eyebrow: 'Nächstes Ziel',
     title: 'Protostern bilden',
-    detail: 'Verdichte die Materie der Urwolke im Zentrum.',
+    detail: 'Sammle weiter Wasserstoff, um die Materie im Zentrum der Urwolke zu verdichten.',
     achievementTitle: 'Protostern gebildet',
     warning: {
       title: 'Sternwind setzt ein',
@@ -49,7 +55,7 @@ export const OBJECTIVES: Record<StaticObjectiveId, ObjectiveDefinition> = {
     eyebrow: 'Nächstes Ziel',
     title: `${THRESHOLDS.deuteriumTemperature.toLocaleString('de-DE')} K erreichen`,
     detail: 'Verdichte weiter, bis Deuteriumbrennen aktiviert werden kann.',
-    achievementTitle: '1 Mio. Kelvin erreicht',
+    achievementTitle: `${THRESHOLDS.deuteriumTemperature.toLocaleString('de-DE')} Kelvin erreicht`,
   },
   'ignite-hydrogen': {
     eyebrow: 'Nächstes Ziel',

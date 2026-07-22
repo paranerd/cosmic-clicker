@@ -278,8 +278,8 @@ export const reactionAvailable = (state: GameState, reaction: ReactionId): boole
   && reactionCapacity(state, reaction) > .001;
 
 const primaryOutputAmount = (reaction: ReactionId, primaryInput: number): number => {
-  const firstRatio = Object.values(REACTIONS[reaction].outputs)[0] ?? 1;
-  return primaryInput * firstRatio;
+  const definition = REACTIONS[reaction];
+  return primaryInput * (definition.outputs[definition.primaryOutput] ?? 1);
 };
 
 const runReaction = (state: GameState, reaction: ReactionId, requested: number, automatic: boolean): number => {
@@ -644,6 +644,16 @@ export const objectiveFor = (state: GameState): { id: string; eyebrow: string; t
   if (state.completed) {
     const objective = OBJECTIVES['review-cycle'];
     return { id: 'review-cycle', eyebrow: objective.eyebrow, title: objective.title, progress: 100, detail: objective.detail };
+  }
+  if (state.stage === 'nebula' && state.star.hydrogen < THRESHOLDS.firstHydrogenCollection) {
+    const objective = OBJECTIVES['collect-hydrogen'];
+    return {
+      id: 'collect-hydrogen',
+      eyebrow: objective.eyebrow,
+      title: objective.title,
+      progress: Math.min(100, state.star.hydrogen / THRESHOLDS.firstHydrogenCollection * 100),
+      detail: objective.detail,
+    };
   }
   if (state.stage === 'nebula') {
     const objective = OBJECTIVES['form-protostar'];

@@ -4,6 +4,7 @@ export const INITIAL_TEMPERATURE = 10;
 
 export const THRESHOLDS = {
   matterPerSolarMass: 150_000,
+  firstHydrogenCollection: 1_000,
   protostarMass: 2_544,
   protostarTemperature: 100_000,
   deuteriumTemperature: 1_000_000,

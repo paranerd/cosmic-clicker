@@ -89,7 +89,7 @@ export const automationVisible = (kind: AutomationKind): boolean => {
 };
 
 const reactionOutput = (reaction: ReactionId): number =>
-  getState().reactionTotals[reaction] * (Object.values(REACTIONS[reaction].outputs)[0] ?? 1);
+  getState().reactionTotals[reaction] * (REACTIONS[reaction].outputs[REACTIONS[reaction].primaryOutput] ?? 1);
 
 export const automationMastery = (kind: AutomationKind): number => {
   const mastery = AUTOMATIONS[kind].mastery;
@@ -178,7 +178,7 @@ export function reactionView(id: ReactionId): ReactionView {
   const upgradeMax = upgradeLevel >= REACTION_UPGRADE.maxLevel;
   return {
     id, visible, unlocked, available, amount, energy, label,
-    detail: capacity > .001 ? reactionConversionLabel(id, amount, energy) : `${formatMatter(capacity)} ${RESOURCES[definition.primaryInput].symbol} verfügbar`,
+    detail: !unlocked ? '' : capacity > .001 ? reactionConversionLabel(id, amount, energy) : `${formatMatter(capacity)} ${RESOURCES[definition.primaryInput].symbol} verfügbar`,
     upgradeLevel, upgradePrice, upgradeMax, upgradeAffordable: !upgradeMax && state.energy >= upgradePrice,
   };
 }
@@ -238,10 +238,11 @@ function reactionUpgradeFooter(view: ReactionView): string {
 // statische Gleichungszeile mehr.
 function reactionCard(view: ReactionView): string {
   const definition = REACTIONS[view.id];
+  const primaryOutput = RESOURCES[definition.primaryOutput];
   return `<div class="action-card ${view.available ? 'is-ready' : ''}" data-reaction-card="${view.id}">
     ${reactionUpgradeButton(view)}
     <span class="card-kicker">${definition.kicker}</span>
-    <div class="upgrade-heading"><span class="upgrade-icon reaction-symbol ${definition.className}">${definition.symbol}</span><h3>${definition.title}</h3></div>
+    <div class="upgrade-heading"><span class="upgrade-icon reaction-symbol element ${primaryOutput.className}" aria-label="Erzeugt ${primaryOutput.label}">${primaryOutput.symbol}</span><h3>${definition.title}</h3></div>
     ${reactionRateRow(view)}
     <p>${definition.description}</p>
     <button class="primary-action compact" data-action="run-reaction" data-reaction="${view.id}" ${disabled(!view.available)}><span data-button-label>${view.label}</span><small class="reaction-conversion" data-button-detail>${view.detail}</small></button>
