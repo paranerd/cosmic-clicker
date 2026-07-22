@@ -31,10 +31,12 @@ button:disabled { cursor: not-allowed; }
   radial-gradient(ellipse at 88% 40%, rgba(25, 66, 80, .09), transparent 34%),
   linear-gradient(180deg, #080c15 0%, #050810 70%, #04070c 100%); }
 .cosmos::after { content: ''; position: absolute; inset: 0; opacity: .2; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E"); mix-blend-mode: soft-light; pointer-events: none; }
-.stars { position: absolute; inset: -30px; opacity: .55; transform: translate3d(var(--parallax-x, 0), var(--parallax-y, 0), 0); background-image:
-  radial-gradient(circle at 12% 18%, #fff 0 1px, transparent 1.2px), radial-gradient(circle at 72% 11%, #fff 0 1px, transparent 1.3px), radial-gradient(circle at 88% 36%, #fff 0 1px, transparent 1.2px), radial-gradient(circle at 29% 72%, #a8d9ff 0 1px, transparent 1.3px), radial-gradient(circle at 55% 58%, #fff 0 1px, transparent 1.2px); background-size: 290px 240px; }
-.stars-a { animation: starDriftA 85s linear infinite; }
-.stars-b { opacity: .25; transform: translate3d(var(--parallax-soft-x, 0), var(--parallax-soft-y, 0), 0) scale(1.4) rotate(11deg); background-size: 410px 330px; animation: starDriftB 125s linear infinite; }
+.stars { position: absolute; inset: -30px; opacity: .55; transform: translate3d(var(--parallax-x, 0), var(--parallax-y, 0), 0); }
+.stars::before { content: ''; position: absolute; inset: -130px; background-image:
+  radial-gradient(circle at 12% 18%, #fff 0 1px, transparent 1.2px), radial-gradient(circle at 72% 11%, #fff 0 1px, transparent 1.3px), radial-gradient(circle at 88% 36%, #fff 0 1px, transparent 1.2px), radial-gradient(circle at 29% 72%, #a8d9ff 0 1px, transparent 1.3px), radial-gradient(circle at 55% 58%, #fff 0 1px, transparent 1.2px); background-size: 290px 240px; will-change: transform; }
+.stars-a::before { animation: starDriftA 32s linear infinite alternate; }
+.stars-b { opacity: .25; transform: translate3d(var(--parallax-soft-x, 0), var(--parallax-soft-y, 0), 0) scale(1.4) rotate(11deg); }
+.stars-b::before { background-size: 410px 330px; animation: starDriftB 46s linear infinite alternate; }
 .nebula-glow { position: absolute; width: 900px; height: 600px; left: calc(50% - 450px); top: 70px; transform: translate3d(var(--parallax-soft-x, 0), var(--parallax-soft-y, 0), 0); background: radial-gradient(ellipse, rgba(40, 77, 90, .1), transparent 65%); filter: blur(30px); animation: nebulaPulse 28s ease-in-out infinite alternate; }
 
 svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; }
@@ -84,8 +86,8 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .reset-control.is-open .reset-choices { display: flex; }
 
 main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(100% - 48px)); margin: 0 auto; }
-.mission-strip { min-height: 88px; display: grid; grid-template-columns: 1fr minmax(260px, 430px) max-content; gap: 32px; align-items: center; border-bottom: 1px solid $line; }
-.mission-copy { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.mission-strip { min-height: 88px; position: relative; display: grid; grid-template-columns: 1fr minmax(260px, 430px) max-content; gap: 32px; align-items: center; overflow: hidden; border-bottom: 1px solid $line; }
+.mission-copy { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; visibility: visible; opacity: 1; transform: translateY(0); transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s; }
 .mission-copy span, .card-kicker { color: $cyan; font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
 .mission-copy h2 { margin: 4px 0 0; font-family: Georgia, serif; font-size: 18px; font-weight: 400; letter-spacing: .02em; }
 .mission-copy p { margin: 4px 0 0; color: $muted; font-size: 11px; }
@@ -96,6 +98,21 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .elapsed { min-width: 9ch; border-left: 1px solid $line; padding-left: 22px; display: flex; flex-direction: column; }
 .elapsed span { color: $muted; font-size: 8px; letter-spacing: .14em; text-transform: uppercase; }
 .elapsed b { width: 8ch; margin-top: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.mission-collapse { width: 28px; height: 28px; position: absolute; z-index: 2; right: 0; top: 10px; display: grid; place-items: center; padding: 0; border: 1px solid $line; background: rgba(8,13,22,.92); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
+.mission-collapse svg { width: 14px; height: 14px; display: block; transform: rotate(180deg); transform-origin: center; transition: transform .2s ease; }
+.mission-strip.is-collapsed .mission-collapse svg { transform: none; }
+.mission-collapse:focus-visible { color: $cyan; border-color: rgba($cyan,.45); background: rgba($cyan,.07); }
+@media (hover: hover) and (pointer: fine) {
+  .mission-collapse:hover { color: $cyan; border-color: rgba($cyan,.45); background: rgba($cyan,.07); }
+}
+.mission-strip:not(.is-collapsed) .elapsed { margin-right: 38px; }
+.mission-strip.is-collapsed { min-height: 44px; grid-template-columns: minmax(0,1fr) auto 22px; gap: 12px; padding: 8px 0; }
+.mission-strip.is-collapsed .mission-copy { position: absolute; visibility: hidden; opacity: 0; transform: translateY(-10px); pointer-events: none; transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s .34s; }
+.mission-strip.is-collapsed .mission-progress { min-width: 0; grid-column: 1; grid-row: 1; padding: 0; }
+.mission-strip.is-collapsed .elapsed { min-width: 0; grid-column: 2; grid-row: 1; align-self: stretch; justify-content: center; margin: 0; padding-left: 12px; }
+.mission-strip.is-collapsed .elapsed span { font-size: 6px; letter-spacing: .1em; }
+.mission-strip.is-collapsed .elapsed b { width: auto; margin-top: 2px; font-size: 11px; }
+.mission-strip.is-collapsed .mission-collapse { width: 22px; height: 22px; position: relative; right: auto; top: auto; grid-column: 3; grid-row: 1; transform: none; }
 
 .stellar-lab { min-height: 600px; display: grid; grid-template-columns: minmax(280px, 345px) minmax(400px, 1fr) var(--action-panel-width); border-bottom: 1px solid $line; }
 .data-panel { padding: 30px; background: linear-gradient(180deg, rgba(12,18,29,.5), rgba(8,13,22,.35)); }
@@ -256,7 +273,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .side-tabs button.unlock-flash { animation: tabUnlockFlash 1.25s ease-out; }
 .side-content { min-height: 0; padding: 14px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba($cyan,.25) transparent; }
 .action-sidepanel .reaction-grid, .action-sidepanel .upgrade-grid { grid-template-columns: 1fr; }
-.action-sidepanel .reaction-equation { margin-top: 7px; }
 .action-sidepanel .action-card, .action-sidepanel .upgrade-card { padding: 13px; }
 .action-sidepanel .action-card p, .action-sidepanel .upgrade-card p { min-height: 0; }
 
@@ -293,8 +309,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .reaction-symbol.silicon { color: #e9b784; border-color: rgba(#d99b60,.45); }
 .reaction-symbol.evolution { color: $cyan; border-color: rgba($cyan,.45); }
 .evolution-action { background: linear-gradient(90deg, rgba($cyan,.04), transparent 56%); }
-.reaction-equation { display: flex; gap: 9px; align-items: center; margin-top: 10px; color: #9aa7b6; font-family: ui-monospace, monospace; font-size: 9px; }
-.reaction-equation b { color: $amber; font-weight: 400; }
 .primary-action, .secondary-action { min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba($amber,.55); background: linear-gradient(135deg, rgba($amber,.95), rgba($orange,.94)); color: #1b110a; cursor: pointer; transition: .2s; touch-action: manipulation; }
 // Punkt 4: Der Fusionsbutton hat bei Automations-/Upgradekarten keine
 // Entsprechung; Abstand zur Gleichung/Beschreibung sowie die volle
@@ -306,6 +320,7 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .action-card .primary-action { width: 100%; margin-top: 12px; }
 .primary-action:hover:not(:disabled), .secondary-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 8px 24px rgba($orange,.16); }
 .primary-action span, .secondary-action span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.primary-action .reaction-conversion { font-family: ui-monospace, monospace; font-size: 9px; text-transform: none; letter-spacing: .02em; white-space: nowrap; }
 .primary-action small, .secondary-action small { margin-top: 3px; font-size: 8px; opacity: .65; }
 .secondary-action { border-color: rgba(#9e8fe5,.4); color: #c5bced; background: rgba(#9e8fe5,.06); }
 .primary-action:disabled, .secondary-action:disabled { border-color: $line; background: rgba(255,255,255,.025); color: #596678; }
@@ -412,7 +427,9 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .danger-action:hover, .danger-action.is-armed { color: #1b0b09; border-color: #db715f; background: #db715f; }
 .chronicle-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); margin: -26px -30px -30px; }
 .chronicle-layout .timeline-card, .chronicle-layout .log-card { min-height: 250px; }
-.chronicle-dock { min-height: 116px; position: relative; display: grid; grid-template-columns: minmax(0,1fr) var(--action-panel-width); border-bottom: 1px solid $line; background: rgba(7,11,18,.72); overflow: hidden; }
+.chronicle-dock { min-height: 116px; position: relative; display: grid; grid-template-columns: minmax(0,1fr) var(--action-panel-width); border-bottom: 1px solid $line; background: rgba(7,11,18,.72); overflow: hidden; cursor: pointer; transition: background .2s ease, border-color .2s ease; }
+.chronicle-dock:hover, .chronicle-dock:focus-visible { border-bottom-color: rgba($cyan,.28); background: rgba(10,17,27,.86); }
+.chronicle-dock:focus-visible { outline: 2px solid $cyan; outline-offset: -2px; }
 .dock-timeline, .dock-log { min-width: 0; padding: 13px 22px; }
 .dock-timeline { border-right: 1px solid $line; }
 .chronicle-dock .section-label { margin-bottom: 5px; }
@@ -425,8 +442,8 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .chronicle-dock .log-list { gap: 4px; }
 .chronicle-dock .log-entry { padding-bottom: 4px; }
 .chronicle-dock .log-entry p { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.chronicle-expand { position: absolute; right: 10px; top: 8px; width: 25px; height: 25px; border: 1px solid $line; background: rgba($cyan,.035); color: $cyan; cursor: pointer; }
-.chronicle-expand:hover { border-color: rgba($cyan,.45); background: rgba($cyan,.09); }
+.chronicle-expand { position: absolute; right: 10px; top: 8px; width: 25px; height: 25px; display: grid; place-items: center; border: 1px solid $line; background: rgba($cyan,.035); color: $cyan; }
+.chronicle-dock:hover .chronicle-expand { border-color: rgba($cyan,.45); background: rgba($cyan,.09); }
 
 .bottom-grid { display: grid; grid-template-columns: 2fr 1fr; border-bottom: 1px solid $line; }
 .timeline-card, .log-card { padding: 28px 30px; }
@@ -640,14 +657,17 @@ footer button:hover { color: $cyan; }
 @keyframes introModalIn { from { opacity: 0; transform: translateY(18px) scale(.975); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes introContentIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
 @keyframes introStarIn { from { opacity: 0; transform: rotate(45deg) scale(.5); } to { opacity: 1; transform: rotate(45deg) scale(1); } }
-@keyframes starDriftA { to { background-position: 290px -240px; } }
-@keyframes starDriftB { to { background-position: -410px 330px; } }
+@keyframes starDriftA { to { transform: translate3d(100px,-85px,0); } }
+@keyframes starDriftB { to { transform: translate3d(-120px,95px,0); } }
 @keyframes nebulaPulse { from { opacity: .55; } to { opacity: 1; } }
+
+html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-play-state: paused !important; }
 
 @media (min-width: 1101px) and (min-height: 800px) {
   html, body, #app { height: 100%; overflow: hidden; }
   .topbar { height: 64px; flex: 0 0 64px; }
-  main { --action-panel-width: clamp(330px,28vw,360px); height: calc(100vh - 64px); display: grid; grid-template-rows: 64px minmax(420px, 1fr) 116px; }
+  main { --action-panel-width: clamp(330px,28vw,360px); --mission-row: 64px; height: calc(100vh - 64px); display: grid; grid-template-rows: var(--mission-row) minmax(420px, 1fr) 116px; }
+  main.mission-is-collapsed { --mission-row: 44px; }
   .mission-strip { min-height: 0; }
   .stellar-lab { grid-template-columns: minmax(300px, 325px) minmax(390px, 1fr) var(--action-panel-width); }
   .stellar-lab, .star-chamber { min-height: 0; }
@@ -772,6 +792,6 @@ footer button:hover { color: $cyan; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
   .intro-backdrop, .intro-modal, .intro-modal > * { animation-delay: 0s !important; }
 }

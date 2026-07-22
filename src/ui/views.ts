@@ -17,6 +17,7 @@ import {
   UPGRADES,
   type AutomationKind,
   type CloudGrowthPath,
+  type MatterKey,
   type UpgradeDefinition,
   type UpgradeId,
 } from '../content';
@@ -136,6 +137,26 @@ export interface ReactionView {
   upgradeAffordable: boolean;
 }
 
+// Zeigt im manuellen Reaktionsbutton die tatsächlich bei diesem Klick
+// umgesetzten Mengen. Damit stimmen auch Teilreaktionen bei fast leerem Kern
+// sowie die durch Reaktionsausbauten erhöhte Menge automatisch. γ steht hier
+// für die dabei gewonnene Spielenergie.
+const formatReactionAmount = (value: number): string => {
+  if (value >= 1_000_000) return formatCompact(value);
+  if (value < 1) return formatNumber(value, 2);
+  if (value < 10) return formatNumber(value, 1);
+  return formatNumber(value);
+};
+
+function reactionConversionLabel(id: ReactionId, amount: number, energy: number): string {
+  const definition = REACTIONS[id];
+  const side = (matter: Partial<Record<MatterKey, number>>): string => Object.entries(matter)
+    .filter((entry): entry is [MatterKey, number] => typeof entry[1] === 'number' && entry[1] > 0)
+    .map(([key, ratio]) => `${formatReactionAmount(amount * ratio)} ${RESOURCES[key].symbol}`)
+    .join(' + ');
+  return `${side(definition.inputs)} → ${side(definition.outputs)} + ${formatReactionAmount(energy)} γ`;
+}
+
 export function reactionView(id: ReactionId): ReactionView {
   const state = getState();
   const definition = REACTIONS[id];
@@ -150,14 +171,14 @@ export function reactionView(id: ReactionId): ReactionView {
   const available = reactionAvailable(state, id);
   const label = !unlocked ? `Ab ${formatTemperature(definition.ignitionTemperature)}`
     : capacity <= .001 ? 'Nicht genug Brennstoff im Kern'
-      : `${formatMatter(amount)} ${RESOURCES[definition.primaryInput].symbol} fusionieren`;
+      : 'Fusionieren';
   // Punkt 2: Zustand des Reaktionsausbaus für die Karte.
   const upgradeLevel = state.reactionUpgrades[id];
   const upgradePrice = reactionUpgradeCost(id, upgradeLevel);
   const upgradeMax = upgradeLevel >= REACTION_UPGRADE.maxLevel;
   return {
     id, visible, unlocked, available, amount, energy, label,
-    detail: available ? `+${formatCompact(energy)} Energie` : `${formatMatter(capacity)} ${RESOURCES[definition.primaryInput].symbol} verfügbar`,
+    detail: capacity > .001 ? reactionConversionLabel(id, amount, energy) : `${formatMatter(capacity)} ${RESOURCES[definition.primaryInput].symbol} verfügbar`,
     upgradeLevel, upgradePrice, upgradeMax, upgradeAffordable: !upgradeMax && state.energy >= upgradePrice,
   };
 }
@@ -211,8 +232,10 @@ function reactionUpgradeFooter(view: ReactionView): string {
 // Punkt 4: Reaktionskarten folgen jetzt derselben Grundstruktur wie
 // Automations-/Upgradekarten (Icon+Titel-Zeile, Aktuell/Nächste-Stufe,
 // Beschreibung, Ausbaustufen, Kosten) — nur der Kicker (Reaktionskette-Label)
-// und die Fusionsgleichung/der Fusions-Button haben dort keine Entsprechung
-// und stehen als zusätzliche Zeilen zwischen Beschreibung und Pips.
+// und der Fusions-Button haben dort keine Entsprechung und stehen als
+// zusätzliche Zeile zwischen Beschreibung und Pips. Die dynamische Gleichung
+// steht direkt als Detailzeile im Button, daher braucht die Karte keine zweite,
+// statische Gleichungszeile mehr.
 function reactionCard(view: ReactionView): string {
   const definition = REACTIONS[view.id];
   return `<div class="action-card ${view.available ? 'is-ready' : ''}" data-reaction-card="${view.id}">
@@ -221,8 +244,7 @@ function reactionCard(view: ReactionView): string {
     <div class="upgrade-heading"><span class="upgrade-icon reaction-symbol ${definition.className}">${definition.symbol}</span><h3>${definition.title}</h3></div>
     ${reactionRateRow(view)}
     <p>${definition.description}</p>
-    <div class="reaction-equation"><span>${definition.equationInput}</span><b>→</b><span>${definition.equationOutput}</span></div>
-    <button class="primary-action compact" data-action="run-reaction" data-reaction="${view.id}" ${disabled(!view.available)}><span data-button-label>${view.label}</span><small data-button-detail>${view.detail}</small></button>
+    <button class="primary-action compact" data-action="run-reaction" data-reaction="${view.id}" ${disabled(!view.available)}><span data-button-label>${view.label}</span><small class="reaction-conversion" data-button-detail>${view.detail}</small></button>
     ${reactionUpgradeFooter(view)}
   </div>`;
 }
@@ -453,7 +475,7 @@ export function evolutionMapMarkup(): string {
     const known = discovered.has(outcome);
     const current = currentPath === path;
     const label = cloudPathName(path);
-    return `<article class="evolution-branch ${unlocked ? 'is-unlocked' : 'is-locked'} ${known ? 'is-discovered' : ''} ${current ? 'is-current' : ''}"><span>${label.shortName.toUpperCase()}</span><h3>${unlocked ? label.name : 'Unbekannte Wolke'}</h3><p>${unlocked ? detail : 'Über Wolkenwachstum freischalten.'}</p><strong>${known ? `Entdeckt: ${OUTCOME_LABELS[outcome]}` : unlocked ? 'Noch nicht entdeckt' : 'Gesperrt'}</strong></article>`;
+    return `<article class="evolution-branch ${unlocked ? 'is-unlocked' : 'is-locked'} ${known ? 'is-discovered' : ''} ${current ? 'is-current' : ''}"><span>${label.shortName.toUpperCase()}</span><h3>${unlocked ? label.name : 'Unbekannte Wolke'}</h3><p>${unlocked ? detail : 'Über Wolkenmasse freischalten.'}</p><strong>${known ? `Entdeckt: ${OUTCOME_LABELS[outcome]}` : unlocked ? 'Noch nicht entdeckt' : 'Gesperrt'}</strong></article>`;
   };
   return `<div class="evolution-map">
     ${branch('brownDwarf', 'brownDwarf', 'Unterhalb der Zündmasse → Brauner Zwerg')}

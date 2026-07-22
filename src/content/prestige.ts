@@ -26,7 +26,7 @@ export const OUTCOMES: Record<StellarOutcome, { title: string; description: stri
 
 export const PRESTIGE_PERKS = {
   largerCloud: {
-    title: 'Wolkenwachstum',
+    title: 'Wolkenmasse',
     description: `+${(CLOUD_GROWTH.growthFactorPerLevel - 1) * 100}% maximale Wolkenmasse`,
     maxLevel: LIMITS.cloudGrowthLevel,
     cost: (level: number): number => 2 + level * 3,

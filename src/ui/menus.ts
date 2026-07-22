@@ -1,5 +1,5 @@
 import { LIMITS } from '../content';
-import { cloudDefinition, cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost } from '../game/engine';
+import { cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost } from '../game/engine';
 import { app, getState } from './store';
 
 let resetMenuOpen = false;
@@ -88,7 +88,7 @@ export function clearPrestigeConfirmation(): void {
   const button = app.querySelector<HTMLButtonElement>('[data-action="prestige"]');
   if (!button) return;
   button.classList.remove('is-confirming');
-  button.textContent = `Mit ${cloudDefinition(getState().nextCloudTier).name} beginnen`;
+  button.textContent = 'Neuen Zyklus starten';
 }
 
 export function armPrestigeConfirmation(): void {

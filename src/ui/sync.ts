@@ -24,6 +24,7 @@ import {
 import { syncDebug } from './debug';
 import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, matterPercent, temperatureScale } from './format';
 import { isWarningsOpen, setWarningsOpen } from './menus';
+import { isMissionCollapsed } from './mission';
 import { markOpportunitiesSeen, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
 import { syncOverlay } from './overlay';
 import { app, getActivePanel, getState, setActivePanel, type Panel } from './store';
@@ -46,6 +47,7 @@ let lastStage = getState().stage;
 let lastLogSignature = '';
 let lastUpgradeOrderSignature = '';
 let lastDynamicPanelSignature = '';
+const uiElements = new Map<string, HTMLElement>();
 
 export function renderShell(): void {
   const state = getState();
@@ -54,11 +56,11 @@ export function renderShell(): void {
     <header class="topbar">
       <a class="brand" href="#" aria-label="Cosmic Clicker Startseite"><span class="brand-mark">${icons.spark}</span><span><b>COSMIC</b><em>CLICKER</em></span></a>
       <div class="run-status"><b data-ui="run">ZYKLUS 01</b></div>
-      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Sternenstaub und aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>${PRESTIGE_PERKS.largerCloud.title}</b><small><i data-ui="cloud-perk-name">Kleine Urwolke</i></small></div><div><b>${PRESTIGE_PERKS.permanentGravity.title}</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><div><b>${PRESTIGE_PERKS.fusionMemory.title}</b><small>Stufe <i data-ui="fusion-perk-level">0</i></small></div><p>Neue Stufen können am Zyklusende gekauft werden.</p></div></div><div class="sound-menu"><button class="icon-button" data-action="toggle-sound-menu" aria-label="Audioeinstellungen öffnen" aria-expanded="false">${state.soundEnabled ? icons.sound : icons.soundOff}</button><div class="sound-popover"><div><span>Effektlautstärke</span><b data-ui="volume-label">35%</b></div><input data-action="set-volume" aria-label="Effektlautstärke" type="range" min="0" max="100" step="1" value="35"><button data-action="toggle-sound" data-ui="mute-label">Ton stummschalten</button></div></div><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
+      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Sternenstaub und aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>${PRESTIGE_PERKS.largerCloud.title}</b><small>Stufe <i data-ui="cloud-perk-level">0</i></small></div><div><b>${PRESTIGE_PERKS.permanentGravity.title}</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><div><b>${PRESTIGE_PERKS.fusionMemory.title}</b><small>Stufe <i data-ui="fusion-perk-level">0</i></small></div><p>Neue Stufen können am Zyklusende gekauft werden.</p></div></div><div class="sound-menu"><button class="icon-button" data-action="toggle-sound-menu" aria-label="Audioeinstellungen öffnen" aria-expanded="false">${state.soundEnabled ? icons.sound : icons.soundOff}</button><div class="sound-popover"><div><span>Effektlautstärke</span><b data-ui="volume-label">35%</b></div><input data-action="set-volume" aria-label="Effektlautstärke" type="range" min="0" max="100" step="1" value="35"><button data-action="toggle-sound" data-ui="mute-label">Ton stummschalten</button></div></div><button class="icon-button export-button" data-action="export" aria-label="Spielstand exportieren">${icons.download}</button><div class="reset-control"><button class="icon-button reset-button" data-action="reset-menu" aria-label="Neustartoptionen öffnen">${icons.reset}</button><div class="reset-choices"><button data-action="reset-run">Runde neu starten</button><button data-action="reset-full"><span data-full-reset-label>Spielstand löschen</span></button></div></div></div>
     </header>
 
-    <main>
-      <section class="mission-strip"><div class="mission-copy"><span data-ui="objective-eyebrow"></span><h2 data-ui="objective-title"></h2><p data-ui="objective-detail"></p></div><div class="mission-progress"><div class="progress-label"><span>Fortschritt</span><b data-ui="objective-percent"></b></div><div class="progress-track"><i data-ui="objective-bar"></i></div></div><div class="elapsed"><span>Laufzeit</span><b data-ui="elapsed"></b></div></section>
+    <main class="${isMissionCollapsed() ? 'mission-is-collapsed' : ''}">
+      <section class="mission-strip ${isMissionCollapsed() ? 'is-collapsed' : ''}" data-ui="mission-strip"><div class="mission-copy"><span data-ui="objective-eyebrow"></span><h2 data-ui="objective-title"></h2><p data-ui="objective-detail"></p></div><div class="mission-progress"><div class="progress-label"><span>Fortschritt</span><b data-ui="objective-percent"></b></div><div class="progress-track"><i data-ui="objective-bar"></i></div></div><div class="elapsed"><span>Laufzeit</span><b data-ui="elapsed"></b></div><button class="mission-collapse" data-action="toggle-mission" aria-expanded="${String(!isMissionCollapsed())}" aria-label="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}" title="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}">${icons.chevron}</button></section>
 
       <section class="stellar-lab">
         <aside class="data-panel left-panel">
@@ -71,7 +73,7 @@ export function renderShell(): void {
 
         <section class="star-chamber">
           <div class="stage-label"><span data-ui="stage"></span><b data-ui="stage-detail"></b></div>
-          <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">H</i>`).join('')}</div>
+          <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">${index % 5 !== 4 ? 'H' : 'He'}</i>`).join('')}</div>
           <button class="star-button" data-action="accrete" aria-label="Materie einsammeln"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
           <div class="click-callout"><span data-ui="click-yield"></span><small data-ui="click-detail"></small></div><div class="phase-dots">${Array.from({length:8},(_, index)=>`<i data-phase="${index}"></i>`).join('')}</div>
           <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
@@ -84,7 +86,7 @@ export function renderShell(): void {
         </aside>
       </section>
 
-      <section class="chronicle-dock"><div class="dock-timeline"><div class="section-label"><span>Stellare Entwicklung</span><small>${cloudDefinition(state.cloudTier).shortName.toUpperCase()} · ≈ ${formatSolarMasses(cloudDefinition(state.cloudTier).solarMasses)}</small></div><div class="timeline" data-ui="dock-timeline">${timelineMarkup()}</div></div><div class="dock-log"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list" data-ui="dock-log">${logMarkup(2)}</div></div><button class="chronicle-expand" data-action="open-chronicle" aria-label="Chronik öffnen">↗</button></section>
+      <section class="chronicle-dock" role="button" tabindex="0" aria-label="Chronik öffnen"><div class="dock-timeline"><div class="section-label"><span>Stellare Entwicklung</span><small>${cloudDefinition(state.cloudTier).shortName.toUpperCase()} · ≈ ${formatSolarMasses(cloudDefinition(state.cloudTier).solarMasses)}</small></div><div class="timeline" data-ui="dock-timeline">${timelineMarkup()}</div></div><div class="dock-log"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list" data-ui="dock-log">${logMarkup(2)}</div></div><span class="chronicle-expand" aria-hidden="true">↗</span></section>
     </main>
 
     <footer><span>COSMIC CLICKER · PROTOTYP 0.3</span><p>Wissenschaftlich plausibel · spielerisch komprimiert</p><button data-action="import">Spielstand importieren</button><input id="save-import" type="file" accept="application/json" hidden /></footer>
@@ -94,13 +96,21 @@ export function renderShell(): void {
   updateUI(true);
 }
 
-function setText(name: string, value: string): void {
+function uiElement(name: string): HTMLElement | null {
+  const cached = uiElements.get(name);
+  if (cached?.isConnected) return cached;
   const element = app.querySelector<HTMLElement>(`[data-ui="${name}"]`);
+  if (element) uiElements.set(name, element);
+  return element;
+}
+
+function setText(name: string, value: string): void {
+  const element = uiElement(name);
   if (element && element.textContent !== value) element.textContent = value;
 }
 
 function setWidth(name: string, value: number): void {
-  app.querySelector<HTMLElement>(`[data-ui="${name}"]`)?.style.setProperty('width', `${Math.max(0, Math.min(100, value))}%`);
+  uiElement(name)?.style.setProperty('width', `${Math.max(0, Math.min(100, value))}%`);
 }
 
 // Punkt 8: Die Reaktionskarten werden gezielt in-place aktualisiert statt bei
@@ -246,14 +256,12 @@ export function updateUI(forcePanel = false): void {
   const currentCloudDefinition = cloudDefinition(state.cloudTier);
   const initialCloud = MATTER_KEYS.reduce((sum, key) => sum + currentCloudDefinition.matter[key], 0);
   const scale = temperatureScale(state.temperature);
-  const nodes = timelineNodes();
-  const stageIndex = Math.max(0, nodes.findIndex(([stage]) => stage === state.stage));
   const stageChanged = state.stage !== lastStage;
 
   setText('run', `ZYKLUS ${state.run.toString().padStart(2, '0')}`);
   setText('stardust', formatNumber(state.stardust));
   setText('elapsed', formatDuration(state.elapsed));
-  setText('cloud-perk-name', cloudDefinition(state.perks.largerCloud).name);
+  setText('cloud-perk-level', String(state.perks.largerCloud));
   setText('gravity-perk-level', String(state.perks.permanentGravity));
   setText('fusion-perk-level', String(state.perks.fusionMemory));
   setText('objective-eyebrow', objective.eyebrow);
@@ -263,7 +271,7 @@ export function updateUI(forcePanel = false): void {
   setWidth('objective-bar', objective.progress);
   syncObjectiveAchievement(objective);
   setText('temperature', formatTemperature(state.temperature));
-  setText('temperature-max', scale.label); app.querySelector<HTMLElement>('[data-ui="temperature-bar"]')?.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
+  setText('temperature-max', scale.label); uiElement('temperature-bar')?.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
   setText('mass', formatMatter(mass));
   setText('pressure', formatNumber(pressureProgress(state), 1));
   setText('energy', formatCompact(state.energy));
@@ -278,7 +286,6 @@ export function updateUI(forcePanel = false): void {
     if (coreElement) coreElement.hidden = state.star[key] <= 0 && currentCloudDefinition.matter[key] <= 0;
     if (cloudElement) cloudElement.hidden = currentCloudDefinition.matter[key] <= 0;
   });
-  app.querySelectorAll<HTMLElement>('[data-auto-particle]').forEach((particle, index) => { particle.textContent = index % 5 !== 4 ? 'H' : 'He'; });
   setText('stage', STAGE_LABELS[state.stage]); setText('stage-detail', STAGES[state.stage].detail); setText('cloud-name', currentCloudDefinition.name);
   const star = app.querySelector<HTMLButtonElement>('.star-button');
   if (star) {
@@ -292,7 +299,12 @@ export function updateUI(forcePanel = false): void {
   chamber?.style.setProperty('--auto-accretion-duration', `${Math.max(1.45, 3.2 - state.automation.accretion * .2)}s`);
   chamber?.classList.toggle('has-auto-accretion', state.automation.accretion > 0 && !state.completed && remaining > 0);
   setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Auf den Stern klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken, um Materie einzusammeln');
-  app.querySelectorAll<HTMLElement>('[data-phase]').forEach((dot) => { const normalizedStage = nodes.length <= 1 ? 7 : Math.round(stageIndex / (nodes.length - 1) * 7); dot.classList.toggle('active', Number(dot.dataset.phase) <= normalizedStage); });
+  if (forcePanel || stageChanged) {
+    const nodes = timelineNodes();
+    const stageIndex = Math.max(0, nodes.findIndex(([stage]) => stage === state.stage));
+    const normalizedStage = nodes.length <= 1 ? 7 : Math.round(stageIndex / (nodes.length - 1) * 7);
+    app.querySelectorAll<HTMLElement>('[data-phase]').forEach((dot) => dot.classList.toggle('active', Number(dot.dataset.phase) <= normalizedStage));
+  }
   const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatMatter(remaining)} ME`); setText('cloud-initial', `von ${formatMatter(initialCloud)} ME`); app.querySelector<HTMLElement>('.gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
   // Punkt 4: Warnsymbol unten rechts in der Star Chamber, sobald mindestens
   // eine Warnung aktiv ist; das Popover listet alle aktiven Warnungen samt

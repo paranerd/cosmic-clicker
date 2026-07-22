@@ -27,6 +27,7 @@ async function gotoGame(page: Page): Promise<void> {
 
 test('player can accrete matter and see the stellar data update', async ({ page }) => {
   await gotoGame(page);
+  expect(await page.evaluate(() => typeof (window as typeof window & { cheat?: unknown }).cheat)).toBe('undefined');
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/cosmic-clicker/favicon.svg');
   await expect(page.getByRole('heading', { name: 'Stellarer Kern' })).toBeVisible();
   await expect(page.getByText('Urwolke', { exact: true }).first()).toBeVisible();
@@ -120,9 +121,11 @@ test('hydrogen burning remains usable after the main-sequence milestone', async 
   // continuously. Dispatch the click synchronously in-page instead of
   // Playwright's normal scroll-then-click flow, which can race a re-render.
   const hydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
-  await hydrogenCard.getByRole('button', { name: /H fusionieren/ }).evaluate((element) => (element as HTMLButtonElement).click());
+  await expect(hydrogenCard.getByRole('button', { name: /Fusionieren 200 H → 199 He \+ 68 γ/ })).toBeVisible();
+  await expect(hydrogenCard.locator('.reaction-equation')).toHaveCount(0);
+  await hydrogenCard.getByRole('button', { name: /H → .*He \+ .*γ/ }).evaluate((element) => (element as HTMLButtonElement).click());
   await expect(hydrogenCard).toBeVisible();
-  await expect(hydrogenCard.getByRole('button', { name: /H fusionieren/ })).toBeEnabled();
+  await expect(hydrogenCard.getByRole('button', { name: /H → .*He \+ .*γ/ })).toBeEnabled();
   await expect(page.getByText('Hauptreihe verlassen', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Phase abgeschlossen', { exact: true })).toHaveCount(0);
 });
@@ -188,7 +191,7 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
 
 test('chronicle expands from the persistent bottom dock', async ({ page }) => {
   await gotoGame(page);
-  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
+  await page.getByRole('button', { name: 'Chronik öffnen' }).locator('.dock-log').click();
   const chronicle = page.getByRole('dialog', { name: 'Lebenswege der Sterne' });
   await expect(chronicle).toBeVisible();
   // Punkt 3: Die Timeline zeigt nur den Stand bis jetzt (frisches Spiel =
@@ -206,6 +209,59 @@ test('chronicle expands from the persistent bottom dock', async ({ page }) => {
   await expect(chronicle).toHaveCount(0);
 });
 
+test('mission strip collapses to compact progress, percentage and runtime details', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 700 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await gotoGame(page);
+  const strip = page.locator('.mission-strip');
+  const collapseButton = page.getByRole('button', { name: 'Zielbereich verkleinern' });
+  const restingColors = await collapseButton.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { background: style.backgroundColor, border: style.borderColor, color: style.color };
+  });
+  expect(await collapseButton.evaluate((element) => {
+    const button = element.getBoundingClientRect();
+    const icon = element.querySelector('svg')!.getBoundingClientRect();
+    return { x: icon.x + icon.width / 2 - (button.x + button.width / 2), y: icon.y + icon.height / 2 - (button.y + button.height / 2) };
+  })).toEqual({ x: 0, y: 0 });
+  const expandedStripBox = (await strip.boundingBox())!;
+  const expandedButtonBox = (await collapseButton.boundingBox())!;
+  expect(expandedButtonBox.y - expandedStripBox.y).toBe(10);
+  expect(expandedStripBox.x + expandedStripBox.width - (expandedButtonBox.x + expandedButtonBox.width)).toBe(0);
+  await collapseButton.tap();
+
+  await expect(strip).toHaveClass(/is-collapsed/);
+  expect(await strip.evaluate((element) => element.getAnimations({ subtree: true }).some((animation) => animation.playState === 'running'))).toBe(true);
+  await strip.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished.catch(() => undefined))));
+  await expect(strip.locator('.progress-label')).toBeVisible();
+  await expect(strip.locator('.progress-label')).toContainText('Fortschritt');
+  await expect(strip.locator('[data-ui="objective-percent"]')).toHaveText(/%$/);
+  await expect(strip.locator('.progress-track')).toBeVisible();
+  await expect(strip.locator('.mission-copy')).toBeHidden();
+  await expect(strip.locator('.elapsed')).toBeVisible();
+  await expect(strip.locator('[data-ui="elapsed"]')).toHaveText(/^\d{2}:\d{2}:\d{2}$/);
+  const stripBox = (await strip.boundingBox())!;
+  const expandButton = page.getByRole('button', { name: 'Zielbereich vergrößern' });
+  const collapseButtonBox = (await expandButton.boundingBox())!;
+  expect(stripBox.height).toBeLessThanOrEqual(48);
+  expect(collapseButtonBox.height).toBeLessThan(stripBox.height);
+  expect(await expandButton.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { background: style.backgroundColor, border: style.borderColor, color: style.color };
+  })).toEqual(restingColors);
+  expect(await expandButton.evaluate((element) => {
+    const button = element.getBoundingClientRect();
+    const icon = element.querySelector('svg')!.getBoundingClientRect();
+    return { x: icon.x + icon.width / 2 - (button.x + button.width / 2), y: icon.y + icon.height / 2 - (button.y + button.height / 2) };
+  })).toEqual({ x: 0, y: 0 });
+
+  await page.reload();
+  await expect(page.locator('.mission-strip')).toHaveClass(/is-collapsed/);
+  await page.getByRole('button', { name: 'Zielbereich vergrößern' }).tap();
+  await expect(page.locator('.mission-copy')).toBeVisible();
+  await context.close();
+});
+
 test('perk popover opens only on click and closes outside', async ({ page }) => {
   await gotoGame(page);
   const perkButton = page.getByRole('button', { name: 'Sternenstaub und aktive Vermächtnis-Perks anzeigen' });
@@ -216,6 +272,9 @@ test('perk popover opens only on click and closes outside', async ({ page }) => 
   await expect(popover).toBeHidden();
   await perkButton.click();
   await expect(popover).toBeVisible();
+  await expect(popover).toContainText('Wolkenmasse');
+  await expect(popover).toContainText('Stufe 0');
+  await expect(popover).not.toContainText('Kleine Urwolke');
   await expect(perkButton).toHaveAttribute('aria-expanded', 'true');
   await page.locator('.mission-strip').click();
   await expect(popover).toBeHidden();
@@ -368,7 +427,7 @@ test('tabs count unseen opportunities, flash on unlock and clear when opened', a
   await upgradeTab.hover();
   await expect.poll(() => upgradeTab.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(restingBackground);
 
-  await page.getByRole('button', { name: '200 H fusionieren' }).click();
+  await page.getByRole('button', { name: /Fusionieren 200 H → 199 He \+ 68 γ/ }).click();
   const unlockedAutomationTab = page.getByRole('tab', { name: 'Automationen 2' });
   await expect(unlockedAutomationTab).toHaveClass(/unlock-flash/);
   await expect(unlockedAutomationTab.locator('.tab-count')).toHaveText('2');
@@ -859,10 +918,14 @@ test('cycle summary offers v0.3 perks and cloud selection before the next run', 
     }));
   });
   await gotoGame(page);
-  await expect(page.getByRole('dialog')).toContainText('Vermächtnis wählen');
-  await expect(page.getByRole('dialog')).toContainText('Wolkenwachstum');
-  await expect(page.getByRole('dialog')).toContainText('Fusionsgedächtnis');
-  await expect(page.getByRole('button', { name: 'Mit Kleine Urwolke beginnen' })).toBeVisible();
+  const summary = page.getByRole('dialog');
+  await expect(summary).toContainText('Vermächtnis wählen');
+  await expect(summary).toContainText('Wolkenmasse');
+  await expect(summary).toContainText('Fusionsgedächtnis');
+  const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenmasse' });
+  await expect(cloudPerk).toContainText('Stufe 0');
+  await expect(cloudPerk).not.toContainText('Kleine Urwolke');
+  await expect(page.getByRole('button', { name: 'Neuen Zyklus starten' })).toBeVisible();
 });
 
 test('cycle summary can be reopened and confirms skipping affordable perks', async ({ page }) => {
@@ -885,9 +948,9 @@ test('cycle summary can be reopened and confirms skipping affordable perks', asy
 
   await page.getByRole('button', { name: 'Zyklus-Zusammenfassung öffnen' }).click();
   await expect(summary).toBeVisible();
-  await summary.getByRole('button', { name: 'Mit Kleine Urwolke beginnen' }).click();
-  await expect(summary.getByRole('button', { name: 'Ohne Upgrades starten' })).toBeVisible();
-  const remindedPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenwachstum' });
+  await summary.getByRole('button', { name: 'Neuen Zyklus starten' }).click();
+  await expect(summary.getByRole('button', { name: 'Ohne Upgrades starten' })).toHaveClass(/is-confirming/);
+  const remindedPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenmasse' });
   await expect(remindedPerk).toHaveClass(/perk-attention/);
   expect(await remindedPerk.evaluate((element) => element.getAnimations().some((animation) => animation.playState === 'running'))).toBe(true);
   await expect(page.locator('[data-ui="run"]')).toHaveText('ZYKLUS 01');
@@ -909,20 +972,21 @@ test('multiple perk levels can be staged and deselected before prestige', async 
   await page.goto('/');
 
   const summary = page.getByRole('dialog', { name: 'Eine Massengrenze wird sichtbar.' });
-  const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenwachstum' });
+  const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenmasse' });
   await cloudPerk.getByRole('button', { name: '+2 ✦' }).click();
   await cloudPerk.getByRole('button', { name: '+5 ✦' }).click();
+  await expect(cloudPerk).toContainText('Stufe 2');
   await expect(cloudPerk).toContainText('+2 gewählt');
   await expect(summary.locator('.cloud-slider input[type="range"]')).toHaveValue('2');
   await expect(summary.locator('.cloud-slider-summary')).toContainText('Stellare Urwolke');
   await expect(page.locator('[data-ui="stardust"]')).toHaveText('0');
 
-  await cloudPerk.getByRole('button', { name: 'Wolkenwachstum abwählen' }).click();
+  await cloudPerk.getByRole('button', { name: 'Wolkenmasse abwählen' }).click();
   await expect(cloudPerk).toContainText('+1 gewählt');
   await expect(summary.locator('.cloud-slider input[type="range"]')).toHaveAttribute('max', '1');
   await expect(page.locator('[data-ui="stardust"]')).toHaveText('5');
 
-  await summary.getByRole('button', { name: 'Mit Stellare Urwolke beginnen' }).click();
+  await summary.getByRole('button', { name: 'Neuen Zyklus starten' }).click();
   await expect(page.locator('[data-ui="run"]')).toHaveText('ZYKLUS 02');
   await expect(page.locator('[data-ui="cloud-name"]')).toHaveText('Stellare Urwolke');
 });
@@ -941,7 +1005,7 @@ test('perk changes preserve the summary scroll position on a small screen', asyn
   await page.goto('/');
 
   const summary = page.locator('.summary-modal');
-  const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenwachstum' });
+  const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenmasse' });
   await cloudPerk.getByRole('button', { name: '+2 ✦' }).scrollIntoViewIfNeeded();
   const beforeSelection = await summary.evaluate((element) => element.scrollTop);
   expect(beforeSelection).toBeGreaterThan(0);
@@ -949,7 +1013,7 @@ test('perk changes preserve the summary scroll position on a small screen', asyn
   await expect.poll(() => summary.evaluate((element) => element.scrollTop)).toBeCloseTo(beforeSelection, 0);
 
   const beforeRemoval = await summary.evaluate((element) => element.scrollTop);
-  await cloudPerk.getByRole('button', { name: 'Wolkenwachstum abwählen' }).click();
+  await cloudPerk.getByRole('button', { name: 'Wolkenmasse abwählen' }).click();
   await expect.poll(() => summary.evaluate((element) => element.scrollTop)).toBeCloseTo(beforeRemoval, 0);
 });
 
@@ -967,11 +1031,11 @@ test('the first brown dwarf reward unlocks the stellar cloud for cycle two', asy
 
   const summary = page.getByRole('dialog', { name: 'Eine Massengrenze wird sichtbar.' });
   await expect(summary).toContainText('Brauner Zwerg');
-  const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenwachstum' });
+  const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenmasse' });
   await cloudPerk.getByRole('button', { name: '+2 ✦' }).click();
   await expect(summary.locator('.cloud-slider-summary')).toContainText('Stellare Urwolke');
   await expect(summary.locator('.cloud-slider-summary')).toContainText('Weißer Zwerg');
-  await summary.getByRole('button', { name: 'Mit Stellare Urwolke beginnen' }).click();
+  await summary.getByRole('button', { name: 'Neuen Zyklus starten' }).click();
 
   await expect(page.locator('[data-ui="cloud-name"]')).toHaveText('Stellare Urwolke');
   await expect(page.locator('[data-cloud-matter="helium"]')).toBeVisible();

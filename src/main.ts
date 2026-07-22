@@ -1,6 +1,6 @@
 import './styles.scss';
 import { playSound } from './audio';
-import { UPGRADE_ORDER, UPGRADES } from './content';
+import { LIMITS, UPGRADE_ORDER, UPGRADES } from './content';
 import { calculateTemperature, createInitialState, reactionAutomationPerSecond, reduceGame, tick } from './game/engine';
 import { clearSave, normalizeGameState, saveGame } from './game/storage';
 import type { GameAction, ReactionId } from './game/types';
@@ -24,6 +24,7 @@ import {
   setWarningsOpen,
   toggleResetMenu,
 } from './ui/menus';
+import { toggleMissionCollapsed } from './ui/mission';
 import { clearAchievements, clearToasts, dismissAchievement, showToast } from './ui/notifications';
 import { makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setStatsOpen } from './ui/overlay';
 import { app, getActivePanel, getState, loaded, setActivePanel, setState, type Panel } from './ui/store';
@@ -33,7 +34,9 @@ import { advanceTutorial, queueTutorialSpotlightPosition, resolveIntro, setTutor
 type ResetMode = 'run' | 'full';
 
 let lastFrame = performance.now();
-let lastUiUpdate = 0;
+let frameTimer = 0;
+let frameRequest = 0;
+const FRAME_INTERVAL_MS = 100;
 const offlineToast = loaded.offlineSeconds >= 60
   ? `Während deiner Abwesenheit liefen ${formatDuration(loaded.offlineSeconds)} Simulation.`
   : '';
@@ -77,6 +80,7 @@ app.addEventListener('click', (event) => {
   if (isSoundMenuOpen() && !insideSoundMenu) setSoundMenuOpen(false);
   const insideWarningCorner = target.closest('.warning-corner');
   if (isWarningsOpen() && !insideWarningCorner) setWarningsOpen(false);
+  if (target.closest('.chronicle-dock')) { setChronicleOpen(true); advanceTutorial('open-chronicle'); return; }
   if (target.dataset.overlayDismiss === 'chronicle') { setChronicleOpen(false); return; }
   if (target.dataset.overlayDismiss === 'stats') { setStatsOpen(false); return; }
   const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); advanceTutorial('panel'); return; }
@@ -88,6 +92,7 @@ app.addEventListener('click', (event) => {
   if (action === 'skip-tutorial') { setTutorial(getState().tutorial.step, true); showToast('Tutorial übersprungen. Über ? kannst du es erneut starten.'); return; }
   if (action === 'replay-tutorial') { setTutorial(0, false); showToast('Tutorial neu gestartet.'); return; }
   if (action === 'dismiss-achievement') { dismissAchievement(); return; }
+  if (action === 'toggle-mission') { toggleMissionCollapsed(); if (event.detail > 0) button.blur(); return; }
   if (action === 'reset-menu') { toggleResetMenu(); return; }
   if (action === 'reset-run') { performReset('run'); return; }
   if (action === 'reset-full') { if (isFullResetArmed()) performReset('full'); else armFullReset(); return; }
@@ -137,6 +142,15 @@ app.addEventListener('click', (event) => {
   if (action === 'import') document.querySelector<HTMLInputElement>('#save-import')?.click();
 });
 
+app.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const dock = (event.target as HTMLElement).closest<HTMLElement>('.chronicle-dock');
+  if (!dock) return;
+  event.preventDefault();
+  setChronicleOpen(true);
+  advanceTutorial('open-chronicle');
+});
+
 app.addEventListener('input', (event) => {
   const input = event.target as HTMLInputElement;
   if (input.dataset.action === 'set-volume') { dispatch({ type: 'SET_VOLUME', volume: Number(input.value) / 100 }); return; }
@@ -154,36 +168,79 @@ app.addEventListener('change', async (event) => {
   } catch { showToast('Diese Datei ist kein gültiger Spielstand.'); }
 });
 
-if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && window.matchMedia('(pointer: fine)').matches) {
+  let parallaxFrame = 0;
+  let pointerX = 0;
+  let pointerY = 0;
   window.addEventListener('pointermove', (event) => {
-    const x = event.clientX / window.innerWidth - .5; const y = event.clientY / window.innerHeight - .5;
-    document.documentElement.style.setProperty('--parallax-x', `${x * -10}px`); document.documentElement.style.setProperty('--parallax-y', `${y * -7}px`); document.documentElement.style.setProperty('--parallax-soft-x', `${x * 5}px`); document.documentElement.style.setProperty('--parallax-soft-y', `${y * 4}px`);
+    pointerX = event.clientX;
+    pointerY = event.clientY;
+    if (parallaxFrame) return;
+    parallaxFrame = window.requestAnimationFrame(() => {
+      parallaxFrame = 0;
+      const x = pointerX / window.innerWidth - .5; const y = pointerY / window.innerHeight - .5;
+      const cosmos = app.querySelector<HTMLElement>('.cosmos');
+      cosmos?.style.setProperty('--parallax-x', `${x * -10}px`); cosmos?.style.setProperty('--parallax-y', `${y * -7}px`); cosmos?.style.setProperty('--parallax-soft-x', `${x * 5}px`); cosmos?.style.setProperty('--parallax-soft-y', `${y * 4}px`);
+    });
   }, { passive: true });
 }
 
 function frame(now: number): void {
-  if (now - lastUiUpdate > 100) {
-    const delta = Math.min(1, (now - lastFrame) / 1_000);
-    lastFrame = now;
-    if (getState().tutorial.introSeen) {
-      const wasCompleted = getState().completed;
-      setState(tick(getState(), delta));
-      const state = getState();
-      if (!wasCompleted && state.completed) {
-        makeSummaryExclusive();
-        playSound('complete', state.soundEnabled, state.volume);
-      }
+  frameRequest = 0;
+  const delta = Math.min(LIMITS.offlineSeconds, (now - lastFrame) / 1_000);
+  lastFrame = now;
+  if (getState().tutorial.introSeen) {
+    const wasCompleted = getState().completed;
+    setState(tick(getState(), delta));
+    const state = getState();
+    if (!wasCompleted && state.completed) {
+      makeSummaryExclusive();
+      playSound('complete', state.soundEnabled, state.volume);
     }
-    updateUI();
-    lastUiUpdate = now;
   }
-  requestAnimationFrame(frame);
+  updateUI();
+  scheduleFrame();
+}
+
+function scheduleFrame(): void {
+  window.clearTimeout(frameTimer);
+  frameTimer = window.setTimeout(() => {
+    frameTimer = 0;
+    frameRequest = window.requestAnimationFrame(frame);
+  }, FRAME_INTERVAL_MS);
 }
 
 window.setInterval(() => saveGame(getState()), 5_000); window.addEventListener('beforeunload', () => saveGame(getState()));
+document.addEventListener('visibilitychange', () => {
+  document.documentElement.classList.toggle('is-paused', document.hidden);
+  if (document.hidden) {
+    window.clearTimeout(frameTimer); frameTimer = 0;
+    if (frameRequest) window.cancelAnimationFrame(frameRequest); frameRequest = 0;
+    saveGame(getState());
+    return;
+  }
+  lastFrame = performance.now() - Math.min(LIMITS.offlineSeconds, Math.max(0, (Date.now() - getState().lastTick) / 1_000)) * 1_000;
+  frameRequest = window.requestAnimationFrame(frame);
+});
 window.addEventListener('scroll', queueTutorialSpotlightPosition, { passive: true, capture: true });
 window.addEventListener('resize', queueTutorialSpotlightPosition, { passive: true });
-renderShell(); if (offlineToast) showToast(offlineToast); requestAnimationFrame(frame);
+renderShell(); if (offlineToast) showToast(offlineToast); frameRequest = requestAnimationFrame(frame);
+if (import.meta.env.DEV) {
+  type CheatApi = { stardust: (amount: number) => number; energy: (amount: number) => number };
+  const adjustResource = (resource: 'stardust' | 'energy', amount: number): number => {
+    if (!Number.isFinite(amount)) throw new TypeError('Der Cheat-Wert muss eine endliche Zahl sein.');
+    const state = structuredClone(getState());
+    state[resource] = Math.max(0, state[resource] + amount);
+    setState(state);
+    saveGame(state);
+    updateUI(true);
+    return state[resource];
+  };
+  (window as typeof window & { cheat: CheatApi }).cheat = Object.freeze({
+    stardust: (amount) => adjustResource('stardust', amount),
+    energy: (amount) => adjustResource('energy', amount),
+  });
+}
 if (import.meta.hot) Object.assign(window, {
   cosmicDebug: () => {
     setDebugOpen(!isDebugOpen());
