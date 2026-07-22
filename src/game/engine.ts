@@ -347,7 +347,10 @@ const completeRun = (state: GameState, outcome: Exclude<StellarOutcome, 'legacyM
   state.completed = true;
   state.outcome = outcome;
   state.stage = END_STAGES[outcome];
-  state.summaryOpen = true;
+  // Das Zyklusende zeigt zunächst nur den kompakten Abschluss-Hinweis. Die
+  // vollständige Zusammenfassung wird anschließend bewusst vom Spieler
+  // geöffnet (siehe cycle-end-banner bzw. Stern-Callout).
+  state.summaryOpen = false;
   state.stardust += award;
   state.stats.stardustEarned += award;
   addDiscovery(state, outcome);

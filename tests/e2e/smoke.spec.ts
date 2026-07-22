@@ -878,7 +878,7 @@ test('restart uses an inline confirmation instead of a browser dialog', async ({
   await expect(page.getByText('Ein neuer Kosmos beginnt.')).toHaveCount(0);
 });
 
-test('cycle completion closes every competing popup and hint', async ({ page }) => {
+test('cycle completion slides in a compact notice and opens the summary only on demand', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, stage: 'deuterium', cloudTier: 0, nextCloudTier: 0,
     cloud: { hydrogen: 48, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
@@ -896,12 +896,28 @@ test('cycle completion closes every competing popup and hint', async ({ page }) 
 
   await page.getByRole('button', { name: 'Materie einsammeln' }).evaluate((button: HTMLButtonElement) => button.click());
 
-  const summary = page.getByRole('dialog', { name: 'Eine Massengrenze wird sichtbar.' });
-  await expect(summary).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(1);
+  const cycleEnd = page.locator('.cycle-end-banner');
+  await expect(cycleEnd).toBeVisible();
+  await expect(cycleEnd).toContainText('ZYKLUS 01 ABGESCHLOSSEN');
+  await expect(cycleEnd).toContainText('Eine Massengrenze wird sichtbar.');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toHaveCount(0);
   await expect(page.locator('.achievement-banner')).toHaveCount(0);
   await expect(page.locator('.toast')).toHaveCount(0);
+
+  const openSummary = cycleEnd.getByRole('button', { name: /Zusammenfassung öffnen/ });
+  await openSummary.click();
+  const summary = page.getByRole('dialog', { name: 'Eine Massengrenze wird sichtbar.' });
+  await expect(summary).toBeVisible();
+  await expect(cycleEnd).toHaveCount(0);
+  await summary.getByRole('button', { name: 'Später entscheiden' }).click();
+
+  const completedStar = page.getByRole('button', { name: 'Abgeschlossener Stern' });
+  await completedStar.click({ force: true });
+  await expect(summary).toHaveCount(0);
+  await expect(page.locator('[data-ui="click-detail"]')).toHaveText('Hier klicken zum Öffnen');
+  await page.getByRole('button', { name: 'Zyklus-Zusammenfassung öffnen' }).click();
+  await expect(summary).toBeVisible();
 });
 
 test('cycle summary offers v0.3 perks and cloud selection before the next run', async ({ page }) => {

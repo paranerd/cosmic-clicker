@@ -72,9 +72,9 @@ export function syncTutorial(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="tutorial-root"]');
   if (!root) return;
   app.querySelectorAll('.tutorial-focus').forEach((element) => element.classList.remove('tutorial-focus'));
-  if (state.summaryOpen || !state.tutorial.introSeen || state.tutorial.completed) {
+  if (state.completed || state.summaryOpen || !state.tutorial.introSeen || state.tutorial.completed) {
     if (root.innerHTML) root.innerHTML = '';
-    tutorialSignature = state.summaryOpen ? 'hidden-by-summary' : state.tutorial.introSeen ? 'completed' : 'waiting-for-intro';
+    tutorialSignature = state.completed ? 'hidden-by-cycle-end' : state.summaryOpen ? 'hidden-by-summary' : state.tutorial.introSeen ? 'completed' : 'waiting-for-intro';
     return;
   }
   const step = TUTORIAL_STEPS[state.tutorial.step] ?? TUTORIAL_STEPS[0];

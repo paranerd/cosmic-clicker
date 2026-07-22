@@ -127,6 +127,7 @@ describe('data-driven stellar engine v0.4', () => {
     const state = accreteUntil(createInitialState(), cloudMass(createInitialState()));
     expect(state.completed).toBe(true);
     expect(state.outcome).toBe('brownDwarf');
+    expect(state.summaryOpen).toBe(false);
     expect(state.stardust).toBe(2);
     expect(state.unlockedReactions).not.toContain('hydrogen');
   });

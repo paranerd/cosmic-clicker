@@ -25,7 +25,7 @@ import {
   toggleResetMenu,
 } from './ui/menus';
 import { toggleMissionCollapsed } from './ui/mission';
-import { clearAchievements, clearToasts, dismissAchievement, showToast } from './ui/notifications';
+import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement, dismissCycleEndNotice, showToast } from './ui/notifications';
 import { makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setStatsOpen } from './ui/overlay';
 import { app, getActivePanel, getState, loaded, setActivePanel, setState, type Panel } from './ui/store';
 import { renderShell, switchPanel, updateUI } from './ui/sync';
@@ -63,6 +63,7 @@ function performReset(mode: ResetMode): void {
   closeResetMenu();
   clearPrestigeConfirmation();
   clearAchievements();
+  clearCycleEndNotice();
   resetSummaryAttention();
   const state = getState();
   if (mode === 'full') { clearSave(); setState(createInitialState()); clearToasts(); }
@@ -103,7 +104,7 @@ app.addEventListener('click', (event) => {
   if (action === 'close-stats') { setStatsOpen(false); return; }
   if (action === 'open-chronicle') { setChronicleOpen(true); advanceTutorial('open-chronicle'); return; }
   if (action === 'close-chronicle') { setChronicleOpen(false); return; }
-  if (action === 'open-summary') { makeSummaryExclusive(); dispatch({ type: 'OPEN_SUMMARY' }); return; }
+  if (action === 'open-summary') { dismissCycleEndNotice(); makeSummaryExclusive(); dispatch({ type: 'OPEN_SUMMARY' }); return; }
   if (action === 'close-summary') { clearPrestigeConfirmation(); dispatch({ type: 'CLOSE_SUMMARY' }); return; }
   if (action === 'prestige') {
     if (!hasPendingPerks() && hasAffordableSummaryPerk() && !isPrestigeConfirmationArmed()) { armPrestigeConfirmation(); return; }

@@ -12,6 +12,10 @@ test('cosmicDebug exists only on the dev server and can finish a round', async (
   await expect(panel).toBeVisible();
   await panel.getByRole('button', { name: 'Stellare Wolke' }).click();
   await panel.getByRole('button', { name: 'Runde abschließen' }).click();
+  const cycleEnd = page.locator('.cycle-end-banner');
+  await expect(cycleEnd).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await cycleEnd.getByRole('button', { name: /Zusammenfassung öffnen/ }).click();
   await expect(page.getByRole('dialog', { name: /Ein Weißer Zwerg bleibt zurück/ })).toBeVisible();
 });
 

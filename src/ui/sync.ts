@@ -25,7 +25,7 @@ import { syncDebug } from './debug';
 import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, matterPercent, temperatureScale } from './format';
 import { isWarningsOpen, setWarningsOpen } from './menus';
 import { isMissionCollapsed } from './mission';
-import { markOpportunitiesSeen, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
+import { markOpportunitiesSeen, syncCycleEndNotice, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
 import { syncOverlay } from './overlay';
 import { app, getActivePanel, getState, setActivePanel, type Panel } from './store';
 import { syncTutorial } from './tutorial';
@@ -75,7 +75,7 @@ export function renderShell(): void {
           <div class="stage-label"><span data-ui="stage"></span><b data-ui="stage-detail"></b></div>
           <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">${index % 5 !== 4 ? 'H' : 'He'}</i>`).join('')}</div>
           <button class="star-button" data-action="accrete" aria-label="Materie einsammeln"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
-          <div class="click-callout"><span data-ui="click-yield"></span><small data-ui="click-detail"></small></div><div class="phase-dots">${Array.from({length:8},(_, index)=>`<i data-phase="${index}"></i>`).join('')}</div>
+          <button class="click-callout" type="button" disabled><span data-ui="click-yield"></span><small data-ui="click-detail"></small></button><div class="phase-dots">${Array.from({length:8},(_, index)=>`<i data-phase="${index}"></i>`).join('')}</div>
           <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
         </section>
 
@@ -90,7 +90,7 @@ export function renderShell(): void {
     </main>
 
     <footer><span>COSMIC CLICKER · PROTOTYP 0.3</span><p>Wissenschaftlich plausibel · spielerisch komprimiert</p><button data-action="import">Spielstand importieren</button><input id="save-import" type="file" accept="application/json" hidden /></footer>
-    <div data-ui="overlay-root"></div><div data-ui="tutorial-root"></div><div data-ui="achievement-root"></div><div data-ui="debug-root"></div><div data-ui="toast-root"></div>`;
+    <div data-ui="overlay-root"></div><div data-ui="tutorial-root"></div><div data-ui="achievement-root"></div><div data-ui="cycle-end-root"></div><div data-ui="debug-root"></div><div data-ui="toast-root"></div>`;
 
   switchPanel(getActivePanel(), false);
   updateUI(true);
@@ -289,16 +289,24 @@ export function updateUI(forcePanel = false): void {
   setText('stage', STAGE_LABELS[state.stage]); setText('stage-detail', STAGES[state.stage].detail); setText('cloud-name', currentCloudDefinition.name);
   const star = app.querySelector<HTMLButtonElement>('.star-button');
   if (star) {
-    star.className = `star-button stage-${state.stage}`;
-    star.dataset.action = state.completed ? 'open-summary' : 'accrete';
-    star.ariaLabel = state.completed ? 'Zyklus-Zusammenfassung öffnen' : 'Materie einsammeln';
+    star.className = `star-button stage-${state.stage}${state.completed ? ' is-complete' : ''}`;
+    if (state.completed) delete star.dataset.action;
+    else star.dataset.action = 'accrete';
+    star.ariaLabel = state.completed ? 'Abgeschlossener Stern' : 'Materie einsammeln';
     star.disabled = !state.completed && remaining <= 0;
+  }
+  const clickCallout = app.querySelector<HTMLButtonElement>('.click-callout');
+  if (clickCallout) {
+    clickCallout.disabled = !state.completed;
+    if (state.completed) clickCallout.dataset.action = 'open-summary';
+    else delete clickCallout.dataset.action;
+    clickCallout.ariaLabel = state.completed ? 'Zyklus-Zusammenfassung öffnen' : 'Akkretionshinweis';
   }
   const chamber = app.querySelector<HTMLElement>('.star-chamber');
   chamber?.style.setProperty('--star-scale', String(Math.min(1, Math.max(.1, mass / Math.max(1, initialCloud))))); chamber?.style.setProperty('--temp-scale', String(Math.min(1, state.temperature / THRESHOLDS.siliconTemperature)));
   chamber?.style.setProperty('--auto-accretion-duration', `${Math.max(1.45, 3.2 - state.automation.accretion * .2)}s`);
   chamber?.classList.toggle('has-auto-accretion', state.automation.accretion > 0 && !state.completed && remaining > 0);
-  setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Auf den Stern klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken, um Materie einzusammeln');
+  setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Hier klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken, um Materie einzusammeln');
   if (forcePanel || stageChanged) {
     const nodes = timelineNodes();
     const stageIndex = Math.max(0, nodes.findIndex(([stage]) => stage === state.stage));
@@ -339,7 +347,7 @@ export function updateUI(forcePanel = false): void {
       : '';
   const dynamicPanelChanged = dynamicPanelSignature !== lastDynamicPanelSignature;
   if (forcePanel || stageChanged || upgradeOrderChanged || dynamicPanelChanged) { const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(activePanel); lastStage = state.stage; lastUpgradeOrderSignature = currentUpgradeOrder; lastDynamicPanelSignature = dynamicPanelSignature; }
-  syncNotifications(); syncActivePanel(); syncChronicleDock(); syncOverlay(); syncTutorial(); syncToast();
+  syncNotifications(); syncActivePanel(); syncChronicleDock(); syncOverlay(); syncCycleEndNotice(); syncTutorial(); syncToast();
   if (import.meta.hot) syncDebug();
 }
 

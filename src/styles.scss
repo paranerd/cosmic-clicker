@@ -174,8 +174,9 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .stage-label span { display: block; color: $amber; font-family: Georgia, serif; font-size: 22px; }
 .stage-label b { display: block; margin-top: 5px; color: $muted; font-weight: 500; text-transform: uppercase; font-size: 7px; letter-spacing: .22em; }
 .star-button { --size: calc(140px + var(--star-scale) * 100px); width: var(--size); height: var(--size); padding: 0; border: 0; background: transparent; border-radius: 50%; position: relative; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; transition: transform .15s ease, filter .3s; z-index: 3; }
-.star-button:hover:not(:disabled) { transform: scale(1.035); filter: brightness(1.12); }
-.star-button:active:not(:disabled) { transform: scale(.975); }
+.star-button:hover:not(:disabled):not(.is-complete) { transform: scale(1.035); filter: brightness(1.12); }
+.star-button:active:not(:disabled):not(.is-complete) { transform: scale(.975); }
+.star-button.is-complete { cursor: default; }
 .star-corona, .star-surface, .star-core, .star-noise { position: absolute; border-radius: 50%; pointer-events: none; }
 .star-corona { inset: -26%; background: radial-gradient(circle, rgba(238, 149, 68, calc(.1 + var(--temp-scale) * .18)) 0 25%, transparent 67%); filter: blur(14px); animation: breathe 3.5s ease-in-out infinite; }
 .star-surface { inset: 5%; background:
@@ -204,7 +205,10 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .stage-blackHole .star-core { opacity: 0; }
 .star-core { width: 28%; height: 28%; left: 36%; top: 36%; background: rgba(255,248,196,.8); filter: blur(12px); mix-blend-mode: screen; opacity: calc(.15 + var(--temp-scale) * .8); }
 .star-noise { inset: 5%; opacity: .26; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); animation: rotate 28s linear infinite; }
-.click-callout { position: absolute; bottom: 66px; text-align: center; z-index: 5; pointer-events: none; }
+.click-callout { position: absolute; bottom: 66px; z-index: 5; padding: 0; border: 0; background: transparent; text-align: center; pointer-events: none; }
+.click-callout:not(:disabled) { pointer-events: auto; cursor: pointer; }
+.click-callout:not(:disabled):hover span, .click-callout:not(:disabled):focus-visible span { color: #ffd193; text-shadow: 0 0 12px rgba($orange,.5); }
+.click-callout:focus-visible { outline: 1px solid rgba($amber,.55); outline-offset: 7px; }
 // Punkt 4: Warnsymbol unten rechts in der Star Chamber; das Popover listet
 // alle aktiven Warnungen (z. B. Sternwind, Hüllenwind) samt Verlustrate.
 .warning-corner { position: absolute; right: 14px; bottom: 14px; z-index: 30; }
@@ -598,6 +602,13 @@ footer button:hover { color: $cyan; }
 .achievement-warning { margin: 0 0 12px; padding: 9px 10px; border: 1px solid rgba($amber,.32); background: rgba($amber,.05); }
 .achievement-warning b { display: block; color: $amber; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
 .achievement-warning span { display: block; margin-top: 4px; color: #aa9578; font-size: 8px; line-height: 1.45; }
+.cycle-end-banner { width: min(470px,calc(100vw - 32px)); position: fixed; z-index: 78; left: 50%; bottom: 24px; padding: 20px; opacity: 0; transform: translate(-50%,calc(100% + 48px)); border: 1px solid rgba($orange,.58); background: radial-gradient(circle at 100% 0, rgba($orange,.18), transparent 48%), rgba(13,13,20,.985); box-shadow: 0 22px 65px rgba(0,0,0,.55), 0 0 34px rgba($orange,.08); transition: opacity .42s ease, transform .72s cubic-bezier(.16,.8,.24,1); }
+.cycle-end-banner.is-visible { opacity: 1; transform: translate(-50%,0); }
+.cycle-end-banner.is-leaving { transition-duration: .24s,.32s; }
+.cycle-end-announcement small { color: $orange; font-size: 7px; font-weight: 700; letter-spacing: .16em; }
+.cycle-end-banner h2 { margin: 7px 0 8px; font-family: Georgia,serif; font-size: 23px; font-weight: 400; }
+.cycle-end-banner > p { margin: 0; color: #988d88; font-family: Georgia,serif; font-size: 10px; line-height: 1.55; }
+.cycle-end-banner .primary-action { width: 100%; min-height: 46px; margin-top: 15px; }
 // Punkt 9: left/top werden ausschließlich per Inline-Style aus der Klick-
 // (bzw. Tastatur-)Position gesetzt (siehe feedback.ts) — die 50%/48%-Werte
 // hier sind nur ein Fallback, falls je ein Aufruf ohne x/y hinzukäme. Die
@@ -763,7 +774,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   footer { flex-wrap: wrap; justify-content: center; padding: 18px 0; }
   footer p { order: 3; width: 100%; flex: auto; }
   .tutorial-card { left: 50%; bottom: 16px; transform: translateX(-50%); }
-  .achievement-banner { bottom: 16px; }
+  .achievement-banner, .cycle-end-banner { bottom: 16px; }
   .toast-stack { top: 76px; }
   .debug-panel { width: calc(100% - 24px); right: 12px; top: 74px; }
 }

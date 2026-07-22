@@ -1,5 +1,5 @@
 import { playSound } from '../audio';
-import { achievementTitleFor, warningFor } from '../content';
+import { achievementTitleFor, OUTCOMES, OUTCOME_LABELS, warningFor } from '../content';
 import { objectiveFor } from '../game/engine';
 import { saveGame } from '../game/storage';
 import { app, getActivePanel, getState, type Panel } from './store';
@@ -19,6 +19,54 @@ let lastObjectiveRun = getState().run;
 let activeAchievement: AchievementMessage | null = null;
 let achievementQueue: AchievementMessage[] = [];
 let achievementTransitionTimer = 0;
+let cycleEndNoticeRun = getState().completed ? getState().run : 0;
+let cycleEndNoticeVisible = false;
+let cycleEndTransitionTimer = 0;
+
+function renderCycleEndNotice(): void {
+  const state = getState();
+  const root = app.querySelector<HTMLElement>('[data-ui="cycle-end-root"]');
+  if (!root || !state.completed || !state.outcome || !cycleEndNoticeVisible) return;
+  const outcome = OUTCOMES[state.outcome];
+  root.innerHTML = `<aside class="cycle-end-banner" role="region" aria-labelledby="cycle-end-title"><div class="cycle-end-announcement" role="status" aria-live="assertive" aria-atomic="true"><small>ZYKLUS ${state.run.toString().padStart(2, '0')} ABGESCHLOSSEN · ${OUTCOME_LABELS[state.outcome]}</small><h2 id="cycle-end-title">${outcome.title}</h2></div><p>${outcome.description} Öffne die Zusammenfassung, um deinen Sternenstaub einzusetzen und den nächsten Zyklus vorzubereiten.</p><button class="primary-action" data-action="open-summary"><span>Zusammenfassung öffnen</span><small>Vermächtnis und nächsten Zyklus planen</small></button></aside>`;
+  const banner = root.querySelector<HTMLElement>('.cycle-end-banner');
+  window.requestAnimationFrame(() => banner?.classList.add('is-visible'));
+}
+
+export function syncCycleEndNotice(): void {
+  const state = getState();
+  const root = app.querySelector<HTMLElement>('[data-ui="cycle-end-root"]');
+  if (!root) return;
+  if (!state.completed) {
+    cycleEndNoticeRun = 0;
+    cycleEndNoticeVisible = false;
+    if (root.innerHTML) root.innerHTML = '';
+    return;
+  }
+  if (state.summaryOpen) return;
+  if (cycleEndNoticeRun === state.run) return;
+  cycleEndNoticeRun = state.run;
+  cycleEndNoticeVisible = true;
+  renderCycleEndNotice();
+}
+
+export function dismissCycleEndNotice(): void {
+  cycleEndNoticeVisible = false;
+  window.clearTimeout(cycleEndTransitionTimer);
+  const root = app.querySelector<HTMLElement>('[data-ui="cycle-end-root"]');
+  const banner = root?.querySelector<HTMLElement>('.cycle-end-banner');
+  banner?.classList.add('is-leaving');
+  banner?.classList.remove('is-visible');
+  cycleEndTransitionTimer = window.setTimeout(() => { if (root) root.innerHTML = ''; }, 320);
+}
+
+export function clearCycleEndNotice(): void {
+  cycleEndNoticeVisible = false;
+  cycleEndNoticeRun = 0;
+  window.clearTimeout(cycleEndTransitionTimer);
+  const root = app.querySelector<HTMLElement>('[data-ui="cycle-end-root"]');
+  if (root) root.innerHTML = '';
+}
 
 export function showToast(message: string): void {
   const toastMessage: ToastMessage = { id: ++toastSequence, text: message, leaving: false };
