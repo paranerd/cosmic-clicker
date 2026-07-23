@@ -28,7 +28,7 @@ async function gotoGame(page: Page): Promise<void> {
 test('player can accrete matter and see the stellar data update', async ({ page }) => {
   await gotoGame(page);
   expect(await page.evaluate(() => typeof (window as typeof window & { cheat?: unknown }).cheat)).toBe('undefined');
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/cosmic-clicker/favicon.svg');
   await expect(page.getByRole('heading', { name: 'Stellarer Kern' })).toBeVisible();
   await expect(page.getByText('Urwolke', { exact: true }).first()).toBeVisible();
   await expect(page.locator('[data-ui="temperature"]')).toHaveText('10 K');
