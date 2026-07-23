@@ -1214,6 +1214,9 @@ nicht „am Spielstart“.
 Es gibt nur einen Fokusrahmen. Er ist als Outline direkt am Zielelement
 verankert und bewegt sich deshalb beim Scrollen ohne verzögerte
 Neuberechnung mit. Vier Blocker sperren den Bereich außerhalb des Rahmens.
+Ein Panel, das das fokussierte Ziel enthält, gibt seinen Überlauf während
+dieses Schritts frei, damit die Kontur auch an Panelkanten vollständig
+sichtbar bleibt.
 Der Raum zwischen Rahmen und Ziel wird ohne separate rechteckige Schutzfläche
 durch einen am Ziel verankerten, nahezu opaken Schatten verdeckt. Runde Ziele
 wie der Stern erhalten dafür einen kreisförmigen Innenring und eine

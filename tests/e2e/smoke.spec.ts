@@ -361,6 +361,7 @@ test('perk popover opens only on click and closes outside', async ({ page }) => 
 });
 
 test('new players can complete and replay the interactive tutorial', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   const intro = page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' });
   await expect(intro).toContainText('COSMICCLICKER');
@@ -380,7 +381,19 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await expect(page.locator('[data-tutorial="matter-reservoir"]')).toHaveClass(/tutorial-focus/);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Der kosmische Baustoff');
-  await expect(page.locator('[data-tutorial="cloud-composition"]')).toHaveClass(/tutorial-focus/);
+  const cloudComposition = page.locator('[data-tutorial="cloud-composition"]');
+  await expect(cloudComposition).toHaveClass(/tutorial-focus/);
+  await expect(page.locator('.cloud-panel')).toHaveCSS('overflow-y', 'visible');
+  const cloudCompositionFrame = await cloudComposition.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const panelRect = element.closest('.cloud-panel')!.getBoundingClientRect();
+    const framePadding = Number.parseFloat(getComputedStyle(element).outlineOffset);
+    return {
+      frameBottom: rect.bottom + framePadding + 1,
+      panelBottom: panelRect.bottom,
+    };
+  });
+  expect(cloudCompositionFrame.frameBottom).toBeGreaterThan(cloudCompositionFrame.panelBottom);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Dein erster Akkretionsimpuls');
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();

@@ -697,6 +697,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .stellar-lab { grid-template-columns: minmax(300px, 325px) minmax(390px, 1fr) var(--action-panel-width); }
   .stellar-lab, .star-chamber { min-height: 0; }
   .data-panel { padding: 14px 18px; overflow: hidden; }
+  .data-panel:has(.tutorial-focus) { overflow: visible; }
   .panel-heading { margin-bottom: 9px; }
   .primary-reading { margin-bottom: 7px; }
   .primary-reading > b { margin: 3px 0 7px; font-size: clamp(22px, 2vw, 29px); }
