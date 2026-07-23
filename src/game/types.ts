@@ -64,6 +64,9 @@ export interface PerkState {
 
 export interface LogEntry {
   id: number;
+  run: number;
+  elapsed: number;
+  totalElapsed: number;
   text: string;
   kind: 'info' | 'discovery' | 'fusion';
 }
@@ -107,11 +110,12 @@ export interface TutorialState {
 }
 
 export interface GameState {
-  version: 5;
+  version: 7;
   run: number;
   startedAt: number;
   lastTick: number;
   elapsed: number;
+  totalElapsed: number;
   stage: Stage;
   cloudTier: CloudTier;
   nextCloudTier: CloudTier;

@@ -480,6 +480,8 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .log-entry i { width: 5px; height: 5px; margin-top: 5px; border-radius: 50%; background: #586474; }
 .log-entry.discovery i { background: $cyan; box-shadow: 0 0 7px $cyan; }
 .log-entry.fusion i { background: $amber; box-shadow: 0 0 7px $amber; }
+.log-entry > div { min-width: 0; }
+.log-entry time { display: block; margin-bottom: 2px; color: #58677a; font-size: 7px; letter-spacing: .08em; text-transform: uppercase; }
 .log-entry p { margin: 0; color: #8996a8; font-size: 9px; line-height: 1.5; }
 
 footer { width: min(1460px, calc(100% - 48px)); min-height: 64px; margin: auto; display: flex; align-items: center; gap: 20px; color: #4e5a6a; font-size: 8px; letter-spacing: .1em; }
@@ -568,13 +570,16 @@ footer button:hover { color: $cyan; }
 .round-history article b { font-family: ui-monospace,monospace; font-size: 10px; font-weight: 400; }
 .round-history article small, .empty-history { color: $muted; font-size: 8px; }
 .empty-history { margin: 12px 0 0; }
-.chronicle-modal { width: min(1050px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.chronicle-modal { width: min(1050px, 100%); max-height: calc(100vh - 40px); overflow: hidden; border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
 .chronicle-modal-heading { padding: 22px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid $line; }
 .chronicle-modal-heading small { color: $cyan; font-size: 7px; letter-spacing: .18em; }
 .chronicle-modal-heading h2 { margin: 5px 0 0; font-family: Georgia,serif; font-size: 24px; font-weight: 400; }
 .chronicle-modal-heading button { width: 34px; height: 34px; border: 1px solid $line; background: transparent; color: $muted; font-size: 19px; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
-.chronicle-modal .chronicle-layout { margin: 0; }
-.chronicle-modal .timeline-card, .chronicle-modal .log-card { min-height: 360px; }
+.chronicle-modal .chronicle-layout { height: min(650px, calc(100vh - 125px)); min-height: 360px; margin: 0; overflow: hidden; }
+.chronicle-modal .timeline-card, .chronicle-modal .log-card { min-height: 0; }
+.chronicle-modal .timeline-card { overflow-y: auto; }
+.chronicle-modal .log-card { display: flex; flex-direction: column; overflow: hidden; }
+.chronicle-modal .log-card .log-list { min-height: 0; padding-right: 8px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba($cyan,.25) transparent; }
 .text-action { margin-top: 13px; border: 0; background: none; color: $muted; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; cursor: pointer; }
 .text-action:hover { color: $text; }
 .toast-stack { width: min(520px,calc(100vw - 32px)); position: fixed; z-index: 80; left: 50%; top: 88px; transform: translateX(-50%); pointer-events: none; }
@@ -709,6 +714,10 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .upgrade-grid { grid-template-columns: 1fr; }
   .upgrade-layout, .legacy-layout, .chronicle-layout { grid-template-columns: 1fr; }
   .chronicle-layout { margin: -26px -30px -30px; }
+  .chronicle-modal { overflow-y: auto; }
+  .chronicle-modal .chronicle-layout { height: auto; min-height: 0; overflow: visible; }
+  .chronicle-modal .timeline-card { overflow: visible; }
+  .chronicle-modal .log-card { height: min(420px, calc(100vh - 100px)); min-height: 260px; }
   .upgrade-card p { min-height: 0; }
 }
 

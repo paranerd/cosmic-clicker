@@ -67,7 +67,7 @@ function performReset(mode: ResetMode): void {
   resetSummaryAttention();
   const state = getState();
   if (mode === 'full') { clearSave(); setState(createInitialState()); clearToasts(); }
-  else setState(createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: state.tutorial, history: state.history, cloudTier: state.cloudTier, nextCloudTier: state.nextCloudTier, discoveredOutcomes: state.discoveredOutcomes }));
+  else setState(createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: state.tutorial, history: state.history, cloudTier: state.cloudTier, nextCloudTier: state.nextCloudTier, discoveredOutcomes: state.discoveredOutcomes, log: state.log, totalElapsed: state.totalElapsed }));
   setActivePanel('reactions'); switchPanel('reactions', false); saveGame(getState()); updateUI(true);
   if (mode === 'run') showToast('Der aktuelle Zyklus wurde neu gestartet.');
 }

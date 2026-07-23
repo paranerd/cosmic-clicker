@@ -1,9 +1,9 @@
 import { CLOUD_GROWTH, EMPTY_MATTER, LIMITS, MATTER_KEYS, REACTIONS, REACTION_ORDER, THRESHOLDS } from '../content';
 import { compressionHeat, createInitialState, createRunStatistics, tick } from './engine';
-import type { CloudTier, GameState, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState } from './types';
+import type { CloudTier, GameState, LogEntry, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState } from './types';
 
 const SAVE_KEY = 'cosmic-clicker-save-v1';
-type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star' | 'perks' | 'pendingPerks' | 'history' | 'tutorial'>> & {
+type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star' | 'perks' | 'pendingPerks' | 'history' | 'tutorial' | 'log'>> & {
   version?: number;
   stage?: Stage | 'stable';
   cloud?: Partial<Matter>;
@@ -12,6 +12,7 @@ type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star'
   pendingPerks?: Partial<PerkState>;
   history?: Partial<RoundRecord>[];
   tutorial?: Partial<TutorialState>;
+  log?: Partial<LogEntry>[];
 };
 
 const normalizeMatter = (matter?: Partial<Matter>): Matter => ({ ...EMPTY_MATTER, ...matter });
@@ -36,7 +37,7 @@ const normalizeOutcome = (value: unknown, legacyCompleted: boolean): StellarOutc
 export const normalizeGameState = (value: unknown): GameState | null => {
   if (!value || typeof value !== 'object') return null;
   const parsed = value as SavedState;
-  if (![1, 2, 3, 4, 5].includes(parsed.version ?? 0) || !parsed.cloud || !parsed.star) return null;
+  if (![1, 2, 3, 4, 5, 6, 7].includes(parsed.version ?? 0) || !parsed.cloud || !parsed.star) return null;
 
   const cloud = normalizeMatter(parsed.cloud);
   const star = normalizeMatter(parsed.star);
@@ -79,6 +80,11 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     cloudTier: isCloudTier(record.cloudTier) ? record.cloudTier : 0,
     outcome: normalizeOutcome(record.outcome, true) ?? 'legacyMainSequence',
   })) : [];
+  const migratedTotalElapsed = history.reduce((sum, record) => sum + Math.max(0, record.duration), 0)
+    + Math.max(0, parsed.elapsed ?? 0);
+  const totalElapsed = typeof parsed.totalElapsed === 'number' && Number.isFinite(parsed.totalElapsed)
+    ? Math.max(0, parsed.totalElapsed)
+    : migratedTotalElapsed;
   const discoveredOutcomes: StellarOutcome[] = Array.isArray(parsed.discoveredOutcomes)
     ? parsed.discoveredOutcomes.filter((entry): entry is StellarOutcome => normalizeOutcome(entry, false) !== null)
     : outcome ? [outcome] : [];
@@ -90,12 +96,39 @@ export const normalizeGameState = (value: unknown): GameState | null => {
   reactionTotals.hydrogen = Math.max(reactionTotals.hydrogen, stats.hydrogenFused);
   reactionTotals.helium = Math.max(reactionTotals.helium, stats.heliumFused);
   reactionTotals.alphaCapture = Math.max(reactionTotals.alphaCapture, stats.oxygenCreated / (Object.values(REACTIONS.alphaCapture.outputs)[0] ?? 1));
+  const normalizedLog: LogEntry[] = Array.isArray(parsed.log) ? parsed.log
+    .filter((entry): entry is Partial<LogEntry> & { id: number; text: string; kind: LogEntry['kind'] } =>
+      Boolean(entry)
+      && typeof entry.id === 'number' && Number.isFinite(entry.id)
+      && typeof entry.text === 'string'
+      && (entry.kind === 'info' || entry.kind === 'discovery' || entry.kind === 'fusion'))
+    .map((entry) => {
+      const run = typeof entry.run === 'number' && Number.isFinite(entry.run) ? Math.max(1, Math.floor(entry.run)) : parsed.run ?? 1;
+      const elapsed = typeof entry.elapsed === 'number' && Number.isFinite(entry.elapsed)
+        ? Math.max(0, entry.elapsed)
+        : Math.max(0, Math.min(parsed.elapsed ?? 0, (entry.id - (parsed.startedAt ?? entry.id)) / 1_000));
+      const elapsedBeforeRun = history
+        .filter((record) => record.run < run)
+        .reduce((sum, record) => sum + Math.max(0, record.duration), 0);
+      return {
+        id: entry.id,
+        run,
+        elapsed,
+        totalElapsed: typeof entry.totalElapsed === 'number' && Number.isFinite(entry.totalElapsed)
+          ? Math.max(0, entry.totalElapsed)
+          : elapsedBeforeRun + elapsed,
+        text: entry.text,
+        kind: entry.kind,
+      };
+    })
+    : fallback.log;
 
   const normalized = {
     ...fallback,
     ...parsed,
-    version: 5,
+    version: 7,
     stage,
+    totalElapsed,
     cloudTier,
     nextCloudTier,
     cloud,
@@ -122,7 +155,7 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     volume: Math.max(0, Math.min(1, typeof parsed.volume === 'number' ? parsed.volume : .35)),
     seenOpportunities: Array.isArray(parsed.seenOpportunities) ? parsed.seenOpportunities : [],
     seenObjectives: Array.isArray(parsed.seenObjectives) ? parsed.seenObjectives : [],
-    log: Array.isArray(parsed.log) ? parsed.log : fallback.log,
+    log: normalizedLog,
   } as GameState;
   if (normalized.upgrades.deuteriumBurning && normalized.deuteriumIgnitionCompression === null) {
     normalized.deuteriumIgnitionCompression = compressionHeat(normalized);

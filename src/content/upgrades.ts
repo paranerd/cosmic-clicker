@@ -48,6 +48,7 @@ export interface UpgradeDefinition {
   cardClass?: string;
   hiddenStages: readonly Stage[];
   requirements: UpgradeRequirements;
+  supply?: { kind: 'cloudMatter'; exhaustedLabel: string };
   cost: UpgradeCostDefinition;
   maxLevel: number;
   value: UpgradeValueDefinition;
@@ -67,6 +68,7 @@ export const UPGRADES = {
     cardClass: 'featured',
     hiddenStages: [],
     requirements: {},
+    supply: { kind: 'cloudMatter', exhaustedLabel: 'Urwolke erschöpft' },
     cost: { base: 45, growth: 2.2 },
     maxLevel: LIMITS.gravity,
     value: {

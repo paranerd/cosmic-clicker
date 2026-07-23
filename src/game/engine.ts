@@ -37,6 +37,7 @@ import type {
   CloudTier,
   GameAction,
   GameState,
+  LogEntry,
   Matter,
   PerkState,
   ReactionId,
@@ -210,8 +211,7 @@ const updateTemperature = (state: GameState): void => {
 };
 
 const log = (state: GameState, text: string, kind: GameState['log'][number]['kind'] = 'info'): void => {
-  state.log.unshift({ id: Date.now() + Math.random(), text, kind });
-  state.log = state.log.slice(0, 12);
+  state.log.unshift({ id: Date.now() + Math.random(), run: state.run, elapsed: state.elapsed, totalElapsed: state.totalElapsed, text, kind });
 };
 
 const setStage = (state: GameState, stage: Stage, message?: string): void => {
@@ -275,7 +275,7 @@ export const reactionAvailable = (state: GameState, reaction: ReactionId): boole
   !state.completed
   && state.unlockedReactions.includes(reaction)
   && state.temperature >= REACTIONS[reaction].ignitionTemperature
-  && reactionCapacity(state, reaction) > .001;
+  && reactionCapacity(state, reaction) > 0;
 
 const primaryOutputAmount = (reaction: ReactionId, primaryInput: number): number => {
   const definition = REACTIONS[reaction];
@@ -286,7 +286,7 @@ const runReaction = (state: GameState, reaction: ReactionId, requested: number, 
   if (!reactionAvailable(state, reaction)) return 0;
   const definition = REACTIONS[reaction];
   const amount = Math.min(requested, reactionCapacity(state, reaction));
-  if (amount <= .001) return 0;
+  if (amount <= 0) return 0;
   let inputMass = 0;
   let outputMass = 0;
   Object.entries(definition.inputs).forEach(([key, ratio]) => {
@@ -379,16 +379,16 @@ const updateFormationStage = (state: GameState): void => {
 };
 
 const nextHeavyFuel = (state: GameState): ReactionId | null => {
-  if (state.star.carbon > .001) return 'carbon';
-  if (state.star.neon > .001) return 'neon';
-  if (state.star.oxygen > .001) return 'oxygen';
-  if (state.star.silicon > .001) return 'silicon';
+  if (state.star.carbon > 0) return 'carbon';
+  if (state.star.neon > 0) return 'neon';
+  if (state.star.oxygen > 0) return 'oxygen';
+  if (state.star.silicon > 0) return 'silicon';
   return null;
 };
 
 // A fuel only counts as exhausted once neither the core nor the residual
 // cloud can still supply it; otherwise accretion could flip the stage back.
-const fuelDepleted = (state: GameState, key: keyof Matter): boolean => state.star[key] + state.cloud[key] <= .001;
+const fuelDepleted = (state: GameState, key: keyof Matter): boolean => state.star[key] + state.cloud[key] <= 0;
 
 type ContractionDecision = { kind: 'ignite'; next: ReactionId } | { kind: 'settle' } | null;
 
@@ -413,7 +413,7 @@ const evaluateEvolution = (state: GameState): void => {
     completeRun(state, 'brownDwarf');
     return;
   }
-  if (state.unlockedReactions.includes('silicon') && state.star.silicon <= .001 && state.star.iron > .001) {
+  if (state.unlockedReactions.includes('silicon') && state.star.silicon <= 0 && state.star.iron > 0) {
     setStage(state, 'ironCore', 'Ein Eisenkern ist entstanden. Weitere Fusion liefert keine Energie mehr.');
     completeRun(state, starMass(state) >= THRESHOLDS.blackHoleMass ? 'blackHole' : 'neutronStar');
     return;
@@ -451,6 +451,7 @@ const applyContraction = (state: GameState, seconds: number): void => {
 interface PersistentRunOptions {
   soundEnabled?: boolean; volume?: number; tutorial?: TutorialState; history?: RoundRecord[];
   cloudTier?: CloudTier; nextCloudTier?: CloudTier; discoveredOutcomes?: StellarOutcome[];
+  log?: LogEntry[]; totalElapsed?: number;
 }
 
 export const createInitialState = (
@@ -464,9 +465,10 @@ export const createInitialState = (
   const unlockedTier = clampCloudTier(perks.largerCloud);
   const requestedTier = persistent.cloudTier ?? persistent.nextCloudTier ?? unlockedTier;
   const cloudTier = run === 1 && persistent.cloudTier === undefined ? 0 : clampCloudTier(Math.min(requestedTier, unlockedTier));
+  const totalElapsed = Math.max(0, persistent.totalElapsed ?? 0);
   const now = Date.now();
   return {
-    version: 5, run, startedAt: now, lastTick: now, elapsed: 0, stage: 'nebula', cloudTier,
+    version: 7, run, startedAt: now, lastTick: now, elapsed: 0, totalElapsed, stage: 'nebula', cloudTier,
     nextCloudTier: clampCloudTier(Math.min(persistent.nextCloudTier ?? cloudTier, unlockedTier)),
     cloud: cloudMatterForLevel(cloudTier), star: { ...EMPTY_MATTER }, radiatedMass: 0,
     energy: 0, temperature: INITIAL_TEMPERATURE, heatBonus: 0, contractionHeat: 0,
@@ -481,7 +483,10 @@ export const createInitialState = (
     tutorial: persistent.tutorial ? { ...persistent.tutorial } : { introSeen: false, cosmosToastPending: true, completed: false, step: 0 },
     stats: createRunStatistics(), history: persistent.history ? structuredClone(persistent.history).slice(0, 20) : [],
     seenOpportunities: [], seenObjectives: [],
-    log: [{ id: now, text: `${cloudDefinitionForLevel(cloudTier).name} bei 10 K wartet auf ihren ersten Impuls.`, kind: 'info' }],
+    log: [
+      { id: now, run, elapsed: 0, totalElapsed, text: `${cloudDefinitionForLevel(cloudTier).name} bei 10 K wartet auf ihren ersten Impuls.`, kind: 'info' },
+      ...structuredClone(persistent.log ?? []),
+    ],
   };
 };
 
@@ -489,6 +494,7 @@ export const tick = (state: GameState, seconds: number): GameState => {
   const next = structuredClone(state);
   const dt = Math.max(0, Math.min(seconds, LIMITS.offlineSeconds));
   next.elapsed += dt;
+  next.totalElapsed += dt;
   next.lastTick = Date.now();
   if (next.completed) return next;
   const dispersed = disperseCloudMatter(next, stellarWindPerSecond(next) * dt);
@@ -537,7 +543,14 @@ const UPGRADE_PURCHASE_EFFECTS: Record<NonNullable<UpgradePurchaseDefinition['ef
 const upgradeRequirementsMet = (state: GameState, definition: UpgradeDefinition): boolean =>
   (definition.requirements.minimumStarMass === undefined || starMass(state) >= definition.requirements.minimumStarMass)
   && (definition.requirements.minimumTemperature === undefined || state.temperature >= definition.requirements.minimumTemperature)
-  && (definition.requirements.maximumTemperature === undefined || state.temperature < definition.requirements.maximumTemperature);
+  && (definition.requirements.maximumTemperature === undefined || state.temperature < definition.requirements.maximumTemperature)
+  && !upgradeSupplyExhausted(state, definition.id);
+
+export const upgradeSupplyExhausted = (state: GameState, id: UpgradeId): boolean => {
+  const definition: UpgradeDefinition = UPGRADES[id];
+  const supply = definition.supply;
+  return supply?.kind === 'cloudMatter' ? cloudMass(state) <= .001 : false;
+};
 
 const buyUpgrade = (state: GameState, id: UpgradeId): void => {
   const definition: UpgradeDefinition = UPGRADES[id];
@@ -573,7 +586,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
     return createInitialState(effectivePerks(state), state.stardust, state.run + 1, {
       soundEnabled: state.soundEnabled, volume: state.volume, tutorial: state.tutorial,
       history: [record, ...state.history], cloudTier: state.nextCloudTier, nextCloudTier: state.nextCloudTier,
-      discoveredOutcomes: state.discoveredOutcomes,
+      discoveredOutcomes: state.discoveredOutcomes, log: state.log, totalElapsed: state.totalElapsed,
     });
   }
   const next = structuredClone(state);

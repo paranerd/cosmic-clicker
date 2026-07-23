@@ -246,6 +246,48 @@ test('chronicle expands from the persistent bottom dock', async ({ page }) => {
   await expect(chronicle).toHaveCount(0);
 });
 
+test('chronicle shows runtime timestamps and entries from earlier cycles', async ({ page }) => {
+  const archivedEntries = Array.from({ length: 30 }, (_, index) => ({
+    id: 100 + index,
+    run: 1,
+    elapsed: index,
+    totalElapsed: index,
+    text: `Archivierter Eintrag ${index + 1}.`,
+    kind: 'info',
+  }));
+  await seedLegacyGame(page, {
+    version: 7,
+    run: 2,
+    elapsed: 42,
+    totalElapsed: 107,
+    log: [
+      { id: 2, run: 2, elapsed: 42, totalElapsed: 107, text: 'Zweiter Zyklus gestartet.', kind: 'info' },
+      { id: 1, run: 1, elapsed: 65, totalElapsed: 65, text: 'Erster Zyklus abgeschlossen.', kind: 'discovery' },
+      ...archivedEntries,
+    ],
+  });
+  await gotoGame(page);
+  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
+  const chronicle = page.getByRole('dialog', { name: 'Lebenswege der Sterne' });
+
+  await expect(chronicle).toContainText('Zyklus 02 · 00:00:42 · Gesamt 00:01:47');
+  await expect(chronicle).toContainText('Zweiter Zyklus gestartet.');
+  await expect(chronicle).toContainText('Zyklus 01 · 00:01:05 · Gesamt 00:01:05');
+  await expect(chronicle).toContainText('Erster Zyklus abgeschlossen.');
+  const scrolling = await chronicle.locator('.log-list').evaluate((element) => {
+    const modal = element.closest<HTMLElement>('.chronicle-modal')!;
+    element.scrollTop = element.scrollHeight;
+    return {
+      overflowY: getComputedStyle(element).overflowY,
+      canScroll: element.scrollHeight > element.clientHeight,
+      logScrollTop: element.scrollTop,
+      modalScrollTop: modal.scrollTop,
+    };
+  });
+  expect(scrolling).toMatchObject({ overflowY: 'auto', canScroll: true, modalScrollTop: 0 });
+  expect(scrolling.logScrollTop).toBeGreaterThan(0);
+});
+
 test('mission strip collapses to compact progress, percentage and runtime details', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 700 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
@@ -648,6 +690,45 @@ test('unlocked reaction cards drop the redundant cost line below the pips and gi
       + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
   });
   expect(Math.abs(buttonBox!.width - (cardBox!.width - cardInset))).toBeLessThanOrEqual(1);
+});
+
+test('reaction button processes remaining fuel and disables only when none is available', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 7, run: 2, stage: 'hydrogen', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 1_000, helium: 0, deuterium: 0 },
+    star: { hydrogen: 37, helium: 20_000, deuterium: 0 },
+    temperature: 10_000_000,
+    unlockedReactions: ['hydrogen'],
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+
+  const button = page.locator('[data-reaction-card="hydrogen"] [data-action="run-reaction"]');
+  await expect(button).toBeEnabled();
+  await expect(button.locator('[data-button-detail]')).toContainText('37 H');
+  await button.click();
+  await expect(button).toBeDisabled();
+  await expect(button.locator('[data-button-label]')).toHaveText('Kein Brennstoff verfügbar.');
+});
+
+test('gravity upgrade expires when the primordial cloud is exhausted', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 7, run: 2, stage: 'hydrogen', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 0, helium: 0, deuterium: 0 },
+    star: { hydrogen: 20_000, helium: 1_000, deuterium: 0 },
+    temperature: 10_000_000,
+    energy: 1_000,
+    unlockedReactions: ['hydrogen'],
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+  await page.getByRole('tab', { name: /Upgrades/ }).click();
+
+  const gravityCard = page.locator('[data-upgrade-card="gravity"]');
+  await expect(gravityCard.locator('.tile-action-button')).toBeDisabled();
+  await expect(gravityCard.locator('.tile-cost')).toHaveText('Urwolke erschöpft');
 });
 
 test('fusion click feedback rises from the actual click position, not a fixed spot', async ({ page }) => {

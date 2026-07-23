@@ -33,6 +33,7 @@ import {
   reactionManualAmountAtLevel,
   reactionUpgradeCost,
   starMass,
+  upgradeSupplyExhausted,
 } from '../game/engine';
 import type { CloudTier, ReactionId, Stage, StellarOutcome } from '../game/types';
 import { disabled, formatCompact, formatDuration, formatMatter, formatNumber, formatTemperature, icons, levelPips } from './format';
@@ -170,7 +171,7 @@ export function reactionView(id: ReactionId): ReactionView {
   const visible = unlocked || id === nextLocked;
   const available = reactionAvailable(state, id);
   const label = !unlocked ? `Ab ${formatTemperature(definition.ignitionTemperature)}`
-    : capacity <= .001 ? 'Nicht genug Brennstoff im Kern'
+    : capacity <= 0 ? 'Kein Brennstoff verfügbar.'
       : 'Fusionieren';
   // Punkt 2: Zustand des Reaktionsausbaus für die Karte.
   const upgradeLevel = state.reactionUpgrades[id];
@@ -178,7 +179,7 @@ export function reactionView(id: ReactionId): ReactionView {
   const upgradeMax = upgradeLevel >= REACTION_UPGRADE.maxLevel;
   return {
     id, visible, unlocked, available, amount, energy, label,
-    detail: !unlocked ? '' : capacity > .001 ? reactionConversionLabel(id, amount, energy) : `${formatMatter(capacity)} ${RESOURCES[definition.primaryInput].symbol} verfügbar`,
+    detail: !unlocked ? '' : capacity > 0 ? reactionConversionLabel(id, amount, energy) : '',
     upgradeLevel, upgradePrice, upgradeMax, upgradeAffordable: !upgradeMax && state.energy >= upgradePrice,
   };
 }
@@ -263,6 +264,7 @@ export interface UpgradeView {
   visible: boolean;
   unlocked: boolean;
   expired: boolean;
+  exhausted: boolean;
   complete: boolean;
   value: string;
   detail: string;
@@ -288,8 +290,9 @@ export function upgradeView(id: UpgradeId): UpgradeView {
     || state.temperature >= definition.requirements.minimumTemperature;
   const expired = definition.requirements.maximumTemperature !== undefined
     && state.temperature >= definition.requirements.maximumTemperature;
+  const exhausted = upgradeSupplyExhausted(state, id);
   const complete = level >= definition.maxLevel;
-  const unlocked = visible && minimumMassReached && minimumTemperatureReached && !expired;
+  const unlocked = visible && minimumMassReached && minimumTemperatureReached && !expired && !exhausted;
   const value = definition.value.kind === 'toggle'
     ? complete ? definition.value.active : definition.value.inactive
     : `×${formatNumber(
@@ -302,6 +305,7 @@ export function upgradeView(id: UpgradeId): UpgradeView {
   const detail = complete ? definition.detail.active : definition.detail.inactive;
   const label = complete ? definition.button.complete
     : expired ? definition.button.expired
+      : exhausted && definition.supply ? definition.supply.exhaustedLabel
       : unlocked ? definition.button.purchase : definition.button.locked;
   const priority = complete || expired ? 2 : !unlocked ? 3 : state.energy >= price ? 0 : 1;
   const requirementFractions = [
@@ -309,7 +313,7 @@ export function upgradeView(id: UpgradeId): UpgradeView {
     definition.requirements.minimumTemperature !== undefined ? state.temperature / definition.requirements.minimumTemperature : undefined,
   ].filter((fraction): fraction is number => fraction !== undefined);
   const unlockProgress = requirementFractions.length ? Math.min(1, ...requirementFractions) : 1;
-  return { id, definition, level, price, visible, unlocked, expired, complete, value, detail, label, priority, unlockProgress };
+  return { id, definition, level, price, visible, unlocked, expired, exhausted, complete, value, detail, label, priority, unlockProgress };
 }
 
 // Punkt 1: Wert der nächsten Ausbaustufe eines Upgrades mit echten Stufen
@@ -346,7 +350,7 @@ function upgradeCard(view: UpgradeView): string {
   const fillPercent = complete ? 0 : locked ? view.unlockProgress * 100 : state.energy / price * 100;
   const showLock = level === 0;
   const ariaLabel = complete ? definition.button.complete
-    : locked ? (view.expired ? definition.button.expired : definition.button.locked)
+    : locked ? view.label
       : `${definition.button.purchase} für ${price} Energie`;
   // Punkt 5: Kosten verschwinden vollständig, sobald voll ausgebaut. Punkt 9:
   // Solange ausbaubar steht der Preis direkt im Button; der Sperrgrund passt
@@ -358,7 +362,7 @@ function upgradeCard(view: UpgradeView): string {
       ${hasLevels ? `<div class="tile-rate"><div><span>Aktuell</span><b>${locked ? '-' : view.value}</b></div><div><span>Nächste Stufe:</span> <b>${complete ? 'Voll ausgebaut' : upgradeNextValue(view)}</b></div></div>` : ''}
       <p>${definition.description}${view.detail ? `<strong>${view.detail}</strong>` : ''}</p>
       ${hasLevels ? `<div class="level-row" data-levels="${view.id}">${levelPips(level, definition.maxLevel)}</div>` : ''}
-      ${locked ? `<div class="tile-cost" data-upgrade-cost="${view.id}">${view.expired ? definition.button.expired : definition.button.locked}</div>` : ''}
+      ${locked ? `<div class="tile-cost" data-upgrade-cost="${view.id}">${view.label}</div>` : ''}
     </article>`;
 }
 
@@ -492,8 +496,9 @@ export function evolutionMapMarkup(): string {
   </div>`;
 }
 
-export function logMarkup(limit = 5): string {
-  return getState().log.slice(0, limit).map((entry) => `<div class="log-entry ${entry.kind}"><i></i><p>${entry.text}</p></div>`).join('');
+export function logMarkup(limit?: number): string {
+  const entries = limit === undefined ? getState().log : getState().log.slice(0, limit);
+  return entries.map((entry) => `<div class="log-entry ${entry.kind}"><i></i><div><time>Zyklus ${entry.run.toString().padStart(2, '0')} · ${formatDuration(entry.elapsed)} · Gesamt ${formatDuration(entry.totalElapsed)}</time><p>${entry.text}</p></div></div>`).join('');
 }
 
 export function orderedUpgradeCards(): { view: UpgradeView; markup: string }[] {
@@ -505,7 +510,7 @@ export function orderedUpgradeCards(): { view: UpgradeView; markup: string }[] {
 }
 
 export const upgradeOrderSignature = (): string => orderedUpgradeCards()
-  .map(({ view }) => `${view.id}:${view.priority}:${view.level}:${view.expired}`)
+  .map(({ view }) => `${view.id}:${view.priority}:${view.level}:${view.expired}:${view.exhausted}`)
   .join('|');
 
 export function panelMarkup(panel: Panel): string {

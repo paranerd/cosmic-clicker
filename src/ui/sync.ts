@@ -209,7 +209,7 @@ function syncActivePanel(): void {
       const showLock = view.level === 0;
       const costText = view.complete ? '' : `${view.price} E`;
       const ariaLabel = view.complete ? view.definition.button.complete
-        : !view.unlocked ? (view.expired ? view.definition.button.expired : view.definition.button.locked)
+        : !view.unlocked ? view.label
           : `${view.definition.button.purchase} für ${view.price} Energie`;
       syncTileButton(button, view.complete, view.unlocked, showLock, affordable, fillPercent, costText, ariaLabel);
     });

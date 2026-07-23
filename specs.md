@@ -148,6 +148,8 @@ konkretere Festlegung in diesem Abschnitt.
 - Akkretion liefert pro Klick 48 ME und erzeugt 0,018 Energie je gebundener ME.
 - Gravitative Verdichtung erhöht manuelle und automatische Akkretion pro Stufe
   um 55 %. Gravitatives Gedächtnis addiert dauerhaft 12 % pro Perk-Stufe.
+- Sobald die Urwolke erschöpft ist, kann Gravitative Verdichtung nicht mehr
+  ausgebaut werden und zeigt stattdessen „Urwolke erschöpft“.
 - Deuteriumbrennen kostet 75 Energie, wird ab dem Protostern angezeigt und ist
   zwischen 1 Mio. und 10 Mio. K einmalig aktivierbar.
 - Die Aktivierung verändert die Temperatur im Kaufmoment nicht sprunghaft. Der
@@ -171,6 +173,10 @@ Implementierte manuelle Reaktionen:
 
 - Jede Fusion setzt Energie frei. Energie wird für normale Upgrades und
   Automationen ausgegeben.
+- Reicht der vorhandene Kernbrennstoff nicht für die reguläre manuelle
+  Fusionsmenge, verarbeitet die Reaktion automatisch den gesamten verfügbaren
+  Rest. Nur bei vollständig fehlendem Brennstoff ist der Reaktionsbutton mit
+  dem Hinweis „Kein Brennstoff verfügbar.“ deaktiviert.
 - Fusionsgedächtnis erhöht manuelle und automatische Fusionsmengen dauerhaft um
   15 % pro Perk-Stufe.
 - Im Kontrollzentrum sollen Reaktionskarten vollständig aus zentralen
@@ -420,7 +426,10 @@ Implementierte manuelle Reaktionen:
 - Kurzmeldungen werden als gestapelte, automatisch verschwindende Toasts von
   oben eingeblendet.
 - Die Chronik zeigt den aktuellen Entwicklungspfad, bekannte Endzustände und
-  ein Sternenlogbuch.
+  ein dauerhaftes Sternenlogbuch mit eigenem Scrollbereich im Popup. Jeder
+  Eintrag nennt Zykluslaufzeit und kumulierte Gesamtlaufzeit; das Logbuch bleibt
+  bei Rundenneustart und Zykluswechsel vollständig erhalten und wird nur beim
+  Löschen des gesamten Spielstands zurückgesetzt.
 - Die Stellare Entwicklung (Timeline in Dock und Chronik) zeigt nur den
   tatsächlich durchlaufenen Weg BIS JETZT plus genau einen offenen
   „?“-Knoten („Ausgang offen“) — keine Zukunftsprognose, denn der Ausgang

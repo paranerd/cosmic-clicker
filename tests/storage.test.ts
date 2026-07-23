@@ -5,7 +5,7 @@ import { loadGame, normalizeGameState, saveGame } from '../src/game/storage';
 
 const SAVE_KEY = 'cosmic-clicker-save-v1';
 
-describe('save storage and version 5 migration', () => {
+describe('save storage and version 7 migration', () => {
   let values: Map<string, string>;
 
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe('save storage and version 5 migration', () => {
 
     const migrated = normalizeGameState(legacy);
     expect(migrated).not.toBeNull();
-    expect(migrated).toMatchObject({ version: 5, energy: 321, run: 4, volume: .35 });
+    expect(migrated).toMatchObject({ version: 7, energy: 321, run: 4, volume: .35 });
     expect(migrated?.tutorial.completed).toBe(true);
     expect(migrated?.tutorial.introSeen).toBe(true);
     expect(migrated?.stats.manualClicks).toBe(0);
@@ -55,7 +55,7 @@ describe('save storage and version 5 migration', () => {
     const legacy = { ...current, version: 3, stage: 'stable', completed: true };
     delete (legacy as Partial<typeof legacy>).outcome;
     const migrated = normalizeGameState(legacy);
-    expect(migrated).toMatchObject({ version: 5, completed: true, stage: 'mainSequence', outcome: 'legacyMainSequence' });
+    expect(migrated).toMatchObject({ version: 7, completed: true, stage: 'mainSequence', outcome: 'legacyMainSequence' });
     expect(migrated?.discoveredOutcomes).toContain('legacyMainSequence');
   });
 
@@ -72,7 +72,7 @@ describe('save storage and version 5 migration', () => {
     saveGame(state);
 
     const loaded = loadGame().state;
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(7);
     expect(loaded.volume).toBe(.71);
     expect(loaded.tutorial.completed).toBe(true);
     expect(loaded.stats.manualClicks).toBe(12);
@@ -90,6 +90,18 @@ describe('save storage and version 5 migration', () => {
     const migrated = normalizeGameState({ ...legacy, version: 4, deuteriumIgnitionCompression: undefined });
 
     expect(migrated?.deuteriumIgnitionCompression).toBeCloseTo(rawCompression);
+  });
+
+  it('reconstructs cycle and runtime timestamps for legacy log entries', () => {
+    const current = createInitialState();
+    const startedAt = Date.now() - 60_000;
+    const legacyLog = [{ id: startedAt + 12_500, text: 'Alter Meilenstein', kind: 'discovery' as const }];
+    const legacy = { ...current, version: 5, run: 3, startedAt, elapsed: 60, log: legacyLog } as Record<string, unknown>;
+    delete legacy.totalElapsed;
+    const migrated = normalizeGameState(legacy);
+
+    expect(migrated?.log[0]).toMatchObject({ run: 3, elapsed: 12.5, totalElapsed: 12.5, text: 'Alter Meilenstein' });
+    expect(migrated?.totalElapsed).toBe(60);
   });
 
   it('caps and records offline progress at eight hours', () => {
@@ -119,7 +131,7 @@ describe('save storage and version 5 migration', () => {
   it('falls back safely when a save is malformed', () => {
     values.set(SAVE_KEY, '{not-json');
     const loaded = loadGame();
-    expect(loaded.state.version).toBe(5);
+    expect(loaded.state.version).toBe(7);
     expect(loaded.state.run).toBe(1);
     expect(loaded.state.cloudTier).toBe(0);
     expect(loaded.offlineSeconds).toBe(0);

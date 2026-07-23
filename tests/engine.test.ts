@@ -7,6 +7,7 @@ import {
   cloudMass,
   createInitialState,
   objectiveFor,
+  reactionAvailable,
   reactionCapacity,
   reactionUpgradeCost,
   reduceGame,
@@ -123,6 +124,29 @@ describe('data-driven stellar engine v0.4', () => {
     expect(upgradedNext.temperature - upgraded.temperature).toBeGreaterThan(normalNext.temperature - state.temperature);
   });
 
+  it('prevents gravity upgrades after the primordial cloud is exhausted', () => {
+    const state = createInitialState();
+    state.cloud = { ...EMPTY_MATTER };
+    state.star.hydrogen = 20_000;
+    state.energy = 1_000;
+
+    const upgraded = reduceGame(state, { type: 'BUY_UPGRADE', upgrade: 'gravity' });
+    expect(upgraded.upgrades.gravity).toBe(0);
+    expect(upgraded.energy).toBe(1_000);
+  });
+
+  it('timestamps new log entries with the current cycle runtime', () => {
+    const state = createInitialState();
+    state.elapsed = 42.9;
+    state.totalElapsed = 142.9;
+    state.energy = 100;
+    state.star.hydrogen = THRESHOLDS.protostarMass;
+    state.cloud.hydrogen -= THRESHOLDS.protostarMass;
+    const next = reduceGame(state, { type: 'BUY_ACCRETION' });
+    const purchase = next.log.find((entry) => entry.text === 'Akkretionsstrom ausgebaut.');
+    expect(purchase).toMatchObject({ run: 1, elapsed: 42.9, totalElapsed: 142.9 });
+  });
+
   it('ends the 0.07 solar-mass cloud as a rewarded brown dwarf', () => {
     const state = accreteUntil(createInitialState(), cloudMass(createInitialState()));
     expect(state.completed).toBe(true);
@@ -157,6 +181,14 @@ describe('data-driven stellar engine v0.4', () => {
     const fused = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
     expect(fused.star.hydrogen).toBeCloseTo(0, 5);
     expect(fused.reactionTotals.hydrogen).toBeCloseTo(37, 5);
+  });
+
+  it('processes even a tiny positive remainder completely', () => {
+    const state = reactionState('hydrogen', .0005);
+    expect(reactionAvailable(tick(state, 0), 'hydrogen')).toBe(true);
+    const fused = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    expect(fused.star.hydrogen).toBe(0);
+    expect(fused.reactionTotals.hydrogen).toBeCloseTo(.0005, 8);
   });
 
   it.each(REACTION_ORDER)('executes the centrally configured %s reaction', (reaction) => {
@@ -292,7 +324,9 @@ describe('data-driven stellar engine v0.4', () => {
     state.star.hydrogen = THRESHOLDS.firstHydrogenCollection;
     state.cloud.hydrogen -= THRESHOLDS.firstHydrogenCollection / 2;
     expect(objectiveFor(state).id).toBe('form-protostar');
-    expect(tick(state, 24 * 60 * 60).elapsed).toBe(8 * 60 * 60);
+    const advanced = tick(state, 24 * 60 * 60);
+    expect(advanced.elapsed).toBe(8 * 60 * 60);
+    expect(advanced.totalElapsed).toBe(8 * 60 * 60);
   });
 
   it('frames every active burn phase as building the next core, with real progress (Punkt 7)', () => {
@@ -367,11 +401,15 @@ describe('data-driven stellar engine v0.4', () => {
     const state = accreteUntil(createInitialState(), cloudMass(createInitialState()));
     state.volume = .62;
     state.soundEnabled = false;
+    state.totalElapsed = 123;
     const next = reduceGame(state, { type: 'PRESTIGE' });
     expect(next.run).toBe(2);
     expect(next.history[0]).toMatchObject({ outcome: 'brownDwarf', cloudTier: 0 });
     expect(next.volume).toBe(.62);
     expect(next.soundEnabled).toBe(false);
+    expect(next.totalElapsed).toBe(123);
+    expect(next.log[0]).toMatchObject({ run: 2, elapsed: 0, totalElapsed: 123 });
+    expect(next.log.slice(1)).toEqual(state.log);
   });
 
   describe('Punkt 6: zeitbasierte Hauptreihe, massenabhängiger Sternwind, M☉-Anzeige', () => {
