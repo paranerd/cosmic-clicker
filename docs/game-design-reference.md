@@ -931,6 +931,16 @@ parallel zum Spiel und Tutorial erscheinen.
 - Flächen bleiben überwiegend neutral und dunkel; Farbe wird sparsam als
   Zustandsinformation eingesetzt.
 
+### Browser- und App-Icon
+
+- Vektorquelle: `public/favicon.svg`, ViewBox 64 × 64 px
+- Motiv: vierstrahliger Amber-Stern, heller Kern, Cyan-Orbit und Cyan-Punkt
+  auf `#060910`
+- Browser-Fallbacks: ICO mit 16, 32 und 48 px sowie PNG mit 32 × 32 px
+- Apple-Touch-Icon: PNG mit 180 × 180 px
+- Das SVG bleibt die bevorzugte moderne Variante; ICO und PNG sichern ältere
+  Safari-Versionen ab.
+
 ### Elementfarben
 
 | Element | Text | Rahmen | Hintergrund |
