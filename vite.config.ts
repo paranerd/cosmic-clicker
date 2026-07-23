@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/cosmic-clicker/',
+  base: '/',
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
