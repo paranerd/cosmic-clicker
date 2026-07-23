@@ -483,6 +483,23 @@ test('tutorial blocks the dimmed page while keeping its highlighted action click
 
   for (let step = 0; step < 4; step += 1) await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Dein erster Akkretionsimpuls');
+  await expect(star).toHaveClass(/tutorial-focus/);
+  await expect(page.locator('.tutorial-highlight-shield')).toHaveCount(0);
+  const starFocus = await star.evaluate((element) => {
+    const focusRing = getComputedStyle(element, '::after');
+    return {
+      borderRadius: focusRing.borderRadius,
+      borderColor: focusRing.borderTopColor,
+      boxShadow: focusRing.boxShadow,
+    };
+  });
+  const roundDimmer = page.locator('[data-tutorial-round-dimmer]');
+  await expect(roundDimmer).toHaveCount(1);
+  await expect(roundDimmer).toHaveCSS('background-color', 'rgba(2, 5, 9, 0.82)');
+  expect(await roundDimmer.evaluate((element) => getComputedStyle(element).maskImage)).toContain('radial-gradient');
+  expect(starFocus.borderRadius).toBe('50%');
+  expect(starFocus.borderColor).toBe('rgba(120, 215, 223, 0.72)');
+  expect(starFocus.boxShadow).toContain('rgba(2, 5, 9, 0.98)');
   await star.click();
   await expect(page.locator('[data-ui="mass"]')).not.toHaveText('0');
 });
@@ -533,8 +550,7 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   const cardBox = await tutorial.boundingBox();
   expect(Math.abs(cardBox!.x + cardBox!.width / 2 - 195)).toBeLessThanOrEqual(1);
   await expect(page.locator('.tutorial-blocker').first()).toHaveCSS('background-color', 'rgba(2, 5, 9, 0.82)');
-  await expect(page.locator('.tutorial-highlight-shield').first()).toHaveCSS('background-color', 'rgba(2, 5, 9, 0.98)');
-  await expect(page.locator('.tutorial-highlight-shield')).toHaveCount(4);
+  await expect(page.locator('.tutorial-highlight-shield')).toHaveCount(0);
   await expect(page.locator('.tutorial-inner-frame')).toHaveCount(0);
   await expect(page.locator('.tutorial-spotlight')).toHaveCount(0);
   const firstTarget = page.locator('[data-tutorial="realtime-data"]');
@@ -561,33 +577,26 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   expect(focusFrame.left).toBeGreaterThanOrEqual(5.5);
   expect(focusFrame.right).toBeLessThanOrEqual(focusFrame.viewportWidth - 5.5);
 
-  // Der Scroll-Listener muss Blocker und Schutzflächen noch im selben
-  // Scroll-Event aktualisieren. Eine Positionierung erst im nächsten
+  // Der Scroll-Listener muss die Blocker noch im selben Scroll-Event
+  // aktualisieren. Eine Positionierung erst im nächsten
   // requestAnimationFrame würde als sichtbares Nachziehen auffallen.
   const trackedBoxes = await page.evaluate(() => {
-    return new Promise<{ focusTop: number; framePadding: number; blockerBottom: number; shieldTop: number; shieldBottom: number; viewportHeight: number }>((resolve) => {
+    return new Promise<{ focusTop: number; framePadding: number; blockerBottom: number }>((resolve) => {
       window.addEventListener('scroll', () => {
         const focusElement = document.querySelector('[data-tutorial="realtime-data"]')!;
         const focus = focusElement.getBoundingClientRect();
         const blocker = document.querySelector<HTMLElement>('[data-tutorial-blocker="top"]')!.getBoundingClientRect();
-        const shield = document.querySelector<HTMLElement>('[data-tutorial-shield="top"]')!.getBoundingClientRect();
         resolve({
           focusTop: focus.top,
           framePadding: Number.parseFloat(getComputedStyle(focusElement).outlineOffset),
           blockerBottom: blocker.bottom,
-          shieldTop: shield.top,
-          shieldBottom: shield.bottom,
-          viewportHeight: window.innerHeight,
         });
       }, { once: true, capture: true });
       window.scrollBy(0, 60);
     });
   });
   const expectedFrameTop = Math.max(6, trackedBoxes.focusTop - trackedBoxes.framePadding);
-  const expectedHoleTop = Math.max(0, Math.min(trackedBoxes.viewportHeight, trackedBoxes.focusTop));
   expect(Math.abs(trackedBoxes.blockerBottom - expectedFrameTop)).toBeLessThanOrEqual(1);
-  expect(Math.abs(trackedBoxes.shieldTop - expectedFrameTop)).toBeLessThanOrEqual(1);
-  expect(Math.abs(trackedBoxes.shieldBottom - expectedHoleTop)).toBeLessThanOrEqual(1);
 
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect.poll(() => page.locator('.left-panel').evaluate((element) => {

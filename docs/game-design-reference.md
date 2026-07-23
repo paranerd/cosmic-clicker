@@ -1207,16 +1207,20 @@ nicht „am Spielstart“.
 | Viewport-Mindestabstand | 6 px |
 | Auto-Scroll unter | 1100 px |
 | Abdunkelung | `rgba(2, 5, 9, 0.82)` auf Ebene 41 |
-| Schutzraum | `rgba(2, 5, 9, 0.98)` auf Ebene 42 |
+| Opaker Abstand zwischen Ziel und Rahmen | `rgba(2, 5, 9, 0.98)`, formgerecht als Schatten beziehungsweise Innenring am Ziel |
 | Ziel und Rahmen | Ebene 43 |
 | Tutorial-Karte | Ebene 45 |
 
 Es gibt nur einen Fokusrahmen. Er ist als Outline direkt am Zielelement
 verankert und bewegt sich deshalb beim Scrollen ohne verzögerte
 Neuberechnung mit. Vier Blocker sperren den Bereich außerhalb des Rahmens.
-Vier Schutzflächen und ein am Ziel verankerter, nahezu opaker Schatten
-verdecken den 12-px-Raum zwischen Rahmen und Ziel. Nur das tatsächliche Ziel
-bleibt interaktiv; benachbarte Elemente scheinen nicht durch.
+Der Raum zwischen Rahmen und Ziel wird ohne separate rechteckige Schutzfläche
+durch einen am Ziel verankerten, nahezu opaken Schatten verdeckt. Runde Ziele
+wie der Stern erhalten dafür einen kreisförmigen Innenring und eine
+viewportweite Abdunklung mit radial ausgesparter Fokusfläche. So bleibt die
+runde Form erhalten, ohne dass die rechteckige Elementbox als helles oder
+schwarzes Viereck sichtbar wird. Nur das tatsächliche Ziel bleibt interaktiv;
+benachbarte Elemente scheinen nicht durch.
 
 ## 23. Speicherung, Offline-Fortschritt und Reset
 

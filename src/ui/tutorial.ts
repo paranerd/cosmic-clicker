@@ -127,31 +127,24 @@ function positionTutorialFocus(target: Element): void {
   if (target instanceof HTMLElement) {
     target.style.setProperty('--tutorial-frame-padding', `${framePadding}px`);
   }
+  const roundDimmer = app.querySelector<HTMLElement>('[data-tutorial-round-dimmer]');
+  if (roundDimmer) {
+    roundDimmer.style.setProperty('--tutorial-focus-x', `${rect.left + rect.width / 2}px`);
+    roundDimmer.style.setProperty('--tutorial-focus-y', `${rect.top + rect.height / 2}px`);
+    roundDimmer.style.setProperty('--tutorial-focus-radius', `${Math.max(rect.width, rect.height) / 2 + framePadding + frameBorderWidth}px`);
+  }
   const frameLeft = Math.max(viewportGap, rect.left - framePadding);
   const frameTop = Math.max(viewportGap, rect.top - framePadding);
   const frameRight = Math.min(window.innerWidth - viewportGap, rect.right + framePadding);
   const frameBottom = Math.min(window.innerHeight - viewportGap, rect.bottom + framePadding);
-  const holeLeft = Math.max(0, Math.min(window.innerWidth, rect.left));
-  const holeTop = Math.max(0, Math.min(window.innerHeight, rect.top));
-  const holeRight = Math.max(holeLeft, Math.min(window.innerWidth, rect.right));
-  const holeBottom = Math.max(holeTop, Math.min(window.innerHeight, rect.bottom));
   const blockerStyles: Record<string, Partial<CSSStyleDeclaration>> = {
     top: { left: '0px', top: '0px', width: `${window.innerWidth}px`, height: `${frameTop}px` },
     bottom: { left: '0px', top: `${frameBottom}px`, width: `${window.innerWidth}px`, height: `${Math.max(0, window.innerHeight - frameBottom)}px` },
     left: { left: '0px', top: `${frameTop}px`, width: `${frameLeft}px`, height: `${Math.max(0, frameBottom - frameTop)}px` },
     right: { left: `${frameRight}px`, top: `${frameTop}px`, width: `${Math.max(0, window.innerWidth - frameRight)}px`, height: `${Math.max(0, frameBottom - frameTop)}px` },
   };
-  const shieldStyles: Record<string, Partial<CSSStyleDeclaration>> = {
-    top: { left: `${frameLeft}px`, top: `${frameTop}px`, width: `${Math.max(0, frameRight - frameLeft)}px`, height: `${Math.max(0, holeTop - frameTop)}px` },
-    bottom: { left: `${frameLeft}px`, top: `${holeBottom}px`, width: `${Math.max(0, frameRight - frameLeft)}px`, height: `${Math.max(0, frameBottom - holeBottom)}px` },
-    left: { left: `${frameLeft}px`, top: `${holeTop}px`, width: `${Math.max(0, holeLeft - frameLeft)}px`, height: `${Math.max(0, holeBottom - holeTop)}px` },
-    right: { left: `${holeRight}px`, top: `${holeTop}px`, width: `${Math.max(0, frameRight - holeRight)}px`, height: `${Math.max(0, holeBottom - holeTop)}px` },
-  };
   app.querySelectorAll<HTMLElement>('[data-tutorial-blocker]').forEach((blocker) => {
     Object.assign(blocker.style, blockerStyles[blocker.dataset.tutorialBlocker ?? '']);
-  });
-  app.querySelectorAll<HTMLElement>('[data-tutorial-shield]').forEach((shield) => {
-    Object.assign(shield.style, shieldStyles[shield.dataset.tutorialShield ?? '']);
   });
 }
 
@@ -199,8 +192,11 @@ export function syncTutorial(): void {
     const interaction = tutorialEndConfirmation
       ? `<section class="tutorial-confirmation" aria-label="Tutorial wirklich beenden?"><p>Möchtest du das Tutorial wirklich beenden?</p><div><button class="tutorial-action tutorial-danger" data-action="confirm-end-tutorial">Tutorial beenden</button><button class="tutorial-action tutorial-secondary" data-action="cancel-end-tutorial">Abbrechen</button></div></section>`
       : normalInteraction;
+    const roundFocus = target?.matches('.star-button') ?? false;
+    const blockerClass = `tutorial-blocker${roundFocus ? ' tutorial-blocker-round' : ''}`;
+    const roundDimmer = roundFocus ? '<div class="tutorial-round-dimmer" data-tutorial-round-dimmer aria-hidden="true"></div>' : '';
     const focusLayer = target
-      ? `<div class="tutorial-blocker" data-tutorial-blocker="top" aria-hidden="true"></div><div class="tutorial-blocker" data-tutorial-blocker="right" aria-hidden="true"></div><div class="tutorial-blocker" data-tutorial-blocker="bottom" aria-hidden="true"></div><div class="tutorial-blocker" data-tutorial-blocker="left" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="top" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="right" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="bottom" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="left" aria-hidden="true"></div>`
+      ? `${roundDimmer}<div class="${blockerClass}" data-tutorial-blocker="top" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="right" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="bottom" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="left" aria-hidden="true"></div>`
       : '<div class="tutorial-blocker tutorial-blocker-full" aria-hidden="true"></div>';
     root.innerHTML = `${focusLayer}<aside class="tutorial-card" aria-label="Tutorial"><div class="tutorial-meta"><span>TUTORIAL · ${stepIndex + 1}/${TUTORIAL_STEPS.length}</span><button data-action="request-end-tutorial">Tutorial beenden</button></div><h2>${step.title}</h2><p>${step.text}</p>${interaction}</aside>`;
   }
