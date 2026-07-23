@@ -630,17 +630,33 @@ footer button:hover { color: $cyan; }
 .automation-particles i:nth-child(7) { --from-x: max(-250px,-38vw); --from-y: min(220px,32vh); animation-delay: -.35s; }
 .automation-particles i:nth-child(8) { --from-x: min(260px,40vw); --from-y: max(-230px,-32vh); animation-delay: -.05s; }
 .accretion-gain { position: absolute; z-index: 12; color: $amber; font-family: ui-monospace,monospace; font-size: 11px; font-weight: 700; -webkit-text-stroke: .7px rgba(2,5,9,.96); paint-order: stroke fill; text-shadow: -1px -1px 0 rgba(2,5,9,.9), 1px -1px 0 rgba(2,5,9,.9), -1px 1px 0 rgba(2,5,9,.9), 1px 1px 0 rgba(2,5,9,.9), 0 0 11px rgba($amber,.72); pointer-events: none; animation: gainRise .82s var(--gain-delay,0ms) ease-out both; }
-.tutorial-card { width: min(330px,calc(100vw - 32px)); position: fixed; z-index: 45; left: 24px; bottom: 24px; padding: 17px 18px; border: 1px solid rgba($cyan,.42); background: radial-gradient(circle at 100% 0, rgba($cyan,.1), transparent 42%), rgba(8,13,22,.98); box-shadow: 0 20px 55px rgba(0,0,0,.5); }
-.tutorial-spotlight { position: fixed; z-index: 42; border-radius: 6px; box-shadow: 0 0 0 9999px rgba(2,5,9,.82); pointer-events: none; }
-.tutorial-card > div { display: flex; align-items: center; justify-content: space-between; }
-.tutorial-card > div span { color: $cyan; font-size: 7px; letter-spacing: .15em; }
-.tutorial-card > div button { border: 0; background: none; color: $muted; font-size: 7px; text-transform: uppercase; cursor: pointer; }
+.tutorial-blocker { position: fixed; z-index: 41; background: rgba(2,5,9,.82); cursor: default; }
+.tutorial-blocker-full { inset: 0; }
+.tutorial-highlight-shield { position: fixed; z-index: 42; background: rgba(2,5,9,.98); cursor: default; }
+.tutorial-card { width: min(350px,calc(100vw - 32px)); position: fixed; z-index: 45; left: 24px; bottom: 24px; padding: 17px 18px; border: 1px solid rgba($cyan,.42); background: radial-gradient(circle at 100% 0, rgba($cyan,.1), transparent 42%), rgba(8,13,22,.98); box-shadow: 0 20px 55px rgba(0,0,0,.5); }
+.tutorial-inner-frame,.tutorial-spotlight { position: fixed; z-index: 43; pointer-events: none; }
+.tutorial-inner-frame { border: 1px solid rgba($cyan,.72); border-radius: 7px; box-shadow: 0 0 20px rgba($cyan,.12); }
+.tutorial-spotlight { border: 1px solid rgba($cyan,.62); border-radius: 9px; box-shadow: 0 0 30px rgba($cyan,.16); }
+.tutorial-meta { display: flex; align-items: center; justify-content: space-between; }
+.tutorial-meta span { color: $cyan; font-size: 7px; letter-spacing: .15em; }
+.tutorial-meta button { padding: 5px 7px; border: 1px solid transparent; background: none; color: $muted; font-size: 7px; text-transform: uppercase; cursor: pointer; transition: color .18s ease, border-color .18s ease, background .18s ease, transform .12s ease; }
+.tutorial-meta button:hover,.tutorial-meta button:focus-visible { color: $text; border-color: rgba($cyan,.34); background: rgba($cyan,.07); }
+.tutorial-meta button:active { transform: scale(.97); }
 .tutorial-card h2 { margin: 12px 0 6px; font-family: Georgia,serif; font-size: 20px; font-weight: 400; }
 .tutorial-card p { margin: 0; color: #8d9aad; font-size: 9px; line-height: 1.55; }
-.tutorial-card small { display: block; margin-top: 12px; color: $amber; font-size: 8px; }
-.tutorial-next { width: 100%; min-height: 34px; margin-top: 14px; border: 1px solid rgba($cyan,.35); background: rgba($cyan,.07); color: #b9e2e5; font-size: 8px; text-transform: uppercase; cursor: pointer; }
-.tutorial-focus { position: relative; z-index: 43; outline: 1px solid rgba($cyan,.72); outline-offset: 8px; box-shadow: inset 0 0 0 1px rgba($cyan,.65), 0 0 28px rgba($cyan,.18) !important; }
-.star-button.tutorial-focus { z-index: 43; outline-width: 2px; box-shadow: 0 0 0 2px rgba($cyan,.7), 0 0 45px rgba($cyan,.25) !important; }
+.tutorial-hint { display: block; margin-top: 12px; color: $amber; font-size: 8px; }
+.tutorial-action { min-height: 36px; padding: 0 12px; border: 1px solid rgba($cyan,.35); background: rgba($cyan,.07); color: #b9e2e5; font-size: 8px; text-transform: uppercase; cursor: pointer; transition: color .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .12s ease, filter .18s ease; }
+.tutorial-action:hover,.tutorial-action:focus-visible { border-color: rgba($cyan,.62); background: rgba($cyan,.13); color: $text; box-shadow: 0 7px 20px rgba($cyan,.1); transform: translateY(-1px); }
+.tutorial-action:active { transform: translateY(0) scale(.98); filter: brightness(.9); }
+.tutorial-primary { width: 100%; margin-top: 14px; }
+.tutorial-confirmation { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba($cyan,.18); }
+.tutorial-confirmation > p { color: #b8c4d0; }
+.tutorial-confirmation > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+.tutorial-danger { border-color: rgba($orange,.5); background: rgba($orange,.1); color: #efb49c; }
+.tutorial-danger:hover,.tutorial-danger:focus-visible { border-color: rgba($orange,.75); background: rgba($orange,.18); }
+.tutorial-secondary { color: $muted; }
+.tutorial-focus { position: relative; z-index: 43; box-shadow: 0 0 32px rgba($cyan,.2) !important; }
+.star-button.tutorial-focus { z-index: 43; box-shadow: 0 0 45px rgba($cyan,.25) !important; }
 .debug-panel { width: 320px; position: fixed; z-index: 90; right: 18px; top: 82px; padding: 15px; border: 1px solid rgba(#cf73ff,.5); background: rgba(12,8,19,.97); box-shadow: 0 20px 60px rgba(0,0,0,.55); }
 .debug-panel > div:first-child { display: flex; justify-content: space-between; color: #d29af0; font-size: 8px; letter-spacing: .14em; }
 .debug-panel > div:first-child button { border: 0; background: none; color: #b28fc4; cursor: pointer; }

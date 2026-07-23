@@ -370,27 +370,158 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await expect(page.getByRole('dialog', { name: 'Protostern bilden' })).toHaveCount(0);
   await intro.getByRole('button', { name: 'Tutorial starten', exact: true }).click();
   const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
-  await expect(tutorial).toContainText('Materie einsammeln');
-  await page.getByRole('button', { name: 'Materie einsammeln' }).click();
-  await expect(tutorial).toContainText('Den Kern beobachten');
+  await expect(tutorial).toContainText('Willkommen bei Cosmic Clicker!');
+  await expect(tutorial).toContainText('winzig kleinen Materieteilchen');
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
-  await expect(tutorial).toContainText('Energie aus Fusionen');
+  await expect(tutorial).toContainText('Dein Stern im Blick');
+  await expect(page.locator('[data-tutorial="realtime-data"]')).toHaveClass(/tutorial-focus/);
+  await tutorial.getByRole('button', { name: 'Weiter' }).click();
+  await expect(tutorial).toContainText('Alles beginnt in der Urwolke');
+  await expect(page.locator('[data-tutorial="matter-reservoir"]')).toHaveClass(/tutorial-focus/);
+  await tutorial.getByRole('button', { name: 'Weiter' }).click();
+  await expect(tutorial).toContainText('Der kosmische Baustoff');
+  await expect(page.locator('[data-tutorial="cloud-composition"]')).toHaveClass(/tutorial-focus/);
+  await tutorial.getByRole('button', { name: 'Weiter' }).click();
+  await expect(tutorial).toContainText('Dein erster Akkretionsimpuls');
+  await page.getByRole('button', { name: 'Materie einsammeln' }).click();
+  await expect(tutorial).toContainText('Materie für den Sternenkern');
+  await tutorial.getByRole('button', { name: 'Weiter' }).click();
+  await expect(tutorial).toContainText('Energie für dein Wachstum');
   await expect(page.locator('.energy-metric')).toHaveClass(/tutorial-focus/);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
-  await expect(tutorial).toContainText('Sternenstaub sammeln');
-  await expect(page.locator('.resource-chip')).toHaveClass(/tutorial-focus/);
+  await expect(tutorial).toContainText('Dein erstes Ziel');
+  await expect(page.locator('[data-tutorial="objective"]')).toHaveClass(/tutorial-focus/);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
-  await expect(tutorial).toContainText('Sternsysteme steuern');
-  await page.getByRole('tab', { name: 'Upgrades' }).click();
-  await expect(tutorial).toContainText('Entwicklung nachverfolgen');
-  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
+  await expect(tutorial).toContainText('Fortschritt im Blick');
+  await expect(page.locator('[data-tutorial="objective-progress"]')).toHaveClass(/tutorial-focus/);
+  await tutorial.getByRole('button', { name: 'Verstanden' }).click();
   await expect(tutorial).toHaveCount(0);
-  await page.getByRole('button', { name: 'Chronik schließen' }).click();
   await expect(page.getByRole('dialog', { name: 'Protostern bilden' })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Reaktionen' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Ein neuer Kosmos beginnt.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Tutorial starten' }).click();
-  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Materie einsammeln');
+  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Willkommen bei Cosmic Clicker!');
+});
+
+test('tutorial resumes when the first upgrade and automation can be purchased', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 7,
+    elapsed: 120,
+    stage: 'protostar',
+    cloud: { hydrogen: 7_456, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 2_544, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    energy: 110,
+    temperature: 100_000,
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: false, step: 8 },
+  });
+  await page.goto('/');
+
+  const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(page.getByRole('tab', { name: 'Upgrades' })).toHaveAttribute('aria-selected', 'true');
+  await expect(tutorial).toContainText('Dein erstes Upgrade');
+  const gravityCard = page.locator('[data-upgrade-card="gravity"]');
+  await expect(gravityCard).toHaveClass(/tutorial-focus/);
+  await gravityCard.locator('[data-action="buy-gravity"]').click();
+
+  await expect(page.getByRole('tab', { name: 'Automationen' })).toHaveAttribute('aria-selected', 'true');
+  await expect(tutorial).toContainText('Automatische Akkretion');
+  const accretionCard = page.locator('[data-automation-card="accretion"]');
+  await expect(accretionCard).toHaveClass(/tutorial-focus/);
+  await accretionCard.locator('[data-action="buy-accretion"]').click();
+  await expect(tutorial).toContainText('Der Akkretionsstrom arbeitet');
+  await expect(tutorial).toContainText('automatisch im Kern verdichtet');
+  await expect(page.locator('[data-tutorial="left-panel"]')).toHaveClass(/tutorial-focus/);
+  await tutorial.getByRole('button', { name: 'Weiter' }).click();
+  await expect(tutorial).toHaveCount(0);
+});
+
+test('the first automation tutorial step also restores directly from its stable step id', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 7,
+    stage: 'protostar',
+    cloud: { hydrogen: 7_456, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 2_544, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    energy: 65,
+    temperature: 100_000,
+    upgrades: { gravity: 1, deuteriumBurning: false },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: false, step: 10, stepId: 'first-automation' },
+  });
+  await page.goto('/');
+
+  const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(tutorial).toContainText('Automatische Akkretion');
+  await expect(page.getByRole('tab', { name: 'Automationen' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('[data-automation-card="accretion"]')).toHaveClass(/tutorial-focus/);
+});
+
+test('ending the tutorial requires confirmation and can be cancelled', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
+  const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
+
+  await tutorial.getByRole('button', { name: 'Tutorial beenden', exact: true }).click();
+  await expect(tutorial).toContainText('Möchtest du das Tutorial wirklich beenden?');
+  await tutorial.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(tutorial).toContainText('Willkommen bei Cosmic Clicker!');
+
+  await tutorial.getByRole('button', { name: 'Tutorial beenden', exact: true }).click();
+  await tutorial.locator('[data-action="confirm-end-tutorial"]').click();
+  await expect(tutorial).toHaveCount(0);
+  await expect(page.getByText('Tutorial beendet. Über ? kannst du es erneut starten.', { exact: true })).toBeVisible();
+});
+
+test('tutorial blocks the dimmed page while keeping its highlighted action clickable', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
+  const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
+  const star = page.getByRole('button', { name: 'Materie einsammeln' });
+  const starBox = await star.boundingBox();
+
+  await page.mouse.click(starBox!.x + starBox!.width / 2, starBox!.y + starBox!.height / 2);
+  await expect(page.locator('[data-ui="mass"]')).toHaveText('0');
+  await expect(page.locator('.tutorial-blocker')).toHaveCSS('pointer-events', 'auto');
+
+  for (let step = 0; step < 4; step += 1) await tutorial.getByRole('button', { name: 'Weiter' }).click();
+  await expect(tutorial).toContainText('Dein erster Akkretionsimpuls');
+  await star.click();
+  await expect(page.locator('[data-ui="mass"]')).not.toHaveText('0');
+});
+
+test('objective achievements remain visible while the tutorial is active', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 7,
+    cloud: { hydrogen: 9_010, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 990, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: false, step: 4, stepId: 'first-accretion' },
+    seenObjectives: ['collect-hydrogen'],
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Materie einsammeln' }).click();
+
+  const achievement = page.locator('.achievement-banner');
+  await expect(achievement).toBeVisible();
+  await expect(achievement).toContainText('1.000 ME Wasserstoff gesammelt');
+  await expect(achievement.locator('.achievement-next')).toContainText('Protostern bilden');
+  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Materie für den Sternenkern');
+});
+
+test('the protostar achievement and its next objective remain visible during the tutorial', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 7,
+    cloud: { hydrogen: 7_504, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 2_496, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    temperature: 94_000,
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: false, step: 4, stepId: 'first-accretion' },
+    seenObjectives: ['collect-hydrogen', 'form-protostar'],
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Materie einsammeln' }).click();
+
+  const achievement = page.locator('.achievement-banner');
+  await expect(achievement).toBeVisible();
+  await expect(achievement).toContainText('Protostern gebildet');
+  await expect(achievement).toContainText('Sternwind setzt ein');
+  await expect(achievement.locator('.achievement-next')).toContainText('1.000.000 K erreichen');
 });
 
 test('mobile tutorial centers its card, spotlights targets and scrolls them into view', async ({ page }) => {
@@ -398,41 +529,51 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   await page.goto('/');
   await page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
   const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
+  await tutorial.getByRole('button', { name: 'Weiter' }).click();
   const cardBox = await tutorial.boundingBox();
   expect(Math.abs(cardBox!.x + cardBox!.width / 2 - 195)).toBeLessThanOrEqual(1);
-  await expect(page.locator('.tutorial-spotlight')).toHaveCSS('box-shadow', /rgba\(2, 5, 9, 0\.82\)/);
-  await expect.poll(() => page.getByRole('button', { name: 'Materie einsammeln' }).evaluate((element) => {
+  await expect(page.locator('.tutorial-blocker').first()).toHaveCSS('background-color', 'rgba(2, 5, 9, 0.82)');
+  await expect(page.locator('.tutorial-highlight-shield').first()).toHaveCSS('background-color', 'rgba(2, 5, 9, 0.98)');
+  await expect(page.locator('.tutorial-highlight-shield')).toHaveCount(4);
+  await expect(page.locator('.tutorial-inner-frame')).toHaveCSS('border-left-style', 'solid');
+  await expect(page.locator('.tutorial-spotlight')).toHaveCSS('border-left-style', 'solid');
+  const firstTarget = page.locator('[data-tutorial="realtime-data"]');
+  await expect.poll(() => firstTarget.evaluate((element) => {
     const rect = element.getBoundingClientRect();
-    return rect.top >= 0 && rect.bottom <= window.innerHeight;
+    return rect.top < window.innerHeight && rect.bottom > 0;
   })).toBe(true);
   const spotlightBox = await page.locator('.tutorial-spotlight').boundingBox();
-  const starBox = await page.getByRole('button', { name: 'Materie einsammeln' }).boundingBox();
-  expect(spotlightBox!.x).toBeLessThanOrEqual(starBox!.x);
-  expect(spotlightBox!.x + spotlightBox!.width).toBeGreaterThanOrEqual(starBox!.x + starBox!.width);
-  await expect(page.getByRole('button', { name: 'Materie einsammeln' })).toHaveCSS('outline-offset', '8px');
-  await expect(page.getByRole('button', { name: 'Materie einsammeln' })).toHaveCSS('outline-style', 'solid');
+  const targetBox = await firstTarget.boundingBox();
+  expect(spotlightBox!.x).toBeLessThanOrEqual(targetBox!.x);
+  expect(spotlightBox!.x + spotlightBox!.width).toBeGreaterThanOrEqual(targetBox!.x + targetBox!.width);
+  const innerFrameBox = await page.locator('.tutorial-inner-frame').boundingBox();
+  expect(innerFrameBox!.x).toBeLessThan(targetBox!.x);
+  expect(innerFrameBox!.x + innerFrameBox!.width).toBeGreaterThan(targetBox!.x + targetBox!.width);
+  expect(spotlightBox!.x).toBeLessThanOrEqual(innerFrameBox!.x);
+  expect(spotlightBox!.x + spotlightBox!.width).toBeGreaterThanOrEqual(innerFrameBox!.x + innerFrameBox!.width);
+  expect(spotlightBox!.height).toBeGreaterThan(innerFrameBox!.height);
 
   await page.evaluate(() => window.scrollBy(0, 60));
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   const trackedBoxes = await page.evaluate(() => {
-    const focus = document.querySelector('.star-button')!.getBoundingClientRect();
+    const focus = document.querySelector('[data-tutorial="realtime-data"]')!.getBoundingClientRect();
     const spotlight = document.querySelector('.tutorial-spotlight')!.getBoundingClientRect();
     return { focus: { x: focus.x, y: focus.y, width: focus.width, height: focus.height }, spotlight: { x: spotlight.x, y: spotlight.y, width: spotlight.width, height: spotlight.height } };
   });
-  expect(Math.abs(trackedBoxes.spotlight.x - (trackedBoxes.focus.x - 18))).toBeLessThanOrEqual(1);
-  expect(Math.abs(trackedBoxes.spotlight.y - (trackedBoxes.focus.y - 18))).toBeLessThanOrEqual(1);
-  expect(Math.abs(trackedBoxes.spotlight.width - (trackedBoxes.focus.width + 36))).toBeLessThanOrEqual(1);
-  expect(Math.abs(trackedBoxes.spotlight.height - (trackedBoxes.focus.height + 36))).toBeLessThanOrEqual(1);
+  expect(trackedBoxes.spotlight.x).toBeGreaterThanOrEqual(6);
+  expect(trackedBoxes.spotlight.y).toBeGreaterThanOrEqual(6);
+  expect(trackedBoxes.spotlight.width).toBeGreaterThan(trackedBoxes.focus.width);
+  expect(trackedBoxes.spotlight.height).toBeGreaterThan(trackedBoxes.focus.height);
 
-  await page.getByRole('button', { name: 'Materie einsammeln' }).click();
+  await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect.poll(() => page.locator('.left-panel').evaluate((element) => {
     const rect = element.getBoundingClientRect();
     return rect.top < window.innerHeight && rect.bottom > 0;
   })).toBe(true);
 
-  await tutorial.getByRole('button', { name: 'Weiter' }).click();
-  await tutorial.getByRole('button', { name: 'Überspringen' }).click();
-  const toast = page.getByText('Tutorial übersprungen. Über ? kannst du es erneut starten.', { exact: true });
+  await tutorial.getByRole('button', { name: 'Tutorial beenden', exact: true }).click();
+  await tutorial.locator('[data-action="confirm-end-tutorial"]').click();
+  const toast = page.getByText('Tutorial beendet. Über ? kannst du es erneut starten.', { exact: true });
   await expect(toast).toBeVisible();
   const toastBox = await toast.boundingBox();
   expect(Math.abs(toastBox!.x + toastBox!.width / 2 - 195)).toBeLessThanOrEqual(1);
@@ -444,9 +585,11 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
 test('rapid onboarding toasts stack, shift and disappear independently', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
-  await page.getByRole('complementary', { name: 'Tutorial' }).getByRole('button', { name: 'Überspringen' }).click();
+  const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
+  await tutorial.getByRole('button', { name: 'Tutorial beenden', exact: true }).click();
+  await tutorial.locator('[data-action="confirm-end-tutorial"]').click();
 
-  const skipped = page.getByText('Tutorial übersprungen. Über ? kannst du es erneut starten.', { exact: true });
+  const skipped = page.getByText('Tutorial beendet. Über ? kannst du es erneut starten.', { exact: true });
   const cosmos = page.getByText('Ein neuer Kosmos beginnt.', { exact: true });
   await expect(page.getByRole('status')).toHaveCount(2);
   await expect(skipped).toBeVisible();

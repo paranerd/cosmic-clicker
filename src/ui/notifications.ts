@@ -239,5 +239,5 @@ export function syncObjectiveAchievement(objective: Objective): void {
   lastObjectiveId = objective.id;
   if (!state.seenObjectives.includes(objective.id)) state.seenObjectives.push(objective.id);
   saveGame(state);
-  if (state.tutorial.completed && !state.completed) showAchievement(completedObjective, objective);
+  if (!state.completed) showAchievement(completedObjective, objective);
 }

@@ -107,6 +107,7 @@ export interface TutorialState {
   cosmosToastPending: boolean;
   completed: boolean;
   step: number;
+  stepId?: string;
 }
 
 export interface GameState {

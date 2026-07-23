@@ -29,7 +29,15 @@ import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement
 import { makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setStatsOpen } from './ui/overlay';
 import { app, getActivePanel, getState, loaded, setActivePanel, setState, type Panel } from './ui/store';
 import { renderShell, switchPanel, updateUI } from './ui/sync';
-import { advanceTutorial, queueTutorialSpotlightPosition, resolveIntro, setTutorial } from './ui/tutorial';
+import {
+  advanceTutorial,
+  cancelTutorialEnd,
+  confirmTutorialEnd,
+  queueTutorialSpotlightPosition,
+  requestTutorialEnd,
+  resolveIntro,
+  setTutorial,
+} from './ui/tutorial';
 
 type ResetMode = 'run' | 'full';
 
@@ -90,7 +98,9 @@ app.addEventListener('click', (event) => {
   if (action === 'start-intro-tutorial') { resolveIntro(true); return; }
   if (action === 'skip-intro-tutorial') { resolveIntro(false); return; }
   if (action === 'tutorial-next') { advanceTutorial('next'); return; }
-  if (action === 'skip-tutorial') { setTutorial(getState().tutorial.step, true); showToast('Tutorial übersprungen. Über ? kannst du es erneut starten.'); return; }
+  if (action === 'request-end-tutorial') { requestTutorialEnd(); return; }
+  if (action === 'cancel-end-tutorial') { cancelTutorialEnd(); return; }
+  if (action === 'confirm-end-tutorial') { confirmTutorialEnd(); return; }
   if (action === 'replay-tutorial') { setTutorial(0, false); showToast('Tutorial neu gestartet.'); return; }
   if (action === 'dismiss-achievement') { dismissAchievement(); return; }
   if (action === 'toggle-mission') { toggleMissionCollapsed(); if (event.detail > 0) button.blur(); return; }
@@ -138,7 +148,11 @@ app.addEventListener('click', (event) => {
     ...Object.fromEntries(UPGRADE_ORDER.map((id) => [UPGRADES[id].action, { type: 'BUY_UPGRADE', upgrade: id } satisfies GameAction])),
     accrete: { type: 'ACCRETE' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, 'buy-perk-fusion': { type: 'BUY_PERK', perk: 'fusionMemory' }, 'remove-perk-cloud': { type: 'REMOVE_PERK', perk: 'largerCloud' }, 'remove-perk-gravity': { type: 'REMOVE_PERK', perk: 'permanentGravity' }, 'remove-perk-fusion': { type: 'REMOVE_PERK', perk: 'fusionMemory' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
   };
-  if (actions[action]) { dispatch(actions[action]); playActionFeedback(action, event as MouseEvent); if (action === 'accrete') advanceTutorial('accrete'); }
+  if (actions[action]) {
+    dispatch(actions[action]);
+    playActionFeedback(action, event as MouseEvent);
+    advanceTutorial(action);
+  }
   if (action === 'export') exportSave();
   if (action === 'import') document.querySelector<HTMLInputElement>('#save-import')?.click();
 });

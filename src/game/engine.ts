@@ -533,6 +533,20 @@ export const automationSupplyExhausted = (state: GameState, kind: AutomationKind
   return supply?.kind === 'cloudMatter' ? cloudMass(state) <= .001 : false;
 };
 
+export const canBuyAutomation = (state: GameState, kind: AutomationKind): boolean => {
+  const definition = AUTOMATIONS[kind];
+  const visible = !definition.reaction || state.unlockedReactions.includes(definition.reaction);
+  const mastery = definition.mastery.kind === 'starMass'
+    ? starMass(state)
+    : reactionMastery(state, definition.mastery.reaction);
+  return !state.completed
+    && visible
+    && mastery >= definition.mastery.threshold
+    && state.energy >= automationCost(kind, state.automation[kind])
+    && state.automation[kind] < definition.maxLevel
+    && !automationSupplyExhausted(state, kind);
+};
+
 // Kleines Register benannter Kaufwirkungen (Punkt 6): Upgrades referenzieren
 // eine Wirkung per Name in ihrer Definition; die Engine kennt keine einzelnen
 // Upgrade-IDs mehr.
@@ -552,11 +566,20 @@ export const upgradeSupplyExhausted = (state: GameState, id: UpgradeId): boolean
   return supply?.kind === 'cloudMatter' ? cloudMass(state) <= .001 : false;
 };
 
+export const canBuyUpgrade = (state: GameState, id: UpgradeId): boolean => {
+  const definition: UpgradeDefinition = UPGRADES[id];
+  const level = upgradeLevel(state, id);
+  return !state.completed
+    && level < definition.maxLevel
+    && upgradeRequirementsMet(state, definition)
+    && state.energy >= upgradeCost(id, level);
+};
+
 const buyUpgrade = (state: GameState, id: UpgradeId): void => {
   const definition: UpgradeDefinition = UPGRADES[id];
   const level = upgradeLevel(state, id);
   const cost = upgradeCost(id, level);
-  if (level >= definition.maxLevel || !upgradeRequirementsMet(state, definition) || state.energy < cost) return;
+  if (!canBuyUpgrade(state, id)) return;
   state.energy -= cost;
   (state.upgrades as Record<UpgradeId, number | boolean>)[id] = typeof state.upgrades[id] === 'boolean' ? true : level + 1;
   state.stats.upgradesPurchased += 1;
@@ -569,9 +592,7 @@ const buyAutomation = (state: GameState, kind: AutomationKind): void => {
   const definition = AUTOMATIONS[kind];
   const level = state.automation[kind];
   const cost = automationCost(kind, level);
-  const visible = !definition.reaction || state.unlockedReactions.includes(definition.reaction);
-  const mastery = definition.mastery.kind === 'starMass' ? starMass(state) : reactionMastery(state, definition.mastery.reaction);
-  if (visible && mastery >= definition.mastery.threshold && state.energy >= cost && level < definition.maxLevel && !automationSupplyExhausted(state, kind)) {
+  if (canBuyAutomation(state, kind)) {
     state.energy -= cost;
     state.automation[kind] += 1;
     state.stats.automationsPurchased += 1;
