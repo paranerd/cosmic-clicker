@@ -1,4 +1,4 @@
-import { LIMITS, OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS } from '../content';
+import { OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS } from '../content';
 import { cloudDefinition, cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost, starMass } from '../game/engine';
 import { setDebugOpen, syncDebug } from './debug';
 import { disabled, formatDuration, formatMatter, formatSolarMasses, icons } from './format';
@@ -78,9 +78,9 @@ export function syncOverlay(): void {
   const cloudCost = cloudTierCost(previewPerks.largerCloud);
   const gravityCostValue = gravityPerkCost(previewPerks.permanentGravity);
   const fusionCostValue = fusionPerkCost(previewPerks.fusionMemory);
-  const cloudMax = previewPerks.largerCloud >= LIMITS.cloudGrowthLevel;
-  const gravityMax = previewPerks.permanentGravity >= LIMITS.permanentGravity;
-  const fusionMax = previewPerks.fusionMemory >= LIMITS.fusionMemory;
+  const cloudMax = previewPerks.largerCloud >= PRESTIGE_PERKS.largerCloud.maxLevel;
+  const gravityMax = previewPerks.permanentGravity >= PRESTIGE_PERKS.permanentGravity.maxLevel;
+  const fusionMax = previewPerks.fusionMemory >= PRESTIGE_PERKS.fusionMemory.maxLevel;
   const showPerkAttention = summaryAttentionRun !== state.run;
   const cloudAttention = showPerkAttention && !cloudMax && state.stardust >= cloudCost ? 'perk-attention' : '';
   const gravityAttention = showPerkAttention && !gravityMax && state.stardust >= gravityCostValue ? 'perk-attention' : '';

@@ -21,7 +21,6 @@ import {
   PRESTIGE_PERKS,
   REACTIONS,
   REACTION_ORDER,
-  REACTION_UPGRADE,
   STAGES,
   STELLAR_WIND,
   TEMPERATURE_MODEL,
@@ -58,7 +57,7 @@ const END_STAGES: Record<Exclude<StellarOutcome, 'legacyMainSequence'>, Stage> =
 };
 
 const totalMatter = (matter: Matter): number => MATTER_KEYS.reduce((sum, key) => sum + matter[key], 0);
-const clampCloudTier = (tier: number): CloudTier => Math.max(0, Math.min(LIMITS.cloudGrowthLevel, Math.floor(tier)));
+const clampCloudTier = (tier: number): CloudTier => Math.max(0, Math.min(PRESTIGE_PERKS.largerCloud.maxLevel, Math.floor(tier)));
 const emptyReactionTotals = (): Record<ReactionId, number> => Object.fromEntries(REACTION_ORDER.map((id) => [id, 0])) as Record<ReactionId, number>;
 
 export const starMass = (state: GameState): number => totalMatter(state.star);
@@ -92,10 +91,10 @@ export const reactionAutomationPerSecond = (state: GameState, reaction: Reaction
 // Stufe für die "Aktuell/Nächste Stufe"-Anzeige der Reaktionskarte
 // vorausberechnen kann (Punkt 7 des Kachel-Redesigns).
 export const reactionUpgradeCost = (reaction: ReactionId, level: number): number =>
-  Math.round(REACTIONS[reaction].upgradeBaseCost * REACTION_UPGRADE.costGrowth ** level);
+  Math.round(REACTIONS[reaction].upgrade.baseCost * REACTIONS[reaction].upgrade.costGrowth ** level);
 export const reactionManualAmountAtLevel = (state: GameState, reaction: ReactionId, level: number): number =>
   REACTIONS[reaction].manualAmount
-  * (1 + level * REACTION_UPGRADE.bonusPerLevel)
+  * (1 + level * REACTIONS[reaction].upgrade.bonusPerLevel)
   * stellarFusionMultiplier(state);
 export const reactionManualAmount = (state: GameState, reaction: ReactionId): number =>
   reactionManualAmountAtLevel(state, reaction, state.reactionUpgrades[reaction]);
@@ -459,8 +458,8 @@ export const createInitialState = (
 ): GameState => {
   const perks: PerkState = {
     largerCloud: clampCloudTier(perkInput.largerCloud ?? 0),
-    permanentGravity: Math.max(0, Math.min(LIMITS.permanentGravity, perkInput.permanentGravity ?? 0)),
-    fusionMemory: Math.max(0, Math.min(LIMITS.fusionMemory, perkInput.fusionMemory ?? 0)),
+    permanentGravity: Math.max(0, Math.min(PRESTIGE_PERKS.permanentGravity.maxLevel, perkInput.permanentGravity ?? 0)),
+    fusionMemory: Math.max(0, Math.min(PRESTIGE_PERKS.fusionMemory.maxLevel, perkInput.fusionMemory ?? 0)),
   };
   const unlockedTier = clampCloudTier(perks.largerCloud);
   const requestedTier = persistent.cloudTier ?? persistent.nextCloudTier ?? unlockedTier;
@@ -619,7 +618,11 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
   if (action.type === 'BUY_PERK') {
     const level = effectivePerks(next)[action.perk];
     const costs = { largerCloud: cloudTierCost(level), permanentGravity: gravityPerkCost(level), fusionMemory: fusionPerkCost(level) };
-    const limits = { largerCloud: LIMITS.cloudGrowthLevel, permanentGravity: LIMITS.permanentGravity, fusionMemory: LIMITS.fusionMemory };
+    const limits = {
+      largerCloud: PRESTIGE_PERKS.largerCloud.maxLevel,
+      permanentGravity: PRESTIGE_PERKS.permanentGravity.maxLevel,
+      fusionMemory: PRESTIGE_PERKS.fusionMemory.maxLevel,
+    };
     const cost = costs[action.perk];
     if (next.completed && level < limits[action.perk] && next.stardust >= cost) {
       next.stardust -= cost; next.pendingPerks[action.perk] += 1;
@@ -648,7 +651,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
   } else if (action.type === 'BUY_REACTION_UPGRADE') {
     const level = next.reactionUpgrades[action.reaction];
     const cost = reactionUpgradeCost(action.reaction, level);
-    if (next.unlockedReactions.includes(action.reaction) && level < REACTION_UPGRADE.maxLevel && next.energy >= cost) {
+    if (next.unlockedReactions.includes(action.reaction) && level < REACTIONS[action.reaction].upgrade.maxLevel && next.energy >= cost) {
       next.energy -= cost;
       next.reactionUpgrades[action.reaction] += 1;
       next.stats.upgradesPurchased += 1;

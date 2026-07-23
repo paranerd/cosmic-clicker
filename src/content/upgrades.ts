@@ -1,5 +1,5 @@
 import type { LogEntry, PerkState, RunStatistics, Stage, UpgradeState } from '../game/types';
-import { ACCRETION, LIMITS, TEMPERATURE_MODEL, THRESHOLDS } from './progression';
+import { ACCRETION, TEMPERATURE_MODEL, THRESHOLDS } from './progression';
 
 export type UpgradeId = keyof UpgradeState;
 
@@ -70,7 +70,7 @@ export const UPGRADES = {
     requirements: {},
     supply: { kind: 'cloudMatter', exhaustedLabel: 'Urwolke erschöpft' },
     cost: { base: 45, growth: 2.2 },
-    maxLevel: LIMITS.gravity,
+    maxLevel: 5,
     value: {
       kind: 'levelMultiplier',
       base: 1,

@@ -1,5 +1,5 @@
 import type { AutomationState, ReactionId } from '../game/types';
-import { ACCRETION, LIMITS, THRESHOLDS } from './progression';
+import { ACCRETION, THRESHOLDS } from './progression';
 
 export type AutomationKind = keyof AutomationState;
 
@@ -48,7 +48,7 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     id: 'accretion', title: 'Akkretionsstrom', icon: 'A',
     description: 'Zieht kontinuierlich Materie aus der Wolke. Benötigt einen ausgebildeten Protostern.',
     unit: 'ME/s', baseRate: ACCRETION.automaticBasePerLevel, rateGrowthPerLevel: 0,
-    baseCost: 65, costGrowth: 1.85, maxLevel: LIMITS.accretion,
+    baseCost: 65, costGrowth: 1.85, maxLevel: 8,
     mastery: { kind: 'starMass', threshold: THRESHOLDS.protostarMass, symbol: 'ME' },
     supply: { kind: 'cloudMatter', exhaustedLabel: 'Urwolke erschöpft' },
   },

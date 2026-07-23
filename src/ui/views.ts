@@ -8,7 +8,6 @@ import {
   OUTCOME_LABELS,
   REACTIONS,
   REACTION_ORDER,
-  REACTION_UPGRADE,
   RESOURCES,
   STAGES,
   STAGE_LABELS,
@@ -176,7 +175,7 @@ export function reactionView(id: ReactionId): ReactionView {
   // Punkt 2: Zustand des Reaktionsausbaus für die Karte.
   const upgradeLevel = state.reactionUpgrades[id];
   const upgradePrice = reactionUpgradeCost(id, upgradeLevel);
-  const upgradeMax = upgradeLevel >= REACTION_UPGRADE.maxLevel;
+  const upgradeMax = upgradeLevel >= definition.upgrade.maxLevel;
   return {
     id, visible, unlocked, available, amount, energy, label,
     detail: !unlocked ? '' : capacity > 0 ? reactionConversionLabel(id, amount, energy) : '',
@@ -215,7 +214,7 @@ function reactionRateRow(view: ReactionView): string {
   const state = getState();
   const definition = REACTIONS[view.id];
   const symbol = RESOURCES[definition.primaryInput].symbol;
-  const nextLevel = Math.min(REACTION_UPGRADE.maxLevel, view.upgradeLevel + 1);
+  const nextLevel = Math.min(definition.upgrade.maxLevel, view.upgradeLevel + 1);
   const currentAmount = reactionManualAmount(state, view.id);
   const nextAmount = reactionManualAmountAtLevel(state, view.id, nextLevel);
   return `<div class="tile-rate"><div><span>Aktuell</span><b>${formatMatter(currentAmount)} ${symbol}</b></div><div><span>Nächste Stufe:</span> <b>${view.upgradeMax ? 'Voll ausgebaut' : `${formatMatter(nextAmount)} ${symbol}`}</b></div></div>`;
@@ -227,7 +226,7 @@ function reactionRateRow(view: ReactionView): string {
 // noch einmal im Eck-Ausbaubutton selbst — die doppelte Anzeige war redundant.
 function reactionUpgradeFooter(view: ReactionView): string {
   if (!view.unlocked) return '';
-  return `<div class="level-row" data-reaction-upgrade-levels="${view.id}">${levelPips(view.upgradeLevel, REACTION_UPGRADE.maxLevel)}</div>`;
+  return `<div class="level-row" data-reaction-upgrade-levels="${view.id}">${levelPips(view.upgradeLevel, REACTIONS[view.id].upgrade.maxLevel)}</div>`;
 }
 
 // Punkt 4: Reaktionskarten folgen jetzt derselben Grundstruktur wie

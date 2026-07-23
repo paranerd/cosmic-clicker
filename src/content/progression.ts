@@ -26,20 +26,6 @@ export const THRESHOLDS = {
 } as const;
 
 export const LIMITS = {
-  gravity: 5,
-  accretion: 8,
-  fusion: 8,
-  heliumFusion: 8,
-  oxygenSynthesis: 8,
-  carbonFusion: 8,
-  neonFusion: 8,
-  oxygenFusion: 8,
-  siliconFusion: 8,
-  permanentGravity: 5,
-  fusionMemory: 5,
-  // Wolkenwachstum ist jetzt ein offener, prozentualer Perk ohne feste
-  // Stufenzahl. Der Wert dient nur als großzügige technische Obergrenze.
-  cloudGrowthLevel: 24,
   offlineSeconds: 8 * 60 * 60,
 } as const;
 

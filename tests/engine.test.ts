@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLOUD_GROWTH, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, REACTIONS, REACTION_ORDER, REACTION_UPGRADE, STAGES, THRESHOLDS } from '../src/content';
+import { CLOUD_GROWTH, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, REACTIONS, REACTION_ORDER, STAGES, THRESHOLDS } from '../src/content';
 import type { Stage } from '../src/game/types';
 import {
   accretionPerClick,
@@ -363,11 +363,18 @@ describe('data-driven stellar engine v0.4', () => {
     expect(upgraded.energy).toBe(10_000 - reactionUpgradeCost('hydrogen', 0));
     expect(upgraded.stats.upgradesPurchased).toBe(1);
     const boosted = reduceGame(upgraded, { type: 'RUN_REACTION', reaction: 'hydrogen' });
-    expect(boosted.reactionTotals.hydrogen).toBeCloseTo(REACTIONS.hydrogen.manualAmount * (1 + REACTION_UPGRADE.bonusPerLevel), 5);
+    expect(boosted.reactionTotals.hydrogen).toBeCloseTo(REACTIONS.hydrogen.manualAmount * (1 + REACTIONS.hydrogen.upgrade.bonusPerLevel), 5);
     // Nicht freigeschaltete Reaktionen können nicht ausgebaut werden.
     const locked = reduceGame(state, { type: 'BUY_REACTION_UPGRADE', reaction: 'silicon' });
     expect(locked.reactionUpgrades.silicon).toBe(0);
     expect(locked.energy).toBe(10_000);
+    // Die Maximalstufe kommt aus der jeweiligen Reaktionsdefinition.
+    const maxed = reactionState('hydrogen', 100_000);
+    maxed.energy = 1_000_000;
+    maxed.reactionUpgrades.hydrogen = REACTIONS.hydrogen.upgrade.maxLevel;
+    const unchanged = reduceGame(maxed, { type: 'BUY_REACTION_UPGRADE', reaction: 'hydrogen' });
+    expect(unchanged.reactionUpgrades.hydrogen).toBe(REACTIONS.hydrogen.upgrade.maxLevel);
+    expect(unchanged.energy).toBe(1_000_000);
   });
 
   it('blocks further Akkretionsstrom levels once the primordial cloud is exhausted (Punkt 1)', () => {

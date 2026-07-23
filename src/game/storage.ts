@@ -1,4 +1,4 @@
-import { CLOUD_GROWTH, EMPTY_MATTER, LIMITS, MATTER_KEYS, REACTIONS, REACTION_ORDER, THRESHOLDS } from '../content';
+import { CLOUD_GROWTH, EMPTY_MATTER, LIMITS, MATTER_KEYS, PRESTIGE_PERKS, REACTIONS, REACTION_ORDER, THRESHOLDS } from '../content';
 import { compressionHeat, createInitialState, createRunStatistics, tick } from './engine';
 import type { CloudTier, GameState, LogEntry, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState } from './types';
 
@@ -43,16 +43,16 @@ export const normalizeGameState = (value: unknown): GameState | null => {
   const star = normalizeMatter(parsed.star);
   const cloudTier = isCloudTier(parsed.cloudTier) ? parsed.cloudTier : inferCloudTier(cloud, star);
   const perks: PerkState = {
-    largerCloud: Math.max(0, Math.min(LIMITS.cloudGrowthLevel, parsed.perks?.largerCloud ?? 0)),
-    permanentGravity: Math.max(0, Math.min(LIMITS.permanentGravity, parsed.perks?.permanentGravity ?? 0)),
-    fusionMemory: Math.max(0, Math.min(LIMITS.fusionMemory, parsed.perks?.fusionMemory ?? 0)),
+    largerCloud: Math.max(0, Math.min(PRESTIGE_PERKS.largerCloud.maxLevel, parsed.perks?.largerCloud ?? 0)),
+    permanentGravity: Math.max(0, Math.min(PRESTIGE_PERKS.permanentGravity.maxLevel, parsed.perks?.permanentGravity ?? 0)),
+    fusionMemory: Math.max(0, Math.min(PRESTIGE_PERKS.fusionMemory.maxLevel, parsed.perks?.fusionMemory ?? 0)),
   };
   const pendingPerks: PerkState = {
-    largerCloud: Math.max(0, Math.min(LIMITS.cloudGrowthLevel - perks.largerCloud, parsed.pendingPerks?.largerCloud ?? 0)),
-    permanentGravity: Math.max(0, Math.min(LIMITS.permanentGravity - perks.permanentGravity, parsed.pendingPerks?.permanentGravity ?? 0)),
-    fusionMemory: Math.max(0, Math.min(LIMITS.fusionMemory - perks.fusionMemory, parsed.pendingPerks?.fusionMemory ?? 0)),
+    largerCloud: Math.max(0, Math.min(PRESTIGE_PERKS.largerCloud.maxLevel - perks.largerCloud, parsed.pendingPerks?.largerCloud ?? 0)),
+    permanentGravity: Math.max(0, Math.min(PRESTIGE_PERKS.permanentGravity.maxLevel - perks.permanentGravity, parsed.pendingPerks?.permanentGravity ?? 0)),
+    fusionMemory: Math.max(0, Math.min(PRESTIGE_PERKS.fusionMemory.maxLevel - perks.fusionMemory, parsed.pendingPerks?.fusionMemory ?? 0)),
   };
-  const unlockedTier = Math.min(LIMITS.cloudGrowthLevel, perks.largerCloud + pendingPerks.largerCloud) as CloudTier;
+  const unlockedTier = Math.min(PRESTIGE_PERKS.largerCloud.maxLevel, perks.largerCloud + pendingPerks.largerCloud) as CloudTier;
   const nextCloudTier = isCloudTier(parsed.nextCloudTier) && parsed.nextCloudTier <= unlockedTier ? parsed.nextCloudTier : unlockedTier;
   const fallback = createInitialState(perks, parsed.stardust, parsed.run, { cloudTier, nextCloudTier });
   const legacyCompleted = Boolean(parsed.completed);

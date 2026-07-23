@@ -1,4 +1,4 @@
-import { LIMITS } from '../content';
+import { PRESTIGE_PERKS } from '../content';
 import { cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost } from '../game/engine';
 import { app, getState } from './store';
 
@@ -62,9 +62,9 @@ export function setWarningsOpen(open: boolean): void {
 export function hasAffordableSummaryPerk(): boolean {
   const state = getState();
   const perks = effectivePerks(state);
-  return perks.largerCloud < LIMITS.cloudGrowthLevel && state.stardust >= cloudTierCost(perks.largerCloud)
-    || perks.permanentGravity < LIMITS.permanentGravity && state.stardust >= gravityPerkCost(perks.permanentGravity)
-    || perks.fusionMemory < LIMITS.fusionMemory && state.stardust >= fusionPerkCost(perks.fusionMemory);
+  return perks.largerCloud < PRESTIGE_PERKS.largerCloud.maxLevel && state.stardust >= cloudTierCost(perks.largerCloud)
+    || perks.permanentGravity < PRESTIGE_PERKS.permanentGravity.maxLevel && state.stardust >= gravityPerkCost(perks.permanentGravity)
+    || perks.fusionMemory < PRESTIGE_PERKS.fusionMemory.maxLevel && state.stardust >= fusionPerkCost(perks.fusionMemory);
 }
 
 export function hasPendingPerks(): boolean {

@@ -1,6 +1,6 @@
 import type { StellarOutcome } from '../game/types';
 import { CLOUD_GROWTH } from './clouds';
-import { ACCRETION, LIMITS } from './progression';
+import { ACCRETION } from './progression';
 
 export const FUSION_MEMORY_BONUS_PER_LEVEL = .15;
 
@@ -28,19 +28,21 @@ export const PRESTIGE_PERKS = {
   largerCloud: {
     title: 'Wolkenmasse',
     description: `+${(CLOUD_GROWTH.growthFactorPerLevel - 1) * 100}% maximale Wolkenmasse`,
-    maxLevel: LIMITS.cloudGrowthLevel,
+    // Wolkenwachstum ist ein offener, prozentualer Perk. Diese großzügige
+    // technische Obergrenze verhindert lediglich unbrauchbar große Werte.
+    maxLevel: 24,
     cost: (level: number): number => 2 + level * 3,
   },
   permanentGravity: {
     title: 'Gravitatives Gedächtnis',
     description: `+${ACCRETION.permanentGravityBonusPerLevel * 100}% Akkretionsrate`,
-    maxLevel: LIMITS.permanentGravity,
+    maxLevel: 5,
     cost: (level: number): number => 2 + level * 2,
   },
   fusionMemory: {
     title: 'Fusionsgedächtnis',
     description: `+${FUSION_MEMORY_BONUS_PER_LEVEL * 100}% Fusion`,
-    maxLevel: LIMITS.fusionMemory,
+    maxLevel: 5,
     cost: (level: number): number => 3 + level * 3,
   },
 } as const;
