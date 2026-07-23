@@ -634,9 +634,6 @@ footer button:hover { color: $cyan; }
 .tutorial-blocker-full { inset: 0; }
 .tutorial-highlight-shield { position: fixed; z-index: 42; background: rgba(2,5,9,.98); cursor: default; }
 .tutorial-card { width: min(350px,calc(100vw - 32px)); position: fixed; z-index: 45; left: 24px; bottom: 24px; padding: 17px 18px; border: 1px solid rgba($cyan,.42); background: radial-gradient(circle at 100% 0, rgba($cyan,.1), transparent 42%), rgba(8,13,22,.98); box-shadow: 0 20px 55px rgba(0,0,0,.5); }
-.tutorial-inner-frame,.tutorial-spotlight { position: fixed; z-index: 43; pointer-events: none; }
-.tutorial-inner-frame { border: 1px solid rgba($cyan,.72); border-radius: 7px; box-shadow: 0 0 20px rgba($cyan,.12); }
-.tutorial-spotlight { border: 1px solid rgba($cyan,.62); border-radius: 9px; box-shadow: 0 0 30px rgba($cyan,.16); }
 .tutorial-meta { display: flex; align-items: center; justify-content: space-between; }
 .tutorial-meta span { color: $cyan; font-size: 7px; letter-spacing: .15em; }
 .tutorial-meta button { padding: 5px 7px; border: 1px solid transparent; background: none; color: $muted; font-size: 7px; text-transform: uppercase; cursor: pointer; transition: color .18s ease, border-color .18s ease, background .18s ease, transform .12s ease; }
@@ -655,8 +652,8 @@ footer button:hover { color: $cyan; }
 .tutorial-danger { border-color: rgba($orange,.5); background: rgba($orange,.1); color: #efb49c; }
 .tutorial-danger:hover,.tutorial-danger:focus-visible { border-color: rgba($orange,.75); background: rgba($orange,.18); }
 .tutorial-secondary { color: $muted; }
-.tutorial-focus { position: relative; z-index: 43; box-shadow: 0 0 32px rgba($cyan,.2) !important; }
-.star-button.tutorial-focus { z-index: 43; box-shadow: 0 0 45px rgba($cyan,.25) !important; }
+.tutorial-focus { position: relative; z-index: 43; outline: 1px solid rgba($cyan,.72); outline-offset: var(--tutorial-frame-padding, 12px); box-shadow: 0 0 0 var(--tutorial-frame-padding, 12px) rgba(2,5,9,.98), 0 0 32px var(--tutorial-frame-padding, 12px) rgba($cyan,.2) !important; }
+.star-button.tutorial-focus { z-index: 43; box-shadow: 0 0 0 var(--tutorial-frame-padding, 12px) rgba(2,5,9,.98), 0 0 45px var(--tutorial-frame-padding, 12px) rgba($cyan,.25) !important; }
 .debug-panel { width: 320px; position: fixed; z-index: 90; right: 18px; top: 82px; padding: 15px; border: 1px solid rgba(#cf73ff,.5); background: rgba(12,8,19,.97); box-shadow: 0 20px 60px rgba(0,0,0,.55); }
 .debug-panel > div:first-child { display: flex; justify-content: space-between; color: #d29af0; font-size: 8px; letter-spacing: .14em; }
 .debug-panel > div:first-child button { border: 0; background: none; color: #b28fc4; cursor: pointer; }

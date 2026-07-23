@@ -535,35 +535,59 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   await expect(page.locator('.tutorial-blocker').first()).toHaveCSS('background-color', 'rgba(2, 5, 9, 0.82)');
   await expect(page.locator('.tutorial-highlight-shield').first()).toHaveCSS('background-color', 'rgba(2, 5, 9, 0.98)');
   await expect(page.locator('.tutorial-highlight-shield')).toHaveCount(4);
-  await expect(page.locator('.tutorial-inner-frame')).toHaveCSS('border-left-style', 'solid');
-  await expect(page.locator('.tutorial-spotlight')).toHaveCSS('border-left-style', 'solid');
+  await expect(page.locator('.tutorial-inner-frame')).toHaveCount(0);
+  await expect(page.locator('.tutorial-spotlight')).toHaveCount(0);
   const firstTarget = page.locator('[data-tutorial="realtime-data"]');
   await expect.poll(() => firstTarget.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     return rect.top < window.innerHeight && rect.bottom > 0;
   })).toBe(true);
-  const spotlightBox = await page.locator('.tutorial-spotlight').boundingBox();
-  const targetBox = await firstTarget.boundingBox();
-  expect(spotlightBox!.x).toBeLessThanOrEqual(targetBox!.x);
-  expect(spotlightBox!.x + spotlightBox!.width).toBeGreaterThanOrEqual(targetBox!.x + targetBox!.width);
-  const innerFrameBox = await page.locator('.tutorial-inner-frame').boundingBox();
-  expect(innerFrameBox!.x).toBeLessThan(targetBox!.x);
-  expect(innerFrameBox!.x + innerFrameBox!.width).toBeGreaterThan(targetBox!.x + targetBox!.width);
-  expect(spotlightBox!.x).toBeLessThanOrEqual(innerFrameBox!.x);
-  expect(spotlightBox!.x + spotlightBox!.width).toBeGreaterThanOrEqual(innerFrameBox!.x + innerFrameBox!.width);
-  expect(spotlightBox!.height).toBeGreaterThan(innerFrameBox!.height);
-
-  await page.evaluate(() => window.scrollBy(0, 60));
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-  const trackedBoxes = await page.evaluate(() => {
-    const focus = document.querySelector('[data-tutorial="realtime-data"]')!.getBoundingClientRect();
-    const spotlight = document.querySelector('.tutorial-spotlight')!.getBoundingClientRect();
-    return { focus: { x: focus.x, y: focus.y, width: focus.width, height: focus.height }, spotlight: { x: spotlight.x, y: spotlight.y, width: spotlight.width, height: spotlight.height } };
+  await expect(firstTarget).toHaveCSS('outline-style', 'solid');
+  await expect(firstTarget).toHaveCSS('outline-color', 'rgba(120, 215, 223, 0.72)');
+  expect(await firstTarget.evaluate((element) => getComputedStyle(element).boxShadow)).toContain('rgba(2, 5, 9, 0.98)');
+  const focusFrame = await firstTarget.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    const padding = Number.parseFloat(style.outlineOffset);
+    return {
+      padding,
+      left: rect.left - padding - 1,
+      right: rect.right + padding + 1,
+      viewportWidth: window.innerWidth,
+    };
   });
-  expect(trackedBoxes.spotlight.x).toBeGreaterThanOrEqual(6);
-  expect(trackedBoxes.spotlight.y).toBeGreaterThanOrEqual(6);
-  expect(trackedBoxes.spotlight.width).toBeGreaterThan(trackedBoxes.focus.width);
-  expect(trackedBoxes.spotlight.height).toBeGreaterThan(trackedBoxes.focus.height);
+  expect(focusFrame.padding).toBeGreaterThan(0);
+  expect(focusFrame.padding).toBeLessThanOrEqual(12);
+  expect(focusFrame.left).toBeGreaterThanOrEqual(5.5);
+  expect(focusFrame.right).toBeLessThanOrEqual(focusFrame.viewportWidth - 5.5);
+
+  // Der Scroll-Listener muss Blocker und Schutzflächen noch im selben
+  // Scroll-Event aktualisieren. Eine Positionierung erst im nächsten
+  // requestAnimationFrame würde als sichtbares Nachziehen auffallen.
+  const trackedBoxes = await page.evaluate(() => {
+    return new Promise<{ focusTop: number; framePadding: number; blockerBottom: number; shieldTop: number; shieldBottom: number; viewportHeight: number }>((resolve) => {
+      window.addEventListener('scroll', () => {
+        const focusElement = document.querySelector('[data-tutorial="realtime-data"]')!;
+        const focus = focusElement.getBoundingClientRect();
+        const blocker = document.querySelector<HTMLElement>('[data-tutorial-blocker="top"]')!.getBoundingClientRect();
+        const shield = document.querySelector<HTMLElement>('[data-tutorial-shield="top"]')!.getBoundingClientRect();
+        resolve({
+          focusTop: focus.top,
+          framePadding: Number.parseFloat(getComputedStyle(focusElement).outlineOffset),
+          blockerBottom: blocker.bottom,
+          shieldTop: shield.top,
+          shieldBottom: shield.bottom,
+          viewportHeight: window.innerHeight,
+        });
+      }, { once: true, capture: true });
+      window.scrollBy(0, 60);
+    });
+  });
+  const expectedFrameTop = Math.max(6, trackedBoxes.focusTop - trackedBoxes.framePadding);
+  const expectedHoleTop = Math.max(0, Math.min(trackedBoxes.viewportHeight, trackedBoxes.focusTop));
+  expect(Math.abs(trackedBoxes.blockerBottom - expectedFrameTop)).toBeLessThanOrEqual(1);
+  expect(Math.abs(trackedBoxes.shieldTop - expectedFrameTop)).toBeLessThanOrEqual(1);
+  expect(Math.abs(trackedBoxes.shieldBottom - expectedHoleTop)).toBeLessThanOrEqual(1);
 
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect.poll(() => page.locator('.left-panel').evaluate((element) => {

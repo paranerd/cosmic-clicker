@@ -7,7 +7,6 @@ import { app, getActivePanel, getState } from './store';
 import { switchPanel } from './sync';
 
 let tutorialSignature = '';
-let tutorialSpotlightFrame = 0;
 let tutorialEndConfirmation = false;
 
 const initialTourEnd = TUTORIAL_STEPS.findIndex((step) => 'completesInitialTour' in step && step.completesInitialTour);
@@ -115,47 +114,38 @@ function tutorialTarget(step: TutorialStep): Element | null {
   return step.selector ? app.querySelector(step.selector) : null;
 }
 
-function positionTutorialSpotlight(target: Element): void {
-  const spotlight = app.querySelector<HTMLElement>('.tutorial-spotlight');
-  const innerFrame = app.querySelector<HTMLElement>('.tutorial-inner-frame');
-  if (!spotlight || !innerFrame) return;
+function positionTutorialFocus(target: Element): void {
   const rect = target.getBoundingClientRect();
-  const innerPadding = 12;
-  const outerPadding = 28;
   const viewportGap = 6;
-  const outerLeft = Math.max(viewportGap, rect.left - outerPadding);
-  const outerTop = Math.max(viewportGap, rect.top - outerPadding);
-  const outerRight = Math.min(window.innerWidth - viewportGap, rect.right + outerPadding);
-  const outerBottom = Math.min(window.innerHeight - viewportGap, rect.bottom + outerPadding);
+  const maxFramePadding = 12;
+  const frameBorderWidth = 1;
+  const horizontalFrameSpace = Math.min(
+    rect.left - viewportGap - frameBorderWidth,
+    window.innerWidth - viewportGap - rect.right - frameBorderWidth,
+  );
+  const framePadding = Math.max(0, Math.min(maxFramePadding, horizontalFrameSpace));
+  if (target instanceof HTMLElement) {
+    target.style.setProperty('--tutorial-frame-padding', `${framePadding}px`);
+  }
+  const frameLeft = Math.max(viewportGap, rect.left - framePadding);
+  const frameTop = Math.max(viewportGap, rect.top - framePadding);
+  const frameRight = Math.min(window.innerWidth - viewportGap, rect.right + framePadding);
+  const frameBottom = Math.min(window.innerHeight - viewportGap, rect.bottom + framePadding);
   const holeLeft = Math.max(0, Math.min(window.innerWidth, rect.left));
   const holeTop = Math.max(0, Math.min(window.innerHeight, rect.top));
   const holeRight = Math.max(holeLeft, Math.min(window.innerWidth, rect.right));
   const holeBottom = Math.max(holeTop, Math.min(window.innerHeight, rect.bottom));
-  const setFrame = (frame: HTMLElement, left: number, top: number, right: number, bottom: number): void => {
-    frame.style.left = `${left}px`;
-    frame.style.top = `${top}px`;
-    frame.style.width = `${Math.max(0, right - left)}px`;
-    frame.style.height = `${Math.max(0, bottom - top)}px`;
-  };
-  setFrame(spotlight, outerLeft, outerTop, outerRight, outerBottom);
-  setFrame(
-    innerFrame,
-    Math.max(viewportGap, rect.left - innerPadding),
-    Math.max(viewportGap, rect.top - innerPadding),
-    Math.min(window.innerWidth - viewportGap, rect.right + innerPadding),
-    Math.min(window.innerHeight - viewportGap, rect.bottom + innerPadding),
-  );
   const blockerStyles: Record<string, Partial<CSSStyleDeclaration>> = {
-    top: { left: '0px', top: '0px', width: `${window.innerWidth}px`, height: `${outerTop}px` },
-    bottom: { left: '0px', top: `${outerBottom}px`, width: `${window.innerWidth}px`, height: `${Math.max(0, window.innerHeight - outerBottom)}px` },
-    left: { left: '0px', top: `${outerTop}px`, width: `${outerLeft}px`, height: `${Math.max(0, outerBottom - outerTop)}px` },
-    right: { left: `${outerRight}px`, top: `${outerTop}px`, width: `${Math.max(0, window.innerWidth - outerRight)}px`, height: `${Math.max(0, outerBottom - outerTop)}px` },
+    top: { left: '0px', top: '0px', width: `${window.innerWidth}px`, height: `${frameTop}px` },
+    bottom: { left: '0px', top: `${frameBottom}px`, width: `${window.innerWidth}px`, height: `${Math.max(0, window.innerHeight - frameBottom)}px` },
+    left: { left: '0px', top: `${frameTop}px`, width: `${frameLeft}px`, height: `${Math.max(0, frameBottom - frameTop)}px` },
+    right: { left: `${frameRight}px`, top: `${frameTop}px`, width: `${Math.max(0, window.innerWidth - frameRight)}px`, height: `${Math.max(0, frameBottom - frameTop)}px` },
   };
   const shieldStyles: Record<string, Partial<CSSStyleDeclaration>> = {
-    top: { left: `${outerLeft}px`, top: `${outerTop}px`, width: `${Math.max(0, outerRight - outerLeft)}px`, height: `${Math.max(0, holeTop - outerTop)}px` },
-    bottom: { left: `${outerLeft}px`, top: `${holeBottom}px`, width: `${Math.max(0, outerRight - outerLeft)}px`, height: `${Math.max(0, outerBottom - holeBottom)}px` },
-    left: { left: `${outerLeft}px`, top: `${holeTop}px`, width: `${Math.max(0, holeLeft - outerLeft)}px`, height: `${Math.max(0, holeBottom - holeTop)}px` },
-    right: { left: `${holeRight}px`, top: `${holeTop}px`, width: `${Math.max(0, outerRight - holeRight)}px`, height: `${Math.max(0, holeBottom - holeTop)}px` },
+    top: { left: `${frameLeft}px`, top: `${frameTop}px`, width: `${Math.max(0, frameRight - frameLeft)}px`, height: `${Math.max(0, holeTop - frameTop)}px` },
+    bottom: { left: `${frameLeft}px`, top: `${holeBottom}px`, width: `${Math.max(0, frameRight - frameLeft)}px`, height: `${Math.max(0, frameBottom - holeBottom)}px` },
+    left: { left: `${frameLeft}px`, top: `${holeTop}px`, width: `${Math.max(0, holeLeft - frameLeft)}px`, height: `${Math.max(0, holeBottom - holeTop)}px` },
+    right: { left: `${holeRight}px`, top: `${holeTop}px`, width: `${Math.max(0, frameRight - holeRight)}px`, height: `${Math.max(0, holeBottom - holeTop)}px` },
   };
   app.querySelectorAll<HTMLElement>('[data-tutorial-blocker]').forEach((blocker) => {
     Object.assign(blocker.style, blockerStyles[blocker.dataset.tutorialBlocker ?? '']);
@@ -165,17 +155,13 @@ function positionTutorialSpotlight(target: Element): void {
   });
 }
 
-export function queueTutorialSpotlightPosition(): void {
-  if (tutorialSpotlightFrame) return;
-  tutorialSpotlightFrame = window.requestAnimationFrame(() => {
-    tutorialSpotlightFrame = 0;
-    const state = getState();
-    if (!state.tutorial.introSeen || state.tutorial.completed) return;
-    const step = TUTORIAL_STEPS[currentTutorialStepIndex()] ?? TUTORIAL_STEPS[0];
-    if (!tutorialStepAvailable(step)) return;
-    const target = tutorialTarget(step);
-    if (target) positionTutorialSpotlight(target);
-  });
+export function syncTutorialFocusPosition(): void {
+  const state = getState();
+  if (!state.tutorial.introSeen || state.tutorial.completed) return;
+  const step = TUTORIAL_STEPS[currentTutorialStepIndex()] ?? TUTORIAL_STEPS[0];
+  if (!tutorialStepAvailable(step)) return;
+  const target = tutorialTarget(step);
+  if (target) positionTutorialFocus(target);
 }
 
 export function syncTutorial(): void {
@@ -214,11 +200,11 @@ export function syncTutorial(): void {
       ? `<section class="tutorial-confirmation" aria-label="Tutorial wirklich beenden?"><p>Möchtest du das Tutorial wirklich beenden?</p><div><button class="tutorial-action tutorial-danger" data-action="confirm-end-tutorial">Tutorial beenden</button><button class="tutorial-action tutorial-secondary" data-action="cancel-end-tutorial">Abbrechen</button></div></section>`
       : normalInteraction;
     const focusLayer = target
-      ? `<div class="tutorial-blocker" data-tutorial-blocker="top" aria-hidden="true"></div><div class="tutorial-blocker" data-tutorial-blocker="right" aria-hidden="true"></div><div class="tutorial-blocker" data-tutorial-blocker="bottom" aria-hidden="true"></div><div class="tutorial-blocker" data-tutorial-blocker="left" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="top" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="right" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="bottom" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="left" aria-hidden="true"></div><div class="tutorial-inner-frame" aria-hidden="true"></div><div class="tutorial-spotlight" aria-hidden="true"></div>`
+      ? `<div class="tutorial-blocker" data-tutorial-blocker="top" aria-hidden="true"></div><div class="tutorial-blocker" data-tutorial-blocker="right" aria-hidden="true"></div><div class="tutorial-blocker" data-tutorial-blocker="bottom" aria-hidden="true"></div><div class="tutorial-blocker" data-tutorial-blocker="left" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="top" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="right" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="bottom" aria-hidden="true"></div><div class="tutorial-highlight-shield" data-tutorial-shield="left" aria-hidden="true"></div>`
       : '<div class="tutorial-blocker tutorial-blocker-full" aria-hidden="true"></div>';
     root.innerHTML = `${focusLayer}<aside class="tutorial-card" aria-label="Tutorial"><div class="tutorial-meta"><span>TUTORIAL · ${stepIndex + 1}/${TUTORIAL_STEPS.length}</span><button data-action="request-end-tutorial">Tutorial beenden</button></div><h2>${step.title}</h2><p>${step.text}</p>${interaction}</aside>`;
   }
-  if (target) positionTutorialSpotlight(target);
+  if (target) positionTutorialFocus(target);
 }
 
 export function advanceTutorial(trigger: string): void {

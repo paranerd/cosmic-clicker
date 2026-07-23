@@ -1203,8 +1203,7 @@ nicht „am Spielstart“.
 
 | Wert | Referenz |
 | --- | ---: |
-| Innerer Abstand | 12 px |
-| Äußerer Abstand | 28 px |
+| Abstand des einzigen Fokusrahmens | Bis zu 12 px; an schmalen Viewports wird er verkleinert, damit der Rahmen mindestens 6 px Abstand zum Fensterrand hält |
 | Viewport-Mindestabstand | 6 px |
 | Auto-Scroll unter | 1100 px |
 | Abdunkelung | `rgba(2, 5, 9, 0.82)` auf Ebene 41 |
@@ -1212,9 +1211,12 @@ nicht „am Spielstart“.
 | Ziel und Rahmen | Ebene 43 |
 | Tutorial-Karte | Ebene 45 |
 
-Vier Blocker sperren den Bereich außerhalb des äußeren Rahmens. Vier
-Schutzflächen verdecken den Raum zwischen Rahmen und Ziel. Nur das tatsächliche
-Ziel bleibt interaktiv; benachbarte Elemente scheinen nicht durch.
+Es gibt nur einen Fokusrahmen. Er ist als Outline direkt am Zielelement
+verankert und bewegt sich deshalb beim Scrollen ohne verzögerte
+Neuberechnung mit. Vier Blocker sperren den Bereich außerhalb des Rahmens.
+Vier Schutzflächen und ein am Ziel verankerter, nahezu opaker Schatten
+verdecken den 12-px-Raum zwischen Rahmen und Ziel. Nur das tatsächliche Ziel
+bleibt interaktiv; benachbarte Elemente scheinen nicht durch.
 
 ## 23. Speicherung, Offline-Fortschritt und Reset
 

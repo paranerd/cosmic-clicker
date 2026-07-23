@@ -33,10 +33,10 @@ import {
   advanceTutorial,
   cancelTutorialEnd,
   confirmTutorialEnd,
-  queueTutorialSpotlightPosition,
   requestTutorialEnd,
   resolveIntro,
   setTutorial,
+  syncTutorialFocusPosition,
 } from './ui/tutorial';
 
 type ResetMode = 'run' | 'full';
@@ -237,8 +237,8 @@ document.addEventListener('visibilitychange', () => {
   lastFrame = performance.now() - Math.min(LIMITS.offlineSeconds, Math.max(0, (Date.now() - getState().lastTick) / 1_000)) * 1_000;
   frameRequest = window.requestAnimationFrame(frame);
 });
-window.addEventListener('scroll', queueTutorialSpotlightPosition, { passive: true, capture: true });
-window.addEventListener('resize', queueTutorialSpotlightPosition, { passive: true });
+window.addEventListener('scroll', syncTutorialFocusPosition, { passive: true, capture: true });
+window.addEventListener('resize', syncTutorialFocusPosition, { passive: true });
 renderShell(); if (offlineToast) showToast(offlineToast); frameRequest = requestAnimationFrame(frame);
 if (import.meta.env.DEV) {
   type CheatApi = { stardust: (amount: number) => number; energy: (amount: number) => number };
