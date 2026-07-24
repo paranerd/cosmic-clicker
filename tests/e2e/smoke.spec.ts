@@ -105,7 +105,7 @@ test('the first objective collects one ME and congratulates the player', async (
   await expect(page.locator('[data-ui="objective-percent"]')).toHaveText('0%');
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
 
-  await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Erzeuge 1 Energie');
+  await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Erzeuge 1 MeV Energie');
   await expect(page.locator('[data-ui="energy"]')).toHaveText('0');
   await expect(page.locator('.energy-metric small')).toHaveText('MeV');
   await expect(page.locator('[data-ui="objective-percent"]')).toHaveText('1,8%');
@@ -560,7 +560,7 @@ test('the first-matter achievement remains visible while the tutorial is active'
   const achievement = page.locator('.achievement-banner');
   await expect(achievement).toBeVisible();
   await expect(achievement).toContainText('Glückwunsch – die erste Materie ist gesammelt!');
-  await expect(achievement.locator('.achievement-next')).toContainText('Erzeuge 1 Energie');
+  await expect(achievement.locator('.achievement-next')).toContainText('Erzeuge 1 MeV Energie');
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Materie für den Sternenkern');
   await page.getByRole('button', { name: 'Zielhinweis schließen' }).click();
   await expect(achievement).toHaveCount(0);
