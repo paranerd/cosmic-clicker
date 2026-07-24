@@ -94,7 +94,7 @@ export const OBJECTIVES: ObjectiveDefinitions = {
   },
   'ignite-hydrogen': {
     eyebrow: 'Nächstes Ziel',
-    title: 'Wasserstoffkern zünden',
+    title: 'Zünde den Wasserstoffkern',
     detail: `Erreiche ${THRESHOLDS.hydrogenTemperature.toLocaleString('de-DE')} K und mindestens ${THRESHOLDS.hydrogenIgnitionMass.toLocaleString('de-DE')} ME Sternmasse durch weitere Verdichtung.`,
     achievementTitle: 'Wasserstofffusion gezündet',
   },
@@ -102,7 +102,7 @@ export const OBJECTIVES: ObjectiveDefinitions = {
   // Ziel für die Wasserstofffusion vor Erreichen der Hauptreihe.
   'stabilize-star': {
     eyebrow: 'Nächstes Ziel',
-    title: 'Hauptreihe erreichen',
+    title: 'Erreiche die Hauptreihe',
     detail: `Fusioniere ${THRESHOLDS.mainSequenceHydrogen.toLocaleString('de-DE')} ME Wasserstoff, damit der Stern die Hauptreihe erreicht.`,
     achievementTitle: 'Hauptreihe erreicht',
   },
