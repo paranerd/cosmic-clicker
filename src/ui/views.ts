@@ -22,6 +22,7 @@ import {
 } from '../content';
 import {
   automationCost,
+  automationValueAtLevel,
   automationSupplyExhausted,
   accretionPerClick,
   cloudDefinition,
@@ -33,6 +34,8 @@ import {
   reactionUpgradeCost,
   starMass,
   upgradeSupplyExhausted,
+  upgradeCost,
+  upgradeValueAtLevel,
 } from '../game/engine';
 import type { CloudTier, ReactionId, Stage, StellarOutcome } from '../game/types';
 import { disabled, formatCompact, formatDuration, formatMatter, formatNumber, formatTemperature, icons, levelPips } from './format';
@@ -105,14 +108,12 @@ export function currentOpportunities(): Record<Panel, string[]> {
   REACTION_ORDER.forEach((id) => {
     if (reactionAvailable(state, id)) reactions.push(`reaction:${id}`);
   });
-  const deuteriumUpgrade = upgradeView('deuteriumBurning');
-  const gravityUpgrade = upgradeView('gravity');
-  if (!deuteriumUpgrade.complete && deuteriumUpgrade.visible && deuteriumUpgrade.unlocked && state.energy >= deuteriumUpgrade.price) {
-    upgrades.push('deuterium-burning');
-  }
-  if (!gravityUpgrade.complete && gravityUpgrade.unlocked && state.energy >= gravityUpgrade.price) {
-    upgrades.push(`gravity:${state.upgrades.gravity}`);
-  }
+  UPGRADE_ORDER.forEach((id) => {
+    const view = upgradeView(id);
+    if (!view.complete && view.visible && view.unlocked && state.energy >= view.price) {
+      upgrades.push(`${id}:${view.level}`);
+    }
+  });
   AUTOMATION_ORDER.forEach((kind) => {
     const definition = AUTOMATIONS[kind];
     const level = state.automation[kind];
@@ -279,9 +280,8 @@ export interface UpgradeView {
 export function upgradeView(id: UpgradeId): UpgradeView {
   const state = getState();
   const definition: UpgradeDefinition = UPGRADES[id];
-  const storedValue = state.upgrades[id];
-  const level = typeof storedValue === 'boolean' ? Number(storedValue) : storedValue;
-  const price = Math.round(definition.cost.base * definition.cost.growth ** level);
+  const level = state.upgrades[id];
+  const price = upgradeCost(id, level);
   const visible = !definition.hiddenStages.includes(state.stage);
   const minimumMassReached = definition.requirements.minimumStarMass === undefined
     || starMass(state) >= definition.requirements.minimumStarMass;
@@ -292,16 +292,8 @@ export function upgradeView(id: UpgradeId): UpgradeView {
   const exhausted = upgradeSupplyExhausted(state, id);
   const complete = level >= definition.maxLevel;
   const unlocked = visible && minimumMassReached && minimumTemperatureReached && !expired && !exhausted;
-  const value = definition.value.kind === 'toggle'
-    ? complete ? definition.value.active : definition.value.inactive
-    : `×${formatNumber(
-      definition.value.base
-      + level * definition.value.perLevel
-      + (definition.value.persistentPerk ? state.perks[definition.value.persistentPerk] : 0)
-        * (definition.value.persistentPerkEffect ?? 0),
-      2,
-    )}`;
-  const detail = complete ? definition.detail.active : definition.detail.inactive;
+  const value = `×${formatNumber(upgradeValueAtLevel(state, id, level), 2)}`;
+  const detail = complete ? definition.value.detail.active : definition.value.detail.inactive;
   const label = complete ? definition.button.complete
     : expired ? definition.button.expired
       : exhausted && definition.supply ? definition.supply.exhaustedLabel
@@ -315,30 +307,18 @@ export function upgradeView(id: UpgradeId): UpgradeView {
   return { id, definition, level, price, visible, unlocked, expired, exhausted, complete, value, detail, label, priority, unlockProgress };
 }
 
-// Punkt 1: Wert der nächsten Ausbaustufe eines Upgrades mit echten Stufen
-// (levelMultiplier). Einmalige Toggle-Upgrades (z. B. Deuteriumbrennen) haben
-// per Definition maxLevel 1 und bekommen diese Zeile gar nicht erst (siehe
-// hasLevels in upgradeCard).
+// Wert der nächsten Ausbaustufe. Alle Upgrades verwenden dieselbe Formel und
+// Darstellung; maxLevel entscheidet allein, wie viele Stufen kaufbar sind.
 function upgradeNextValue(view: UpgradeView): string {
   const { definition, level } = view;
-  if (definition.value.kind !== 'toggle') {
-    const state = getState();
-    const nextLevel = Math.min(definition.maxLevel, level + 1);
-    const perkBonus = (definition.value.persistentPerk ? state.perks[definition.value.persistentPerk] : 0)
-      * (definition.value.persistentPerkEffect ?? 0);
-    return `×${formatNumber(definition.value.base + nextLevel * definition.value.perLevel + perkBonus, 2)}`;
-  }
-  return definition.value.active;
+  const nextLevel = Math.min(definition.maxLevel, level + 1);
+  return `×${formatNumber(upgradeValueAtLevel(getState(), view.id, nextLevel), 2)}`;
 }
 
 function upgradeCard(view: UpgradeView): string {
   const state = getState();
   const { definition, level, price, unlocked, complete } = view;
   const classes = ['upgrade-card', definition.cardClass].filter(Boolean).join(' ');
-  // Punkt 2: Ausbaustufen (Pips) und die Aktuell/Nächste-Stufe-Zeile nur bei
-  // Upgrades mit echten Stufen — einmalige Toggle-Upgrades (maxLevel 1)
-  // bekommen keine der beiden Zeilen.
-  const hasLevels = definition.maxLevel > 1;
   const affordable = !complete && unlocked && state.energy >= price;
   const locked = !complete && !unlocked;
   // Fortschritts-Fill genau wie bei Reaktionen: gesperrt → Fortschritt Richtung
@@ -358,9 +338,9 @@ function upgradeCard(view: UpgradeView): string {
     <article class="${classes}" data-upgrade-card="${view.id}">
       ${tileActionButton({ action: definition.action, complete, unlocked, showLock, affordable, fillPercent, costText: complete ? '' : `${price} E`, ariaLabel })}
       <div class="upgrade-heading"><span class="upgrade-icon">${definition.icon}</span><h3>${definition.title}</h3></div>
-      ${hasLevels ? `<div class="tile-rate"><div><span>Aktuell</span><b>${locked ? '-' : view.value}</b></div><div><span>Nächste Stufe:</span> <b>${complete ? 'Voll ausgebaut' : upgradeNextValue(view)}</b></div></div>` : ''}
+      <div class="tile-rate"><div><span>Aktuell</span><b>${locked ? '-' : view.value}</b></div><div><span>Nächste Stufe:</span> <b>${complete ? 'Voll ausgebaut' : upgradeNextValue(view)}</b></div></div>
       <p>${definition.description}${view.detail ? `<strong>${view.detail}</strong>` : ''}</p>
-      ${hasLevels ? `<div class="level-row" data-levels="${view.id}">${levelPips(level, definition.maxLevel)}</div>` : ''}
+      <div class="level-row" data-levels="${view.id}">${levelPips(level, definition.maxLevel)}</div>
       ${locked ? `<div class="tile-cost" data-upgrade-cost="${view.id}">${view.label}</div>` : ''}
     </article>`;
 }
@@ -372,7 +352,7 @@ export function automationView(kind: AutomationKind) {
   const mastery = automationMastery(kind);
   const rateAt = (nextLevel: number): number => definition.reaction
     ? reactionAutomationPerSecond({ ...state, automation: { ...state.automation, [kind]: nextLevel } }, definition.reaction)
-    : nextLevel * definition.baseRate * (accretionPerClick(state) / ACCRETION.manualBase);
+    : automationValueAtLevel(kind, nextLevel) * (accretionPerClick(state) / ACCRETION.manualBase);
   // Punkt 1: Eine Automation mit versiegter Nachschubquelle (z. B. leere
   // Urwolke) kann nicht weiter ausgebaut werden und zeigt das auch an.
   const exhausted = automationSupplyExhausted(state, kind);

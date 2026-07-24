@@ -53,7 +53,7 @@ export interface AutomationState {
 
 export interface UpgradeState {
   gravity: number;
-  deuteriumBurning: boolean;
+  deuteriumBurning: number;
 }
 
 export interface PerkState {

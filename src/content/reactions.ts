@@ -1,4 +1,5 @@
 import type { ReactionId, Stage } from '../game/types';
+import type { LevelFormula } from './level-formula';
 import type { MatterKey } from './resources';
 import { THRESHOLDS } from './progression';
 
@@ -16,11 +17,11 @@ export interface ReactionDefinition {
   description: string;
   equationInput: string;
   equationOutput: string;
-  manualAmount: number;
-  // Punkt 2: Der manuelle Ausbau gehört zur jeweiligen Reaktion. Gemeinsame
-  // Wachstums- und Bonusfaktoren werden aus den dateiinternen Defaults
-  // übernommen, sind nach außen aber nur über die Reaktion sichtbar.
-  upgrade: { baseCost: number; maxLevel: number; bonusPerLevel: number; costGrowth: number };
+  manualYield: LevelFormula;
+  // Kosten und Ertrag des manuellen Ausbaus liegen vollständig an der
+  // jeweiligen Reaktion und werden mit der universellen Stufenformel
+  // ausgewertet.
+  upgrade: { cost: LevelFormula; maxLevel: number };
   primaryInput: MatterKey;
   // Haupterzeugnis der Reaktion. Es steuert unter anderem das Element-Icon
   // der Karte und bleibt auch bei späteren Reaktionen mit mehreren Produkten
@@ -65,22 +66,14 @@ export const HYDROGEN_TO_HELIUM_RATIO = .993;
 export const HELIUM_TO_CARBON_RATIO = .998;
 export const CARBON_TO_OXYGEN_RATIO = 4 / 3 * .998;
 
-// Punkt 2: Reaktionsausbau direkt auf der Reaktionskarte. Jede Stufe erhöht
-// die MANUELLE Fusionsmenge der Reaktion um bonusPerLevel der Basismenge
-// (linear, wie die Gravitationsstufen); Automationen bleiben unberührt. Die
-// Diese Defaults werden beim Aufbau jeder Reaktion in deren `upgrade`-Objekt
-// kopiert. Sie werden bewusst nicht exportiert: Verbraucher lesen sämtliche
-// Ausbauwerte immer über REACTIONS[id].upgrade.
-const REACTION_UPGRADE_DEFAULTS = {
-  bonusPerLevel: .25,
-  costGrowth: 1.9,
-} as const;
-
 export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
   hydrogen: {
     id: 'hydrogen', title: 'Wasserstofffusion', kicker: 'Proton-Proton-Kette',
     description: 'Wasserstoff verschmilzt zu Helium. Ein kleiner Massendefekt wird zu Energie.',
-    equationInput: '4 H', equationOutput: 'He + γ', manualAmount: 200, upgrade: { ...REACTION_UPGRADE_DEFAULTS, baseCost: 220, maxLevel: 8 }, primaryInput: 'hydrogen', primaryOutput: 'helium',
+    equationInput: '4 H', equationOutput: 'He + γ',
+    manualYield: { baseCost: 200, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 50 },
+    upgrade: { cost: { baseCost: 220, growthFactor: 1.9, quadraticCoefficient: 0, linearCoefficient: 0 }, maxLevel: 8 },
+    primaryInput: 'hydrogen', primaryOutput: 'helium',
     inputs: { hydrogen: 1 }, outputs: { helium: HYDROGEN_TO_HELIUM_RATIO },
     ignitionTemperature: THRESHOLDS.hydrogenTemperature, minimumMass: THRESHOLDS.hydrogenIgnitionMass,
     stageOnUnlock: 'hydrogen', energyBasis: 'input', energyPerUnit: .34, heatPerUnit: 2.4, automation: 'fusion',
@@ -99,7 +92,10 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
   helium: {
     id: 'helium', title: 'Heliumfusion', kicker: 'Triple-Alpha',
     description: 'Drei Heliumkerne verschmelzen zu Kohlenstoff.',
-    equationInput: '3 He', equationOutput: 'C + γ', manualAmount: 300, upgrade: { ...REACTION_UPGRADE_DEFAULTS, baseCost: 420, maxLevel: 8 }, primaryInput: 'helium', primaryOutput: 'carbon',
+    equationInput: '3 He', equationOutput: 'C + γ',
+    manualYield: { baseCost: 300, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 75 },
+    upgrade: { cost: { baseCost: 420, growthFactor: 1.9, quadraticCoefficient: 0, linearCoefficient: 0 }, maxLevel: 8 },
+    primaryInput: 'helium', primaryOutput: 'carbon',
     inputs: { helium: 1 }, outputs: { carbon: HELIUM_TO_CARBON_RATIO },
     ignitionTemperature: THRESHOLDS.heliumTemperature, minimumMass: THRESHOLDS.heliumIgnitionMass,
     stageOnUnlock: 'helium', energyBasis: 'input', energyPerUnit: .52, heatPerUnit: 1.2, automation: 'heliumFusion',
@@ -109,7 +105,10 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
   alphaCapture: {
     id: 'alphaCapture', title: 'Alpha-Einfang', kicker: 'Helium + Kohlenstoff',
     description: 'Ein Kohlenstoffkern fängt Helium ein und wächst zu Sauerstoff.',
-    equationInput: 'C + He', equationOutput: 'O + γ', manualAmount: 180, upgrade: { ...REACTION_UPGRADE_DEFAULTS, baseCost: 720, maxLevel: 8 }, primaryInput: 'carbon', primaryOutput: 'oxygen',
+    equationInput: 'C + He', equationOutput: 'O + γ',
+    manualYield: { baseCost: 180, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 45 },
+    upgrade: { cost: { baseCost: 720, growthFactor: 1.9, quadraticCoefficient: 0, linearCoefficient: 0 }, maxLevel: 8 },
+    primaryInput: 'carbon', primaryOutput: 'oxygen',
     inputs: { carbon: 1, helium: 1 / 3 }, outputs: { oxygen: CARBON_TO_OXYGEN_RATIO },
     ignitionTemperature: THRESHOLDS.heliumTemperature, minimumMass: THRESHOLDS.heliumIgnitionMass,
     stageOnUnlock: 'helium', energyBasis: 'output', energyPerUnit: .68, heatPerUnit: .8, automation: 'oxygenSynthesis',
@@ -122,7 +121,10 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
   carbon: {
     id: 'carbon', title: 'Kohlenstofffusion', kicker: 'Schweres Kernbrennen',
     description: 'Kohlenstoffkerne reagieren und bilden im vereinfachten Netz überwiegend Neon.',
-    equationInput: 'C + C', equationOutput: 'Ne + γ', manualAmount: 150, upgrade: { ...REACTION_UPGRADE_DEFAULTS, baseCost: 1_100, maxLevel: 8 }, primaryInput: 'carbon', primaryOutput: 'neon',
+    equationInput: 'C + C', equationOutput: 'Ne + γ',
+    manualYield: { baseCost: 150, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 37.5 },
+    upgrade: { cost: { baseCost: 1_100, growthFactor: 1.9, quadraticCoefficient: 0, linearCoefficient: 0 }, maxLevel: 8 },
+    primaryInput: 'carbon', primaryOutput: 'neon',
     inputs: { carbon: 1 }, outputs: { neon: .997 },
     ignitionTemperature: THRESHOLDS.carbonTemperature, minimumMass: THRESHOLDS.carbonIgnitionMass,
     stageOnUnlock: 'carbonBurning', energyBasis: 'input', energyPerUnit: .82, heatPerUnit: .65, automation: 'carbonFusion',
@@ -132,7 +134,10 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
   neon: {
     id: 'neon', title: 'Neonfusion', kicker: 'Schweres Kernbrennen',
     description: 'Neon wird durch Photodisintegration und Alpha-Einfang überwiegend zu Sauerstoff umgebaut.',
-    equationInput: 'Ne', equationOutput: 'O + γ', manualAmount: 140, upgrade: { ...REACTION_UPGRADE_DEFAULTS, baseCost: 1_500, maxLevel: 8 }, primaryInput: 'neon', primaryOutput: 'oxygen',
+    equationInput: 'Ne', equationOutput: 'O + γ',
+    manualYield: { baseCost: 140, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 35 },
+    upgrade: { cost: { baseCost: 1_500, growthFactor: 1.9, quadraticCoefficient: 0, linearCoefficient: 0 }, maxLevel: 8 },
+    primaryInput: 'neon', primaryOutput: 'oxygen',
     inputs: { neon: 1 }, outputs: { oxygen: .996 },
     ignitionTemperature: THRESHOLDS.neonTemperature, minimumMass: THRESHOLDS.advancedBurningMass,
     stageOnUnlock: 'neonBurning', energyBasis: 'input', energyPerUnit: .94, heatPerUnit: .55, automation: 'neonFusion',
@@ -142,7 +147,10 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
   oxygen: {
     id: 'oxygen', title: 'Sauerstofffusion', kicker: 'Schweres Kernbrennen',
     description: 'Sauerstoffkerne verschmelzen im vereinfachten Netz zu Silizium.',
-    equationInput: 'O + O', equationOutput: 'Si + γ', manualAmount: 120, upgrade: { ...REACTION_UPGRADE_DEFAULTS, baseCost: 2_000, maxLevel: 8 }, primaryInput: 'oxygen', primaryOutput: 'silicon',
+    equationInput: 'O + O', equationOutput: 'Si + γ',
+    manualYield: { baseCost: 120, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 30 },
+    upgrade: { cost: { baseCost: 2_000, growthFactor: 1.9, quadraticCoefficient: 0, linearCoefficient: 0 }, maxLevel: 8 },
+    primaryInput: 'oxygen', primaryOutput: 'silicon',
     inputs: { oxygen: 1 }, outputs: { silicon: .995 },
     ignitionTemperature: THRESHOLDS.oxygenTemperature, minimumMass: THRESHOLDS.advancedBurningMass,
     stageOnUnlock: 'oxygenBurning', energyBasis: 'input', energyPerUnit: 1.08, heatPerUnit: .45, automation: 'oxygenFusion',
@@ -152,7 +160,10 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
   silicon: {
     id: 'silicon', title: 'Siliziumfusion', kicker: 'Letzte exotherme Brennstufe',
     description: 'Eine Folge von Reaktionen baut Silizium bis zur Eisengruppe um.',
-    equationInput: 'Si', equationOutput: 'Fe-Gruppe', manualAmount: 100, upgrade: { ...REACTION_UPGRADE_DEFAULTS, baseCost: 2_550, maxLevel: 8 }, primaryInput: 'silicon', primaryOutput: 'iron',
+    equationInput: 'Si', equationOutput: 'Fe-Gruppe',
+    manualYield: { baseCost: 100, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 25 },
+    upgrade: { cost: { baseCost: 2_550, growthFactor: 1.9, quadraticCoefficient: 0, linearCoefficient: 0 }, maxLevel: 8 },
+    primaryInput: 'silicon', primaryOutput: 'iron',
     inputs: { silicon: 1 }, outputs: { iron: .994 },
     ignitionTemperature: THRESHOLDS.siliconTemperature, minimumMass: THRESHOLDS.advancedBurningMass,
     stageOnUnlock: 'siliconBurning', energyBasis: 'input', energyPerUnit: 1.2, heatPerUnit: .3, automation: 'siliconFusion',

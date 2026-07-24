@@ -1,4 +1,5 @@
 import type { Matter } from '../game/types';
+import { prestigePerkValue } from './prestige';
 import { THRESHOLDS } from './progression';
 
 // Wolkenwachstum (Umbau): Statt fester Wolkenstufen (0/1/2) wächst die Urwolke
@@ -8,7 +9,6 @@ import { THRESHOLDS } from './progression';
 // abgeleitet (kein Sonderfall mehr für die kleinste Wolke).
 export const CLOUD_GROWTH = {
   baseSolarMasses: .07,
-  growthFactorPerLevel: 2,
   heliumMassFraction: .25,
   deuteriumMassFraction: .001,
   // Akkretionsbonus kalibriert auf die früheren Referenzpunkte "stellare"
@@ -60,7 +60,7 @@ export const cloudExpectedOutcome = (solarMasses: number): string => {
 };
 
 export const cloudSolarMasses = (level: number): number =>
-  CLOUD_GROWTH.baseSolarMasses * CLOUD_GROWTH.growthFactorPerLevel ** Math.max(0, level);
+  CLOUD_GROWTH.baseSolarMasses * prestigePerkValue('largerCloud', level);
 
 export const cloudMassForLevel = (level: number): number => cloudSolarMasses(level) * THRESHOLDS.matterPerSolarMass;
 

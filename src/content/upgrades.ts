@@ -1,5 +1,6 @@
 import type { LogEntry, PerkState, RunStatistics, Stage, UpgradeState } from '../game/types';
-import { ACCRETION, TEMPERATURE_MODEL, THRESHOLDS } from './progression';
+import type { LevelFormula } from './level-formula';
+import { THRESHOLDS } from './progression';
 
 export type UpgradeId = keyof UpgradeState;
 
@@ -11,13 +12,11 @@ export type UpgradeId = keyof UpgradeState;
 // damit die Temperatur nicht rückwirkend springt).
 export interface UpgradePurchaseDefinition {
   effect?: 'captureCompressionBaseline';
-  log?: { text: string; kind: LogEntry['kind'] };
+  log?: {
+    text: string;
+    kind: LogEntry['kind'];
+  };
   statCounter?: keyof RunStatistics;
-}
-
-interface UpgradeCostDefinition {
-  base: number;
-  growth: number;
 }
 
 interface UpgradeRequirements {
@@ -26,21 +25,17 @@ interface UpgradeRequirements {
   maximumTemperature?: number;
 }
 
-type UpgradeValueDefinition = {
-  kind: 'levelMultiplier';
-  base: number;
-  perLevel: number;
+interface UpgradeValueDefinition {
+  formula: LevelFormula;
   persistentPerk?: keyof PerkState;
-  persistentPerkEffect?: number;
-} | {
-  kind: 'toggle';
-  inactive: string;
-  active: string;
-};
+  detail: {
+    inactive: string;
+    active: string;
+  };
+}
 
 export interface UpgradeDefinition {
   id: UpgradeId;
-  mode: 'repeatable' | 'single';
   title: string;
   icon: string;
   description: string;
@@ -48,19 +43,25 @@ export interface UpgradeDefinition {
   cardClass?: string;
   hiddenStages: readonly Stage[];
   requirements: UpgradeRequirements;
-  supply?: { kind: 'cloudMatter'; exhaustedLabel: string };
-  cost: UpgradeCostDefinition;
+  supply?: {
+    kind: 'cloudMatter';
+    exhaustedLabel: string;
+  };
+  cost: LevelFormula;
   maxLevel: number;
   value: UpgradeValueDefinition;
-  detail: { inactive: string; active: string };
-  button: { purchase: string; locked: string; expired: string; complete: string };
+  button: {
+    purchase: string;
+    locked: string;
+    expired: string;
+    complete: string;
+  };
   purchase?: UpgradePurchaseDefinition;
 }
 
 export const UPGRADES = {
   gravity: {
     id: 'gravity',
-    mode: 'repeatable',
     title: 'Gravitative Verdichtung',
     icon: 'G',
     description: 'Erhöht die eingesammelte Materie pro Klick und pro Sekunde.',
@@ -68,22 +69,39 @@ export const UPGRADES = {
     cardClass: 'featured',
     hiddenStages: [],
     requirements: {},
-    supply: { kind: 'cloudMatter', exhaustedLabel: 'Urwolke erschöpft' },
-    cost: { base: 3, growth: 2.5 },
-    maxLevel: 5,
-    value: {
-      kind: 'levelMultiplier',
-      base: 1,
-      perLevel: ACCRETION.gravityBonusPerLevel,
-      persistentPerk: 'permanentGravity',
-      persistentPerkEffect: ACCRETION.permanentGravityBonusPerLevel,
+    supply: {
+      kind: 'cloudMatter',
+      exhaustedLabel: 'Urwolke erschöpft',
     },
-    detail: { inactive: '', active: '' },
-    button: { purchase: 'Verdichten', locked: 'Verdichten', expired: 'Phase beendet', complete: 'Maximum' },
+    cost: {
+      baseCost: 3,
+      growthFactor: 2.5,
+      quadraticCoefficient: 0,
+      linearCoefficient: 0,
+    },
+    maxLevel: 10,
+    value: {
+      formula: {
+        baseCost: 1,
+        growthFactor: 1,
+        quadraticCoefficient: 0,
+        linearCoefficient: 2,
+      },
+      persistentPerk: 'permanentGravity',
+      detail: {
+        inactive: '',
+        active: '',
+      },
+    },
+    button: {
+      purchase: 'Verdichten',
+      locked: 'Verdichten',
+      expired: 'Phase beendet',
+      complete: 'Maximum',
+    },
   },
   deuteriumBurning: {
     id: 'deuteriumBurning',
-    mode: 'single',
     title: 'Deuteriumbrennen',
     icon: 'D',
     description: 'Beschleunigt die kompressionsbedingte Erwärmung um 35 %. Der Effekt endet beim Freischalten der Wasserstofffusion.',
@@ -95,20 +113,43 @@ export const UPGRADES = {
       minimumTemperature: THRESHOLDS.deuteriumTemperature,
       maximumTemperature: THRESHOLDS.hydrogenTemperature,
     },
-    cost: { base: 75, growth: 1 },
+    cost: {
+      baseCost: 75,
+      growthFactor: 1,
+      quadraticCoefficient: 0,
+      linearCoefficient: 0,
+    },
     maxLevel: 1,
-    value: { kind: 'toggle', inactive: 'inaktiv', active: '×1,35' },
-    detail: { inactive: 'Einmaliges Upgrade für die Protosternphase', active: 'Erwärmung beschleunigt' },
-    button: { purchase: 'Aktivieren', locked: 'Ab 1 Mio. K', expired: 'Phase beendet', complete: 'Aktiv' },
+    value: {
+      formula: {
+        baseCost: 1,
+        growthFactor: 1,
+        quadraticCoefficient: 0,
+        linearCoefficient: .35,
+      },
+      detail: {
+        inactive: 'Einmaliges Upgrade für die Protosternphase',
+        active: 'Erwärmung beschleunigt',
+      },
+    },
+    button: {
+      purchase: 'Aktivieren',
+      locked: 'Ab 1 Mio. K',
+      expired: 'Phase beendet',
+      complete: 'Aktiv',
+    },
     purchase: {
       effect: 'captureCompressionBaseline',
-      log: { text: 'Deuteriumbrennen beschleunigt ab jetzt die weitere Kompressionswärme.', kind: 'fusion' },
+      log: {
+        text: 'Deuteriumbrennen beschleunigt ab jetzt die weitere Kompressionswärme.',
+        kind: 'fusion',
+      },
       statCounter: 'deuteriumBurns',
     },
   },
 } as const satisfies Record<UpgradeId, UpgradeDefinition>;
 
-export const UPGRADE_ORDER = ['gravity', 'deuteriumBurning'] as const satisfies readonly UpgradeId[];
-
-export const DEUTERIUM_UPGRADE_COST = UPGRADES.deuteriumBurning.cost.base;
-export const DEUTERIUM_TEMPERATURE_MULTIPLIER = TEMPERATURE_MODEL.deuteriumMultiplier;
+export const UPGRADE_ORDER = [
+  'gravity',
+  'deuteriumBurning',
+] as const satisfies readonly UpgradeId[];

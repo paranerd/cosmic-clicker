@@ -1,4 +1,4 @@
-import { OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS } from '../content';
+import { OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS, prestigePerkDescription } from '../content';
 import { cloudDefinition, cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost, starMass } from '../game/engine';
 import { setDebugOpen, syncDebug } from './debug';
 import { disabled, formatDuration, formatMatter, formatSolarMasses, icons } from './format';
@@ -81,6 +81,9 @@ export function syncOverlay(): void {
   const cloudMax = previewPerks.largerCloud >= PRESTIGE_PERKS.largerCloud.maxLevel;
   const gravityMax = previewPerks.permanentGravity >= PRESTIGE_PERKS.permanentGravity.maxLevel;
   const fusionMax = previewPerks.fusionMemory >= PRESTIGE_PERKS.fusionMemory.maxLevel;
+  const cloudDescription = prestigePerkDescription('largerCloud', previewPerks.largerCloud);
+  const gravityDescription = prestigePerkDescription('permanentGravity', previewPerks.permanentGravity);
+  const fusionDescription = prestigePerkDescription('fusionMemory', previewPerks.fusionMemory);
   const showPerkAttention = summaryAttentionRun !== state.run;
   const cloudAttention = showPerkAttention && !cloudMax && state.stardust >= cloudCost ? 'perk-attention' : '';
   const gravityAttention = showPerkAttention && !gravityMax && state.stardust >= gravityCostValue ? 'perk-attention' : '';
@@ -102,9 +105,9 @@ export function syncOverlay(): void {
       <div class="summary-detail"><div class="summary-section-title"><span>Rundenauswertung</span><small>ZYKLUS ${state.run.toString().padStart(2, '0')}</small></div><div class="run-stat-grid compact">${statsGridMarkup()}</div></div>
       <div class="summary-legacy"><div class="summary-section-title"><span>Vermächtnis wählen</span><small>DAUERHAFTE EFFEKTE</small></div>
         <div class="summary-perk-grid">
-          <article class="${cloudAttention} ${state.pendingPerks.largerCloud ? 'has-selection' : ''}"><span class="perk-orbit">01</span><div><h3>${PRESTIGE_PERKS.largerCloud.title}</h3><p>${PRESTIGE_PERKS.largerCloud.description}</p><strong>Stufe ${previewPerks.largerCloud}${state.pendingPerks.largerCloud ? ` · +${state.pendingPerks.largerCloud} gewählt` : ''}</strong></div>${perkControls('cloud', PRESTIGE_PERKS.largerCloud.title, state.pendingPerks.largerCloud, cloudMax, cloudCost)}</article>
-          <article class="${gravityAttention} ${state.pendingPerks.permanentGravity ? 'has-selection' : ''}"><span class="perk-orbit">02</span><div><h3>${PRESTIGE_PERKS.permanentGravity.title}</h3><p>${PRESTIGE_PERKS.permanentGravity.description}</p><strong>Stufe ${previewPerks.permanentGravity}${state.pendingPerks.permanentGravity ? ` · +${state.pendingPerks.permanentGravity} gewählt` : ''}</strong></div>${perkControls('gravity', PRESTIGE_PERKS.permanentGravity.title, state.pendingPerks.permanentGravity, gravityMax, gravityCostValue)}</article>
-          <article class="${fusionAttention} ${state.pendingPerks.fusionMemory ? 'has-selection' : ''}"><span class="perk-orbit">03</span><div><h3>${PRESTIGE_PERKS.fusionMemory.title}</h3><p>${PRESTIGE_PERKS.fusionMemory.description}</p><strong>Stufe ${previewPerks.fusionMemory}${state.pendingPerks.fusionMemory ? ` · +${state.pendingPerks.fusionMemory} gewählt` : ''}</strong></div>${perkControls('fusion', PRESTIGE_PERKS.fusionMemory.title, state.pendingPerks.fusionMemory, fusionMax, fusionCostValue)}</article>
+          <article class="${cloudAttention} ${state.pendingPerks.largerCloud ? 'has-selection' : ''}"><span class="perk-orbit">01</span><div><h3>${PRESTIGE_PERKS.largerCloud.title}</h3><p>${cloudDescription}</p><strong>Stufe ${previewPerks.largerCloud}${state.pendingPerks.largerCloud ? ` · +${state.pendingPerks.largerCloud} gewählt` : ''}</strong></div>${perkControls('cloud', PRESTIGE_PERKS.largerCloud.title, state.pendingPerks.largerCloud, cloudMax, cloudCost)}</article>
+          <article class="${gravityAttention} ${state.pendingPerks.permanentGravity ? 'has-selection' : ''}"><span class="perk-orbit">02</span><div><h3>${PRESTIGE_PERKS.permanentGravity.title}</h3><p>${gravityDescription}</p><strong>Stufe ${previewPerks.permanentGravity}${state.pendingPerks.permanentGravity ? ` · +${state.pendingPerks.permanentGravity} gewählt` : ''}</strong></div>${perkControls('gravity', PRESTIGE_PERKS.permanentGravity.title, state.pendingPerks.permanentGravity, gravityMax, gravityCostValue)}</article>
+          <article class="${fusionAttention} ${state.pendingPerks.fusionMemory ? 'has-selection' : ''}"><span class="perk-orbit">03</span><div><h3>${PRESTIGE_PERKS.fusionMemory.title}</h3><p>${fusionDescription}</p><strong>Stufe ${previewPerks.fusionMemory}${state.pendingPerks.fusionMemory ? ` · +${state.pendingPerks.fusionMemory} gewählt` : ''}</strong></div>${perkControls('fusion', PRESTIGE_PERKS.fusionMemory.title, state.pendingPerks.fusionMemory, fusionMax, fusionCostValue)}</article>
         </div>
         <div class="cloud-selection"><div class="summary-section-title"><span>Nächste Urwolke</span><small>${cloudDefinition(state.nextCloudTier).description}</small></div>${cloudSelector}</div>
       </div>

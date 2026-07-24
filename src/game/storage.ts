@@ -1,15 +1,16 @@
-import { CLOUD_GROWTH, EMPTY_MATTER, LIMITS, MATTER_KEYS, PRESTIGE_PERKS, REACTIONS, REACTION_ORDER, THRESHOLDS } from '../content';
+import { cloudMassForLevel, EMPTY_MATTER, LIMITS, MATTER_KEYS, PRESTIGE_PERKS, REACTIONS, REACTION_ORDER, UPGRADES, UPGRADE_ORDER } from '../content';
 import { compressionHeat, createInitialState, createRunStatistics, tick } from './engine';
-import type { CloudTier, GameState, LogEntry, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState } from './types';
+import type { CloudTier, GameState, LogEntry, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState, UpgradeState } from './types';
 
 const SAVE_KEY = 'cosmic-clicker-save-v1';
-type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star' | 'perks' | 'pendingPerks' | 'history' | 'tutorial' | 'log'>> & {
+type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star' | 'perks' | 'pendingPerks' | 'upgrades' | 'history' | 'tutorial' | 'log'>> & {
   version?: number;
   stage?: Stage | 'stable';
   cloud?: Partial<Matter>;
   star?: Partial<Matter>;
   perks?: Partial<PerkState>;
   pendingPerks?: Partial<PerkState>;
+  upgrades?: Partial<Record<keyof UpgradeState, number | boolean>>;
   history?: Partial<RoundRecord>[];
   tutorial?: Partial<TutorialState>;
   log?: Partial<LogEntry>[];
@@ -18,15 +19,33 @@ type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star'
 const normalizeMatter = (matter?: Partial<Matter>): Matter => ({ ...EMPTY_MATTER, ...matter });
 const matterTotal = (matter: Matter): number => MATTER_KEYS.reduce((sum, key) => sum + matter[key], 0);
 const isCloudTier = (value: unknown): value is CloudTier => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+const normalizeUpgradeLevels = (saved?: SavedState['upgrades']): UpgradeState =>
+  Object.fromEntries(UPGRADE_ORDER.map((id) => {
+    const rawLevel = saved?.[id];
+    const numericLevel = typeof rawLevel === 'boolean' ? Number(rawLevel) : rawLevel ?? 0;
+    const level = Number.isFinite(numericLevel)
+      ? Math.max(0, Math.min(UPGRADES[id].maxLevel, Math.floor(numericLevel)))
+      : 0;
+    return [id, level];
+  })) as unknown as UpgradeState;
 
 // Ältere Spielstände kennen keine Wolkenwachstums-Stufe (nur die feste
 // 0/1/2-Wolkenstufe oder gar keine). Die Stufe wird aus der ursprünglichen
-// Gesamtmasse zurückgerechnet, konsistent mit der Verdopplung pro Perk-Stufe.
+// Gesamtmasse zurückgerechnet. Der Vergleich verwendet dieselbe universelle
+// Stufenformel wie neue Wolken und bleibt dadurch auch bei späterem
+// Rebalancing der Wolkenkurve korrekt.
 const inferCloudTier = (cloud: Matter, star: Matter): CloudTier => {
   const initialMatter = matterTotal(cloud) + matterTotal(star);
-  const baseMatter = CLOUD_GROWTH.baseSolarMasses * THRESHOLDS.matterPerSolarMass;
-  if (initialMatter <= baseMatter) return 0;
-  return Math.max(0, Math.round(Math.log(initialMatter / baseMatter) / Math.log(CLOUD_GROWTH.growthFactorPerLevel)));
+  let closestLevel = 0;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  for (let level = 0; level <= PRESTIGE_PERKS.largerCloud.maxLevel; level += 1) {
+    const distance = Math.abs(initialMatter - cloudMassForLevel(level));
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestLevel = level;
+    }
+  }
+  return closestLevel;
 };
 
 const normalizeOutcome = (value: unknown, legacyCompleted: boolean): StellarOutcome | null => {
@@ -54,6 +73,7 @@ export const normalizeGameState = (value: unknown): GameState | null => {
   };
   const unlockedTier = Math.min(PRESTIGE_PERKS.largerCloud.maxLevel, perks.largerCloud + pendingPerks.largerCloud) as CloudTier;
   const nextCloudTier = isCloudTier(parsed.nextCloudTier) && parsed.nextCloudTier <= unlockedTier ? parsed.nextCloudTier : unlockedTier;
+  const upgrades = normalizeUpgradeLevels(parsed.upgrades);
   const fallback = createInitialState(perks, parsed.stardust, parsed.run, { cloudTier, nextCloudTier });
   const legacyCompleted = Boolean(parsed.completed);
   const outcome = normalizeOutcome(parsed.outcome, legacyCompleted && parsed.version !== 4);
@@ -136,7 +156,7 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     perks,
     pendingPerks,
     automation: { ...fallback.automation, ...parsed.automation },
-    upgrades: { ...fallback.upgrades, ...parsed.upgrades },
+    upgrades,
     tutorial: migratedTutorial,
     stats,
     contractionHeat: typeof parsed.contractionHeat === 'number' ? parsed.contractionHeat : 0,
@@ -157,7 +177,7 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     seenObjectives: Array.isArray(parsed.seenObjectives) ? parsed.seenObjectives : [],
     log: normalizedLog,
   } as GameState;
-  if (normalized.upgrades.deuteriumBurning && normalized.deuteriumIgnitionCompression === null) {
+  if (normalized.upgrades.deuteriumBurning > 0 && normalized.deuteriumIgnitionCompression === null) {
     normalized.deuteriumIgnitionCompression = compressionHeat(normalized);
   }
   return normalized;

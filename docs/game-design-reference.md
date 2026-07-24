@@ -264,8 +264,8 @@ unverhältnismäßig langen Klickphasen führen.
 | Automatische Akkretion | 1 ME/s je Akkretionsstufe |
 | Energie je akkretiertem ME | 0,018 |
 | Bonus je Gravitationsstufe | +200 % des Basiswerts |
-| Permanenter Bonus je Gravitations-Perk | +12 % |
-| Maximalstufe Gravitation | 5 |
+| Permanenter Gravitationsmultiplikator | ×2,35 bis ×8,2281303609 (Stufe 1–10) |
+| Maximalstufe Gravitation | 10 |
 | Maximalstufe Akkretionsstrom | 8 |
 
 Ein Basisklick erzeugt zu Rundenbeginn `1 × 0,018 = 0,018` Energie.
@@ -273,9 +273,22 @@ Ein Basisklick erzeugt zu Rundenbeginn `1 × 0,018 = 0,018` Energie.
 ### Formeln
 
 ```text
+Stufenwert(L)
+  = Basiswert × Wachstumsfaktor^L
+    + quadratischer Koeffizient × L²
+    + linearer Koeffizient × L
+
 Gravitationsmultiplikator
-  = 1 + 2 × Gravitationsstufe
-      + 0,12 × permanentes Gravitationsgedächtnis
+  = Stufenwert der Gravitativen Verdichtung
+    × Prestige-Multiplikator
+
+Gravitative Verdichtung:
+  Basiswert = 1, Wachstumsfaktor = 1,
+  quadratisch = 0, linear = 2
+
+Gravitatives Gedächtnis:
+  Basiswert = 1, Wachstumsfaktor = 1,2074,
+  quadratisch = −0,1086911283, linear = 1,2512911283
 
 Materie pro Klick
   = 1 × Reife-Akkretion × Gravitationsmultiplikator
@@ -414,12 +427,17 @@ Fusionsgedächtnis.
 
 ```text
 Manuelle Menge
-  = Basismenge × (1 + 0,25 × Ausbaustufe)
-    × (1 + 0,15 × Fusionsgedächtnis)
+  = Stufenwert(Ausbaustufe)
+    × Stufenwert(Fusionsgedächtnis)
 
 Kosten der nächsten Stufe
-  = runden(Basiskosten × 1,9^aktuelleStufe)
+  = runden(Stufenwert(aktuelleStufe))
 ```
+
+Die manuellen Ertragskurven verwenden `Wachstumsfaktor = 1`,
+`quadratisch = 0` und einen linearen Koeffizienten von 25 % der jeweiligen
+Basismenge. Die Kostenkurven verwenden `Wachstumsfaktor = 1,9` und keine
+linearen oder quadratischen Anteile.
 
 | Reaktion | Basiskosten | Maximum |
 | --- | ---: | ---: |
@@ -455,10 +473,9 @@ Hauptreihe deutlich schneller, aber nicht um astronomisch unspielbare Faktoren.
 
 | Eigenschaft | Wert |
 | --- | --- |
-| Typ | wiederholbar |
 | Erste Stufe | 3 Energie |
 | Kostenwachstum | ×2,5 |
-| Maximum | 5 |
+| Maximum | 10 |
 | Wirkung | +200 % des jeweiligen Basiswerts auf aktive und automatische Akkretion je Stufe |
 | Sichtbarkeit | von Beginn an |
 | Ende | kein weiterer Kauf bei leerer Urwolke |
@@ -469,8 +486,8 @@ Kostenfolge durch Rundung: 3, 8, 19, 47, 117 Energie.
 
 | Eigenschaft | Wert |
 | --- | --- |
-| Typ | einmalig |
 | Kosten | 75 Energie |
+| Maximum | 1 |
 | Voraussetzung | ≥ 2.544 ME und ≥ 1 Mio. K |
 | Ablaufgrenze | < 10 Mio. K |
 | Wirkung | ×1,35 auf weitere Kompressionswärme |
@@ -482,6 +499,11 @@ Kaufwirkung, Statistikzähler und Logeintrag stehen in der Upgrade-Definition.
 Die Engine kennt nur generische Kaufregeln und ein kleines Register benannter
 Sonderwirkungen. Neue Upgrades erfordern dadurch möglichst keine neue
 Verzweigung im Spielkern.
+
+Alle Upgrades besitzen denselben numerischen Levelzustand, dieselbe
+Wertformel und dieselbe Kacheldarstellung. Ein Upgrade ist ausschließlich
+dann nur einmal kaufbar, wenn seine Definition `maxLevel: 1` setzt; ein
+separater Typ oder Modus existiert nicht.
 
 ## 10. Automationen
 
@@ -500,13 +522,16 @@ Verzweigung im Spielkern.
 Für Reaktionsautomationen:
 
 ```text
-Rate(L) = L × Basisrate × (1 + 0,08 × L)
+Rate(L)
+  = 0 × 1^L
+    + (0,08 × Basisrate) × L²
+    + Basisrate × L
 ```
 
 Für den Akkretionsstrom ist der Wachstumsanteil 0:
 
 ```text
-Rate(L) = L × 1 ME/s × Akkretionsmultiplikatoren
+Rate(L) = (0 + 1 × L) × Akkretionsmultiplikatoren
 ```
 
 ### Werte
@@ -537,8 +562,12 @@ pro Sekunde“ explizit unterschieden werden.
 Kosten:
 
 ```text
-Nächste Kosten = runden(Basiskosten × Kostenwachstum^aktuelleStufe)
+Nächste Kosten = runden(Stufenwert(aktuelleStufe))
 ```
+
+Die Kostenparameter liegen an jeder Automation. Dabei entspricht der
+Basiswert den Basiskosten, der Wachstumsfaktor dem Tabellenwert und die
+linearen sowie quadratischen Koeffizienten sind 0.
 
 ## 11. Sternwind und Massenverlust
 
@@ -649,7 +678,7 @@ nicht direkt von Verwaltungsoptionen überdeckt.
 | Perk | Wirkung pro Stufe | Kosten für Stufe `L` | Maximum |
 | --- | --- | --- | ---: |
 | Wolkenmasse | +100 %, also Verdopplung | `2 + 3L` | 24 |
-| Gravitatives Gedächtnis | +12 % Akkretionsrate | `2 + 2L` | 5 |
+| Gravitatives Gedächtnis | Stufe 1 ×2,35; danach schwächer werdende Zuwächse bis ×8,228 auf Stufe 10 | `2 + 2L` | 10 |
 | Fusionsgedächtnis | +15 % manuelle und gekaufte automatische Fusion | `3 + 3L` | 5 |
 
 Das Maximum 24 der Wolkenmasse ist eine technische Schutzgrenze, keine
@@ -1287,6 +1316,7 @@ Legacy-Hauptreihenabschlüsse bleiben als Historieneintrag erhalten.
 
 - Namen und Texte
 - Kosten und Raten
+- Parameter der universellen Stufenformel
 - Limits und Schwellen
 - Zünd- und Freischaltbedingungen
 - Reaktionsprodukte
@@ -1305,9 +1335,10 @@ Die UI liest dieselben Definitionen und dupliziert keine Balancewerte.
 ### Eigentümerschaft von Werten
 
 - Upgrade-Limits stehen am Upgrade.
-- Automationswerte stehen an der Automation.
-- Reaktionsausbau steht an der Reaktion.
-- Prestige-Limits stehen am Perk.
+- Upgrade-Kosten und -Erträge stehen am Upgrade.
+- Automationskosten und -erträge stehen an der Automation.
+- Kosten und Erträge des Reaktionsausbaus stehen an der Reaktion.
+- Prestige-Kosten, -Erträge und Limits stehen am Perk.
 - Stadien besitzen ihre Windregeln.
 - Reaktionen besitzen ihre Ziel- und Erfolgstexte.
 - Globale Konstanten bleiben nur für systemübergreifende Regeln.

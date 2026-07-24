@@ -62,14 +62,14 @@ export const OBJECTIVES: ObjectiveDefinitions = {
   'generate-first-energy': {
     target: 1,
     eyebrow: 'Nächstes Ziel',
-    title: 'Erzeuge 1 Energie',
+    title: 'Erzeuge 1 MeV Energie',
     detail: 'Sammle weiter Materie. Ihre Verdichtung setzt nach und nach Energie frei.',
     achievementTitle: 'Erste Energie erzeugt',
   },
   'generate-upgrade-energy': {
     target: 3,
     eyebrow: 'Nächstes Ziel',
-    title: 'Erzeuge 3 Energie',
+    title: 'Erzeuge 3 MeV Energie',
     detail: 'Sammle genügend Materie, um dein erstes Upgrade freizuschalten.',
     achievementTitle: 'Erstes Upgrade verfügbar',
   },

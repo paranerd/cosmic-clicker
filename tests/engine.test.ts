@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { achievementTitleFor, AUTOMATIONS, CLOUD_GROWTH, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, OBJECTIVES, REACTIONS, REACTION_ORDER, STAGES, THRESHOLDS, TUTORIAL_STEPS } from '../src/content';
+import { achievementTitleFor, CLOUD_GROWTH, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, OBJECTIVES, prestigePerkDescription, REACTIONS, REACTION_ORDER, STAGES, THRESHOLDS, TUTORIAL_STEPS, upgradeCost as calculateLevelValue } from '../src/content';
 import type { Stage } from '../src/game/types';
 import {
   accretionPerClick,
   accretionPerSecond,
   automationCost,
+  automationValueAtLevel,
   calculateTemperature,
   cloudMass,
   createInitialState,
+  gravityMultiplier,
   objectiveFor,
   reactionAvailable,
   reactionCapacity,
+  reactionManualAmountAtLevel,
   reactionUpgradeCost,
   reduceGame,
   shellWindPerSecond,
@@ -94,6 +97,16 @@ const mainSequenceDurationSeconds = (targetSolarMasses: number, guardSeconds = 2
 };
 
 describe('data-driven stellar engine v0.4', () => {
+  it('uses one formula for linear, quadratic and exponential level curves', () => {
+    expect([0, 1, 2].map((level) => calculateLevelValue(level, 10, 1.12))).toEqual([
+      10,
+      11.200000000000001,
+      12.544000000000002,
+    ]);
+    expect([0, 1, 2, 3].map((level) => calculateLevelValue(level, 0, 1, 0, 5))).toEqual([0, 5, 10, 15]);
+    expect([0, 1, 2, 3, 4].map((level) => calculateLevelValue(level, 3, 1, .5, .5))).toEqual([3, 4, 6, 9, 13]);
+  });
+
   it('doubles the cloud size with every purchased Wolkenwachstum level from a calibrated 0.07 solar-mass base', () => {
     const small = createInitialState();
     const oneLevelUp = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
@@ -120,7 +133,7 @@ describe('data-driven stellar engine v0.4', () => {
     state.energy = 100;
     const before = state.temperature;
     const upgraded = reduceGame(state, { type: 'BUY_UPGRADE', upgrade: 'deuteriumBurning' });
-    expect(upgraded.upgrades.deuteriumBurning).toBe(true);
+    expect(upgraded.upgrades.deuteriumBurning).toBe(1);
     expect(upgraded.temperature).toBeCloseTo(before, 5);
     const normalNext = reduceGame(state, { type: 'ACCRETE' });
     const upgradedNext = reduceGame(upgraded, { type: 'ACCRETE' });
@@ -152,12 +165,50 @@ describe('data-driven stellar engine v0.4', () => {
 
   it('unlocks the first accretion stream for 25 energy at a slow base rate', () => {
     expect(automationCost('accretion', 0)).toBe(25);
-    expect(AUTOMATIONS.accretion.baseRate).toBe(1);
+    expect(automationValueAtLevel('accretion', 1)).toBe(1);
 
     const state = createInitialState();
     state.upgrades.gravity = 3;
     state.automation.accretion = 1;
     expect(accretionPerSecond(state)).toBe(7);
+  });
+
+  it('uses the universal configurable curve for all ten gravity prestige levels', () => {
+    const state = createInitialState();
+    state.upgrades.gravity = 2;
+    state.automation.accretion = 1;
+    const baseClick = accretionPerClick(state);
+    const baseAutomatic = accretionPerSecond(state);
+
+    const expectedPrestigeMultipliers = [
+      1,
+      2.35,
+      3.5256325033403453,
+      4.535818771245036,
+      5.39133033451593,
+      6.105172739443188,
+      6.693048882617556,
+      7.173918441382695,
+      7.570673330163343,
+      7.910953246435928,
+      8.228130360933495,
+    ];
+    expectedPrestigeMultipliers.forEach((expected, level) => {
+      state.perks.permanentGravity = level;
+      expect(gravityMultiplier(state)).toBeCloseTo(5 * expected, 10);
+      expect(accretionPerClick(state)).toBeCloseTo(baseClick * expected, 10);
+      expect(accretionPerSecond(state)).toBeCloseTo(baseAutomatic * expected, 10);
+    });
+    expect(prestigePerkDescription('permanentGravity', 0)).toContain('+135% Akkretionsrate');
+    expect(prestigePerkDescription('permanentGravity', 1)).toContain('+50% Akkretionsrate');
+    expect(prestigePerkDescription('permanentGravity', 10)).toBe('Maximum erreicht.');
+
+    state.perks.permanentGravity = 1;
+    state.completed = true;
+    state.outcome = 'brownDwarf';
+    const nextCycle = reduceGame(state, { type: 'PRESTIGE' });
+    expect(nextCycle.perks.permanentGravity).toBe(1);
+    expect(accretionPerClick(nextCycle)).toBeCloseTo(2.35, 10);
   });
 
   it('provides achievement text for every static and generated objective', () => {
@@ -348,7 +399,10 @@ describe('data-driven stellar engine v0.4', () => {
 
     firstMatter.stats.energyGenerated = OBJECTIVES['generate-first-energy'].target;
     firstMatter.energy = OBJECTIVES['generate-first-energy'].target;
-    expect(objectiveFor(firstMatter)).toMatchObject({ id: 'generate-upgrade-energy', title: 'Erzeuge 3 Energie' });
+    expect(objectiveFor(firstMatter)).toMatchObject({
+      id: 'generate-upgrade-energy',
+      title: OBJECTIVES['generate-upgrade-energy'].title,
+    });
 
     firstMatter.stats.energyGenerated = OBJECTIVES['generate-upgrade-energy'].target;
     firstMatter.energy = OBJECTIVES['generate-upgrade-energy'].target;
@@ -412,13 +466,13 @@ describe('data-driven stellar engine v0.4', () => {
     const state = reactionState('hydrogen', 100_000);
     state.energy = 10_000;
     const baseline = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
-    expect(baseline.reactionTotals.hydrogen).toBeCloseTo(REACTIONS.hydrogen.manualAmount, 5);
+    expect(baseline.reactionTotals.hydrogen).toBeCloseTo(reactionManualAmountAtLevel(state, 'hydrogen', 0), 5);
     const upgraded = reduceGame(state, { type: 'BUY_REACTION_UPGRADE', reaction: 'hydrogen' });
     expect(upgraded.reactionUpgrades.hydrogen).toBe(1);
     expect(upgraded.energy).toBe(10_000 - reactionUpgradeCost('hydrogen', 0));
     expect(upgraded.stats.upgradesPurchased).toBe(1);
     const boosted = reduceGame(upgraded, { type: 'RUN_REACTION', reaction: 'hydrogen' });
-    expect(boosted.reactionTotals.hydrogen).toBeCloseTo(REACTIONS.hydrogen.manualAmount * (1 + REACTIONS.hydrogen.upgrade.bonusPerLevel), 5);
+    expect(boosted.reactionTotals.hydrogen).toBeCloseTo(reactionManualAmountAtLevel(upgraded, 'hydrogen', 1), 5);
     // Nicht freigeschaltete Reaktionen können nicht ausgebaut werden.
     const locked = reduceGame(state, { type: 'BUY_REACTION_UPGRADE', reaction: 'silicon' });
     expect(locked.reactionUpgrades.silicon).toBe(0);

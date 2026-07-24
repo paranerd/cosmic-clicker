@@ -85,10 +85,18 @@ describe('save storage and version 7 migration', () => {
     const legacy = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
     legacy.star.hydrogen = 5_000;
     legacy.cloud.hydrogen -= 5_000;
-    legacy.upgrades.deuteriumBurning = true;
     const rawCompression = compressionHeat(legacy);
-    const migrated = normalizeGameState({ ...legacy, version: 4, deuteriumIgnitionCompression: undefined });
+    const migrated = normalizeGameState({
+      ...legacy,
+      version: 4,
+      upgrades: {
+        ...legacy.upgrades,
+        deuteriumBurning: true,
+      },
+      deuteriumIgnitionCompression: undefined,
+    });
 
+    expect(migrated?.upgrades.deuteriumBurning).toBe(1);
     expect(migrated?.deuteriumIgnitionCompression).toBeCloseTo(rawCompression);
   });
 

@@ -7,10 +7,9 @@ import {
   cloudMatterForLevel,
   cloudMatureAccretionMultiplier,
   cloudSolarMasses,
-  DEUTERIUM_TEMPERATURE_MULTIPLIER,
   EMPTY_MATTER,
-  FUSION_MEMORY_BONUS_PER_LEVEL,
   INITIAL_TEMPERATURE,
+  levelValue,
   LIMITS,
   MAIN_SEQUENCE_BURN,
   MATTER_KEYS,
@@ -19,6 +18,7 @@ import {
   OBJECTIVES,
   OUTCOMES,
   PRESTIGE_PERKS,
+  prestigePerkValue,
   REACTIONS,
   REACTION_ORDER,
   STAGES,
@@ -26,6 +26,7 @@ import {
   TEMPERATURE_MODEL,
   THRESHOLDS,
   UPGRADES,
+  UPGRADE_ORDER,
   type ActiveWarningId,
   type AutomationKind,
   type UpgradeDefinition,
@@ -45,6 +46,7 @@ import type {
   Stage,
   StellarOutcome,
   TutorialState,
+  UpgradeState,
 } from './types';
 
 const END_STAGES: Record<Exclude<StellarOutcome, 'legacyMainSequence'>, Stage> = {
@@ -59,43 +61,51 @@ const END_STAGES: Record<Exclude<StellarOutcome, 'legacyMainSequence'>, Stage> =
 const totalMatter = (matter: Matter): number => MATTER_KEYS.reduce((sum, key) => sum + matter[key], 0);
 const clampCloudTier = (tier: number): CloudTier => Math.max(0, Math.min(PRESTIGE_PERKS.largerCloud.maxLevel, Math.floor(tier)));
 const emptyReactionTotals = (): Record<ReactionId, number> => Object.fromEntries(REACTION_ORDER.map((id) => [id, 0])) as Record<ReactionId, number>;
+const emptyUpgradeLevels = (): UpgradeState =>
+  Object.fromEntries(UPGRADE_ORDER.map((id) => [id, 0])) as unknown as UpgradeState;
 
 export const starMass = (state: GameState): number => totalMatter(state.star);
 export const cloudMass = (state: GameState): number => totalMatter(state.cloud);
 export const cloudDefinition = (tier: CloudTier) => cloudDefinitionForLevel(tier);
 export const solarMasses = (state: GameState): number => starMass(state) / THRESHOLDS.matterPerSolarMass;
 
+export const upgradeValueAtLevel = (state: GameState, id: UpgradeId, level: number): number => {
+  const definition: UpgradeDefinition = UPGRADES[id];
+  const persistentPerk = definition.value.persistentPerk;
+  const persistentEffect = persistentPerk
+    ? prestigePerkValue(persistentPerk, state.perks[persistentPerk])
+    : 1;
+  return levelValue(level, definition.value.formula) * persistentEffect;
+};
+
 export const gravityMultiplier = (state: GameState): number =>
-  1 + state.upgrades.gravity * ACCRETION.gravityBonusPerLevel + state.perks.permanentGravity * ACCRETION.permanentGravityBonusPerLevel;
-export const stellarFusionMultiplier = (state: GameState): number => 1 + state.perks.fusionMemory * FUSION_MEMORY_BONUS_PER_LEVEL;
+  upgradeValueAtLevel(state, 'gravity', state.upgrades.gravity);
+export const stellarFusionMultiplier = (state: GameState): number =>
+  prestigePerkValue('fusionMemory', state.perks.fusionMemory);
 
 const matureAccretionMultiplier = (state: GameState): number =>
   state.unlockedReactions.includes('hydrogen') ? cloudMatureAccretionMultiplier(cloudSolarMasses(state.cloudTier)) : 1;
 export const accretionPerClick = (state: GameState): number => ACCRETION.manualBase * matureAccretionMultiplier(state) * gravityMultiplier(state);
 export const accretionPerSecond = (state: GameState): number =>
-  state.automation.accretion * AUTOMATIONS.accretion.baseRate * matureAccretionMultiplier(state) * gravityMultiplier(state);
+  automationValueAtLevel('accretion', state.automation.accretion) * matureAccretionMultiplier(state) * gravityMultiplier(state);
 
-const automationRate = (kind: AutomationKind, level: number): number => {
-  const definition = AUTOMATIONS[kind];
-  return level * definition.baseRate * (1 + level * definition.rateGrowthPerLevel);
-};
+export const automationValueAtLevel = (kind: AutomationKind, level: number): number =>
+  levelValue(level, AUTOMATIONS[kind].value);
 export const reactionAutomationPerSecond = (state: GameState, reaction: ReactionId): number => {
   const kind = REACTIONS[reaction].automation;
-  return automationRate(kind, state.automation[kind]) * stellarFusionMultiplier(state);
+  return automationValueAtLevel(kind, state.automation[kind]) * stellarFusionMultiplier(state);
 };
 
 // Punkt 2: manuelle Fusionsmenge einer Reaktion inklusive Reaktionsausbau
-// (+bonusPerLevel der Basismenge je Stufe) und Fusionsgedächtnis-Perk.
+// (universelle Ertragskurve) und Fusionsgedächtnis-Perk.
 // reactionManualAmountAtLevel ist von der tatsächlich gespeicherten Stufe
 // entkoppelt, damit die Oberfläche den Wert einer hypothetischen nächsten
 // Stufe für die "Aktuell/Nächste Stufe"-Anzeige der Reaktionskarte
 // vorausberechnen kann (Punkt 7 des Kachel-Redesigns).
 export const reactionUpgradeCost = (reaction: ReactionId, level: number): number =>
-  Math.round(REACTIONS[reaction].upgrade.baseCost * REACTIONS[reaction].upgrade.costGrowth ** level);
+  Math.round(levelValue(level, REACTIONS[reaction].upgrade.cost));
 export const reactionManualAmountAtLevel = (state: GameState, reaction: ReactionId, level: number): number =>
-  REACTIONS[reaction].manualAmount
-  * (1 + level * REACTIONS[reaction].upgrade.bonusPerLevel)
-  * stellarFusionMultiplier(state);
+  levelValue(level, REACTIONS[reaction].manualYield) * stellarFusionMultiplier(state);
 export const reactionManualAmount = (state: GameState, reaction: ReactionId): number =>
   reactionManualAmountAtLevel(state, reaction, state.reactionUpgrades[reaction]);
 
@@ -149,23 +159,22 @@ export const structuralHydrogenBurnPerSecond = (state: GameState): number => {
 
 export const automationCost = (kind: AutomationKind, level: number): number => {
   const definition = AUTOMATIONS[kind];
-  return Math.round(definition.baseCost * definition.costGrowth ** level);
+  return Math.round(levelValue(level, definition.cost));
 };
 
-// Generische Upgrade-Helfer (Punkt 6): Stufen, Kosten und Voraussetzungen
-// kommen vollständig aus der jeweiligen Definition in content/upgrades.ts.
-// Boolesche Upgrade-Zustände (einmalige Upgrades) zählen als Stufe 0 oder 1.
-export const upgradeLevel = (state: GameState, id: UpgradeId): number => {
-  const value = state.upgrades[id];
-  return typeof value === 'boolean' ? Number(value) : value;
-};
+// Generische Upgrade-Helfer: Jedes Upgrade besitzt ausschließlich eine
+// numerische Stufe. Voraussetzungen und Maximalstufe bestimmen, ob und wie oft
+// es gekauft werden kann.
+export const upgradeLevel = (state: GameState, id: UpgradeId): number => state.upgrades[id];
 export const upgradeCost = (id: UpgradeId, level: number): number => {
   const definition: UpgradeDefinition = UPGRADES[id];
-  return Math.round(definition.cost.base * definition.cost.growth ** level);
+  return Math.round(levelValue(level, definition.cost));
 };
-export const cloudTierCost = PRESTIGE_PERKS.largerCloud.cost;
-export const gravityPerkCost = PRESTIGE_PERKS.permanentGravity.cost;
-export const fusionPerkCost = PRESTIGE_PERKS.fusionMemory.cost;
+const prestigePerkCost = (perk: keyof PerkState, level: number): number =>
+  Math.round(levelValue(level, PRESTIGE_PERKS[perk].cost));
+export const cloudTierCost = (level: number): number => prestigePerkCost('largerCloud', level);
+export const gravityPerkCost = (level: number): number => prestigePerkCost('permanentGravity', level);
+export const fusionPerkCost = (level: number): number => prestigePerkCost('fusionMemory', level);
 
 export const effectivePerks = (state: GameState): PerkState => ({
   largerCloud: state.perks.largerCloud + state.pendingPerks.largerCloud,
@@ -182,11 +191,12 @@ export const compressionHeat = (state: GameState): number =>
 
 const effectiveCompressionHeat = (state: GameState): number => {
   const raw = compressionHeat(state);
-  if (!state.upgrades.deuteriumBurning || state.deuteriumIgnitionCompression === null) {
+  if (state.upgrades.deuteriumBurning === 0 || state.deuteriumIgnitionCompression === null) {
     return Math.min(raw, THRESHOLDS.hydrogenTemperature - INITIAL_TEMPERATURE);
   }
   const baseline = state.deuteriumIgnitionCompression;
-  const accelerated = baseline + Math.max(0, raw - baseline) * DEUTERIUM_TEMPERATURE_MULTIPLIER;
+  const multiplier = upgradeValueAtLevel(state, 'deuteriumBurning', state.upgrades.deuteriumBurning);
+  const accelerated = baseline + Math.max(0, raw - baseline) * multiplier;
   return Math.min(accelerated, THRESHOLDS.hydrogenTemperature - INITIAL_TEMPERATURE);
 };
 
@@ -475,7 +485,7 @@ export const createInitialState = (
     automaticReactionTotals: emptyReactionTotals(), reactionUpgrades: emptyReactionTotals(), fusedHydrogen: 0, fusedHelium: 0,
     manualFusions: 0, manualHeliumFusions: 0,
     automation: { accretion: 0, fusion: 0, heliumFusion: 0, oxygenSynthesis: 0, carbonFusion: 0, neonFusion: 0, oxygenFusion: 0, siliconFusion: 0 },
-    upgrades: { gravity: 0, deuteriumBurning: false }, stardust, perks,
+    upgrades: emptyUpgradeLevels(), stardust, perks,
     pendingPerks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
     completed: false, outcome: null, discoveredOutcomes: [...(persistent.discoveredOutcomes ?? [])], summaryOpen: false,
     soundEnabled: persistent.soundEnabled ?? true, volume: Math.max(0, Math.min(1, persistent.volume ?? .35)),
@@ -511,7 +521,7 @@ export const tick = (state: GameState, seconds: number): GameState => {
   AUTOMATION_ORDER.forEach((kind) => {
     const definition = AUTOMATIONS[kind];
     if (!definition.reaction || next.automation[kind] <= 0) return;
-    runReaction(next, definition.reaction, automationRate(kind, next.automation[kind]) * stellarFusionMultiplier(next) * dt, true);
+    runReaction(next, definition.reaction, automationValueAtLevel(kind, next.automation[kind]) * stellarFusionMultiplier(next) * dt, true);
   });
   const structuralBurn = structuralHydrogenBurnPerSecond(next) * dt;
   if (structuralBurn > 0) runReaction(next, 'hydrogen', structuralBurn, true);
@@ -580,7 +590,7 @@ const buyUpgrade = (state: GameState, id: UpgradeId): void => {
   const cost = upgradeCost(id, level);
   if (!canBuyUpgrade(state, id)) return;
   state.energy -= cost;
-  (state.upgrades as Record<UpgradeId, number | boolean>)[id] = typeof state.upgrades[id] === 'boolean' ? true : level + 1;
+  state.upgrades[id] = level + 1;
   state.stats.upgradesPurchased += 1;
   const purchase = definition.purchase;
   if (purchase?.effect) UPGRADE_PURCHASE_EFFECTS[purchase.effect](state);

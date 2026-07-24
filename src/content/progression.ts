@@ -31,14 +31,11 @@ export const LIMITS = {
 export const ACCRETION = {
   manualBase: 1,
   energyPerMatter: .018,
-  gravityBonusPerLevel: 2,
-  permanentGravityBonusPerLevel: .12,
   pressureExponent: 1.18,
 } as const;
 
 export const TEMPERATURE_MODEL = {
   compressionExponent: 3,
-  deuteriumMultiplier: 1.35,
   fusionHeatPerHydrogen: 2.4,
   heatLossPerSecond: 180,
   contractionSecondsPerStage: 90,

@@ -2,9 +2,11 @@
 
 Dieser Ordner enthält die deklarativen Inhalte des Spiels. Hier gehören Namen,
 Beschreibungen, Kosten, Raten, Grenzwerte und Freischaltbedingungen hin. Die
-Berechnungen und Zustandsänderungen bleiben dagegen in `src/game/engine.ts`.
+Zustandsänderungen bleiben dagegen in `src/game/engine.ts`. Die universelle
+Stufenformel ist als gemeinsam verwendete Rechenregel Teil der Inhalte.
 
 - `resources.ts`: Elemente und ihre Darstellung
+- `level-formula.ts`: universelle Formel für Kosten- und Ertragskurven
 - `clouds.ts`: Urwolken, Startmaterie und erwartete Entwicklungswege
 - `reactions.ts`: manuelle Kernreaktionen, Umwandlungsraten und Energieertrag
 - `automations.ts`: Automationen, Kostenkurven, Produktionsraten und Meisterschaftsziele
@@ -24,3 +26,6 @@ Spielkern sowie Oberfläche gemeinsam verwendet werden. Das gilt auch für
 Anzeigetexte von `objectiveFor()` (`game/engine.ts`): Die Funktion berechnet
 nur noch Fortschritt und wählt die passende Ziel-ID, die Texte selbst kommen
 aus `objectives.ts`/`reactions.ts`.
+
+Perks, Upgrades und Automationen speichern ihre berechnete Stufenkurve
+einheitlich unter `value` und ihre Kaufkurve unter `cost`.
