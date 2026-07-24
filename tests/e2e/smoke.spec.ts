@@ -484,7 +484,7 @@ test('the first automation tutorial step also restores directly from its stable 
     star: { hydrogen: 2_544, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
     energy: 65,
     temperature: 100_000,
-    upgrades: { gravity: 1, deuteriumBurning: false },
+    upgrades: { gravity: 1, deuteriumBurning: 0 },
     tutorial: { introSeen: true, cosmosToastPending: false, completed: false, step: 10, stepId: 'first-automation' },
   });
   await page.goto('/');
@@ -583,7 +583,7 @@ test('the protostar achievement and its next objective remain visible during the
   await expect(achievement).toBeVisible();
   await expect(achievement).toContainText('Protostern gebildet');
   await expect(achievement).toContainText('Sternwind setzt ein');
-  await expect(achievement.locator('.achievement-next')).toContainText('1.000.000 K erreichen');
+  await expect(achievement.locator('.achievement-next')).toContainText('Erreiche 1.000.000 K');
 });
 
 test('mobile tutorial centers its card, spotlights targets and scrolls them into view', async ({ page }) => {
@@ -840,12 +840,13 @@ test('locked and not-yet-affordable upgrades/automations show a fractional progr
   expect(await deuteriumButton.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
 
   // Die Gravitations-Verdichtung ist freigeschaltet (keine Voraussetzungen).
-  // Mit 2,5 von 5 nötigen Energie ist sie noch nicht bezahlbar —
-  // der Fill zeigt hier den Energie/Preis-Fortschritt (50 %).
+  // Mit 2,5 von 3 nötigen Energie (Erste-Stufe-Kosten seit der Progressions-
+  // Überarbeitung) ist sie noch nicht bezahlbar — der Fill zeigt hier den
+  // Energie/Preis-Fortschritt (≈83,3 %).
   const gravityButton = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' }).locator('.tile-action-button');
   await expect(gravityButton).not.toHaveClass(/is-buildable/);
   const gravityFill = await gravityButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'));
-  expect(parseFloat(gravityFill)).toBeCloseTo(50, 5);
+  expect(parseFloat(gravityFill)).toBeCloseTo(2.5 / 3 * 100, 5);
   expect(await gravityButton.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
 
   // Punkt 3/4: Der Akkretionsstrom ist bei dieser Sternmasse ebenfalls erst
@@ -1043,13 +1044,17 @@ test('deuterium burning appears at the protostar and is available in the first c
 
   const upgrade = page.locator('.deuterium-upgrade');
   await expect(upgrade).toBeVisible();
-  // Deuteriumbrennen ist ein einmaliges Toggle-Upgrade ohne echte Ausbaustufen
-  // (Punkt 2/Q4-Entscheidung) und bekommt daher keine Aktuell/Nächste-Stufe-
-  // Zeile mit dem Multiplikator — die Bestätigung läuft über den
-  // Beschreibungstext und den Button-Zustand.
+  // Auch das auf eine Stufe begrenzte Deuterium-Upgrade nutzt dieselbe
+  // Aktuell/Nächste-Stufe-Darstellung wie jedes andere Upgrade.
+  await expect(upgrade.locator('.tile-rate')).toContainText('Aktuell');
+  await expect(upgrade.locator('.tile-rate')).toContainText('×1');
+  await expect(upgrade.locator('.tile-rate')).toContainText('×1,35');
+  await expect(upgrade.locator('.level-row i')).toHaveCount(1);
   // Punkt 2/9: Kein Tooltip mehr — der Preis steht direkt im Button, das
   // aria-label liest sich wie ein Satz statt "Label Preis".
   await upgrade.getByRole('button', { name: 'Aktivieren für 75 Energie' }).click();
+  await expect(upgrade.locator('.tile-rate')).toContainText('Voll ausgebaut');
+  await expect(upgrade.locator('.tile-rate')).toContainText('×1,35');
   await expect(upgrade).toContainText('Erwärmung beschleunigt');
   await expect(upgrade.locator('.tile-action-button')).toHaveClass(/is-complete/);
   await expect(page.locator('[data-matter="deuterium"]')).toHaveCount(0);
@@ -1135,7 +1140,13 @@ test('an affordable next automation level uses an expansion toast', async ({ pag
     version: 4, run: 2, stage: 'protostar', cloudTier: 1, nextCloudTier: 1,
     cloud: { hydrogen: 54_000, helium: 17_000, deuterium: 100, carbon: 0, oxygen: 0 },
     star: { hydrogen: 2_000, helium: 1_900, deuterium: 0, carbon: 0, oxygen: 0 },
-    energy: 119, temperature: 200_000, automation: { accretion: 1, fusion: 0 },
+    // Akkretionsstrom steht bereits auf Stufe 1; die nächste Stufe kostet seit
+    // der Progressions-Überarbeitung round(25 × 1,85¹) = 46 Energie statt der
+    // vorherigen 120. 45 Energie liegt knapp darunter, sodass erst die
+    // Klicks (je ≈0,018 Energie) die Schwelle überschreiten und den Toast
+    // auslösen — bei bereits ausreichender Startenergie wäre die Gelegenheit
+    // schon beim ersten Sync als "gesehen" markiert und der Toast bliebe aus.
+    energy: 45, temperature: 200_000, automation: { accretion: 1, fusion: 0 },
     perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
     seenObjectives: ['heat-protostar'], seenOpportunities: ['accretion:0'],
@@ -1264,8 +1275,11 @@ test('cycle summary offers v0.3 perks and cloud selection before the next run', 
   await expect(summary).toContainText('Wolkenmasse');
   await expect(summary).toContainText('Fusionsgedächtnis');
   const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenmasse' });
+  const gravityPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Gravitatives Gedächtnis' });
   await expect(cloudPerk).toContainText('Stufe 0');
   await expect(cloudPerk).not.toContainText('Kleine Urwolke');
+  await expect(gravityPerk).toContainText('+135% Akkretionsrate');
+  await expect(gravityPerk).not.toContainText('Nächste Stufe:');
   await expect(page.getByRole('button', { name: 'Neuen Zyklus starten' })).toBeVisible();
 });
 
