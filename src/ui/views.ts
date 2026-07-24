@@ -5,6 +5,7 @@ import {
   CLOUD_PATH_ORDER,
   cloudGrowthPath,
   cloudPathName,
+  KNOWLEDGE,
   OUTCOME_LABELS,
   REACTIONS,
   REACTION_ORDER,
@@ -16,6 +17,7 @@ import {
   UPGRADES,
   type AutomationKind,
   type CloudGrowthPath,
+  type KnowledgeId,
   type MatterKey,
   type UpgradeDefinition,
   type UpgradeId,
@@ -40,6 +42,19 @@ import {
 import type { CloudTier, ReactionId, Stage, StellarOutcome } from '../game/types';
 import { disabled, formatCompact, formatDuration, formatMatter, formatNumber, formatTemperature, icons, levelPips } from './format';
 import { getState, type Panel } from './store';
+
+// Erklär-Button der Wissensdatenbank. Er steht direkt neben dem Begriff, den
+// er erklärt, bleibt im Ruhezustand bewusst zurückhaltend (gedämpftes Grau,
+// kein Rahmen, keine Fläche) und öffnet erst beim Klick das Wissens-Modal aus
+// `ui/overlay.ts`. Der Eintragstext selbst steht datengetrieben in
+// `content/knowledge.ts`; eine neue Erklärstelle braucht daher nur einen
+// weiteren Eintrag dort und einen Aufruf dieser Funktion an der passenden
+// Stelle der Oberfläche. Bewusst ohne `title`-Attribut, aus demselben Grund
+// wie beim Eck-Ausbaubutton unten: Hover-Tooltips sind auf Mobilgeräten nicht
+// nutzbar. Das aria-label bleibt für Screenreader erhalten.
+export function knowledgeButton(id: KnowledgeId): string {
+  return `<button class="knowledge-button" type="button" data-action="open-knowledge" data-knowledge="${id}" aria-label="Was ist ${KNOWLEDGE[id].title}?">${icons.help}</button>`;
+}
 
 // Gemeinsamer Eck-Ausbaubutton für Automations-, Upgrade- und Reaktionskarten
 // (ersetzt den bisherigen Progress-Button unten in der Kachel). Der Preis

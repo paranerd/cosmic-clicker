@@ -922,6 +922,23 @@ Die Missionsleiste ist einklappbar. Im kompakten Zustand bleiben
 Fortschrittsbalken und Laufzeit sichtbar; der ausführliche Zieltext
 verschwindet. Die Entscheidung wird separat im Browser gespeichert.
 
+### Wissensdatenbank
+
+Fachbegriffe der Oberfläche können einen Erklär-Button tragen: ein kleines,
+rahmenloses Fragezeichen (13 px) unmittelbar hinter dem Begriff, im
+Ruhezustand gedämpftes Grau, beim Überfahren und im Fokus Cyan, ohne Text und
+ohne Hover-Tooltip. Er öffnet einen Wissenseintrag als Modal im Stil von
+Chronik und Statistik (gleiche Kopfzeile, gleicher Rahmen, schmaler mit
+560 px). Der Eintrag besteht aus einer laienverständlichen Erklärung in
+Absätzen und einem abgesetzten Block „Im Spiel", der den Bezug zur laufenden
+Runde herstellt. Geschlossen wird er über den ×-Button, einen Klick auf den
+Hintergrund oder die Escape-Taste.
+
+Die Einträge stehen datengetrieben in `src/content/knowledge.ts`; eine neue
+Erklärstelle braucht nur einen weiteren Eintrag dort und einen Aufruf von
+`knowledgeButton()` an der passenden Stelle der Oberfläche. Erster Eintrag ist
+die **Kerntemperatur** im linken Datenpanel.
+
 ### Popup-Exklusivität
 
 Chronik, Statistik und Rundenzusammenfassung sind modale Ansichten. Die
@@ -930,6 +947,13 @@ Dialoge, Menüs, Tutorialhinweise, Toasts und Zielbanner. Auf kleinen
 Bildschirmen bleibt ihre Scrollposition erhalten, wenn Perks geändert werden.
 Außerhalb der Zusammenfassung dürfen nicht blockierende Zielbanner und Toasts
 parallel zum Spiel und Tutorial erscheinen.
+
+Ein Wissenseintrag ist die einzige Ausnahme von dieser Rangfolge: Er legt sich
+vor alle anderen Overlays (nur das Intro geht vor), schließt sie aber nicht.
+Beim Schließen erscheint deshalb wieder, was vorher offen war. So kann ein
+Erklär-Button künftig auch innerhalb eines anderen Modals sitzen, ohne den
+Kontext des Spielers zu zerstören. Die Rundenzusammenfassung schließt einen
+offenen Wissenseintrag dagegen weiterhin mit.
 
 ## 18. Visuelles System
 

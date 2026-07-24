@@ -126,11 +126,19 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .panel-heading small { color: $muted; font-size: 8px; letter-spacing: .17em; text-transform: uppercase; }
 .panel-heading h2 { margin: 2px 0 0; font-family: Georgia, serif; font-weight: 400; font-size: 20px; }
 .primary-reading { margin-bottom: 24px; }
-.primary-reading > span { color: $muted; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
+// inline-flex, damit der Erklär-Button der Wissensdatenbank sauber neben dem
+// Begriff auf der Grundlinie sitzt statt am Zeilenumbruch zu hängen.
+.primary-reading > span { display: inline-flex; align-items: center; gap: 7px; color: $muted; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
 .primary-reading > b { display: block; margin: 8px 0 14px; font-family: ui-monospace, monospace; font-size: clamp(26px, 2.6vw, 38px); font-weight: 300; letter-spacing: -.06em; color: #f5ede2; }
 .thermal-scale { height: 4px; position: relative; overflow: hidden; background: rgba(255,255,255,.055); }
 .thermal-scale i { display: block; width: 100%; height: 100%; clip-path: inset(0 100% 0 0); background: linear-gradient(90deg, $cyan 0%, #78d7df 28%, #e6d379 62%, $orange 86%, #c64732 100%); box-shadow: 0 0 11px rgba($orange,.45); transition: clip-path .3s; }
 .primary-reading > small { display: flex; justify-content: space-between; margin-top: 6px; color: #536176; font-size: 8px; }
+// Erklär-Button der Wissensdatenbank (siehe knowledgeButton() in ui/views.ts).
+// Bewusst unauffällig: kein Rahmen, keine Fläche, im Ruhezustand nur ein
+// gedämpftes Fragezeichen, das erst beim Überfahren cyan wird.
+.knowledge-button { width: 13px; height: 13px; flex: 0 0 auto; padding: 0; display: inline-grid; place-items: center; border: 0; background: none; color: #4e5a6b; cursor: pointer; transition: color .2s ease; }
+.knowledge-button svg { width: 100%; height: 100%; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.knowledge-button:hover, .knowledge-button:focus-visible { color: $cyan; }
 .metric-grid { display: grid; grid-template-columns: 1fr 1fr; margin: 0 -12px 28px; border-top: 1px solid $line; border-bottom: 1px solid $line; }
 .metric { min-height: 80px; padding: 15px 12px; display: flex; flex-direction: column; }
 .metric:nth-child(odd) { border-right: 1px solid $line; }
@@ -580,6 +588,15 @@ footer button:hover { color: $cyan; }
 .chronicle-modal .timeline-card { overflow-y: auto; }
 .chronicle-modal .log-card { display: flex; flex-direction: column; overflow: hidden; }
 .chronicle-modal .log-card .log-list { min-height: 0; padding-right: 8px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba($cyan,.25) transparent; }
+// Wissensdatenbank-Modal: übernimmt Rahmen, Fläche, Schatten und die
+// Kopfzeile (.chronicle-modal-heading) von Chronik und Statistik, ist aber
+// schmaler, weil es reinen Fließtext zeigt.
+.knowledge-modal { width: min(560px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.knowledge-body { padding: 22px 28px 26px; }
+.knowledge-body p { margin: 0 0 14px; color: #94a2b5; font-size: 10px; line-height: 1.75; }
+.knowledge-ingame { margin-top: 20px; padding: 15px 17px; border: 1px solid $line; background: rgba(8,13,22,.92); }
+.knowledge-ingame .section-label { margin-bottom: 9px; }
+.knowledge-ingame p { margin: 0; color: #b9dfe2; }
 .text-action { margin-top: 13px; border: 0; background: none; color: $muted; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; cursor: pointer; }
 .text-action:hover { color: $text; }
 .toast-stack { width: min(520px,calc(100vw - 32px)); position: fixed; z-index: 80; left: 50%; top: 88px; transform: translateX(-50%); pointer-events: none; }
@@ -821,6 +838,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .summary-stats div + div { border-left: 0; border-top: 1px solid $line; }
   .run-stat-grid { grid-template-columns: 1fr; }
   .stats-modal-body { padding: 18px 16px 22px; }
+  .knowledge-body { padding: 18px 16px 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

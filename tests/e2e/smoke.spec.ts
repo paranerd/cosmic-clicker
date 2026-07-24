@@ -391,6 +391,48 @@ test('perk popover opens only on click and closes outside', async ({ page }) => 
   await expect(perkButton).toHaveAttribute('aria-expanded', 'false');
 });
 
+test('the core temperature offers an unobtrusive knowledge entry that survives the game loop', async ({ page }) => {
+  await gotoGame(page);
+  const reading = page.locator('.primary-reading').first();
+  const knowledgeButton = reading.locator('.knowledge-button');
+  const modal = page.locator('.knowledge-modal');
+
+  // Der Button sitzt in der Beschriftungszeile, trägt keinen sichtbaren Text
+  // und keinen Rahmen — sonst wäre er nicht mehr „unauffällig".
+  await expect(reading).toContainText('Kerntemperatur');
+  await expect(knowledgeButton).toBeVisible();
+  await expect(knowledgeButton).toHaveText('');
+  await expect(knowledgeButton).toHaveCSS('border-top-width', '0px');
+  const buttonBox = await knowledgeButton.boundingBox();
+  expect(buttonBox?.width).toBeLessThan(20);
+  await expect(modal).toHaveCount(0);
+
+  await knowledgeButton.click();
+  await expect(modal).toBeVisible();
+  await expect(modal.locator('#knowledge-title')).toHaveText('Kerntemperatur');
+  await expect(modal).toContainText('15 Millionen K');
+  await expect(modal.locator('.knowledge-ingame')).toContainText('Im Spiel');
+
+  // updateUI() läuft alle 100 ms und ruft syncOverlay() mit auf. Ohne die
+  // Signaturprüfung im Overlay würde das Modal dabei permanent neu gebaut —
+  // der Knoten muss deshalb derselbe bleiben und darf nicht flackern.
+  const heading = await modal.locator('#knowledge-title').elementHandle();
+  await page.waitForTimeout(500);
+  await expect(modal).toBeVisible();
+  expect(await heading?.evaluate((element) => element.isConnected)).toBe(true);
+
+  // Drei Schließwege: Escape, Klick auf den Hintergrund, ×-Button.
+  await page.keyboard.press('Escape');
+  await expect(modal).toHaveCount(0);
+  await knowledgeButton.click();
+  await expect(modal).toBeVisible();
+  await page.locator('.modal-backdrop').click({ position: { x: 5, y: 5 } });
+  await expect(modal).toHaveCount(0);
+  await knowledgeButton.click();
+  await page.getByRole('button', { name: 'Erklärung schließen' }).click();
+  await expect(modal).toHaveCount(0);
+});
+
 test('new players can complete and replay the interactive tutorial', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');

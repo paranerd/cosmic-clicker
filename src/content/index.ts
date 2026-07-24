@@ -1,5 +1,6 @@
 export * from './automations';
 export * from './clouds';
+export * from './knowledge';
 export * from './level-formula';
 export * from './objectives';
 export * from './prestige';

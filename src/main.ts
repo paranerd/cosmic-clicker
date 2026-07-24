@@ -1,6 +1,6 @@
 import './styles.scss';
 import { playSound } from './audio';
-import { LIMITS, UPGRADE_ORDER, UPGRADES } from './content';
+import { LIMITS, UPGRADE_ORDER, UPGRADES, type KnowledgeId } from './content';
 import { calculateTemperature, createInitialState, reactionAutomationPerSecond, reduceGame, tick } from './game/engine';
 import { clearSave, normalizeGameState, saveGame } from './game/storage';
 import type { GameAction, ReactionId } from './game/types';
@@ -26,7 +26,7 @@ import {
 } from './ui/menus';
 import { toggleMissionCollapsed } from './ui/mission';
 import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement, dismissCycleEndNotice, showToast } from './ui/notifications';
-import { makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setStatsOpen } from './ui/overlay';
+import { isKnowledgeOpen, makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setKnowledgeOpen, setStatsOpen } from './ui/overlay';
 import { app, getActivePanel, getState, loaded, setActivePanel, setState, type Panel } from './ui/store';
 import { renderShell, switchPanel, updateUI } from './ui/sync';
 import {
@@ -92,6 +92,7 @@ app.addEventListener('click', (event) => {
   if (target.closest('.chronicle-dock')) { setChronicleOpen(true); advanceTutorial('open-chronicle'); return; }
   if (target.dataset.overlayDismiss === 'chronicle') { setChronicleOpen(false); return; }
   if (target.dataset.overlayDismiss === 'stats') { setStatsOpen(false); return; }
+  if (target.dataset.overlayDismiss === 'knowledge') { setKnowledgeOpen(null); return; }
   const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); advanceTutorial('panel'); return; }
   const button = target.closest<HTMLButtonElement>('[data-action]'); if (!button || button.disabled) return;
   const action = button.dataset.action; if (!action) return;
@@ -110,6 +111,11 @@ app.addEventListener('click', (event) => {
   if (action === 'toggle-perks') { setPerksOpen(!isPerksOpen()); return; }
   if (action === 'toggle-sound-menu') { setSoundMenuOpen(!isSoundMenuOpen()); return; }
   if (action === 'toggle-warnings') { setWarningsOpen(!isWarningsOpen()); return; }
+  // Wissensdatenbank: Der Eintrag steckt als data-knowledge am Erklär-Button,
+  // die Texte kommen aus content/knowledge.ts — neue Erklärstellen brauchen
+  // hier keine Änderung.
+  if (action === 'open-knowledge' && button.dataset.knowledge) { setKnowledgeOpen(button.dataset.knowledge as KnowledgeId); return; }
+  if (action === 'close-knowledge') { setKnowledgeOpen(null); return; }
   if (action === 'open-stats') { setStatsOpen(true); return; }
   if (action === 'close-stats') { setStatsOpen(false); return; }
   if (action === 'open-chronicle') { setChronicleOpen(true); advanceTutorial('open-chronicle'); return; }
@@ -164,6 +170,15 @@ app.addEventListener('keydown', (event) => {
   event.preventDefault();
   setChronicleOpen(true);
   advanceTutorial('open-chronicle');
+});
+
+// Escape schließt einen offenen Wissenseintrag. Der Listener hängt bewusst am
+// window und nicht an `app`: Nach einem Klick auf den Modal-Hintergrund liegt
+// der Fokus auf dem <body> und damit außerhalb von `app`.
+window.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !isKnowledgeOpen()) return;
+  event.preventDefault();
+  setKnowledgeOpen(null);
 });
 
 app.addEventListener('input', (event) => {

@@ -1,4 +1,4 @@
-import { OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS, prestigePerkDescription } from '../content';
+import { KNOWLEDGE, OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS, prestigePerkDescription, type KnowledgeId } from '../content';
 import { cloudDefinition, cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost, starMass } from '../game/engine';
 import { setDebugOpen, syncDebug } from './debug';
 import { disabled, formatDuration, formatMatter, formatSolarMasses, icons } from './format';
@@ -10,11 +10,13 @@ import { invalidateTutorial } from './tutorial';
 
 let chronicleOpen = false;
 let statsOpen = false;
+let knowledgeEntry: KnowledgeId | null = null;
 let overlaySignature = '';
 let summaryAttentionRun = 0;
 
 export const invalidateOverlay = (): void => { overlaySignature = ''; };
 export const resetSummaryAttention = (): void => { summaryAttentionRun = 0; };
+export const isKnowledgeOpen = (): boolean => knowledgeEntry !== null;
 
 export function setChronicleOpen(open: boolean): void {
   chronicleOpen = open;
@@ -26,6 +28,18 @@ export function setChronicleOpen(open: boolean): void {
 export function setStatsOpen(open: boolean): void {
   statsOpen = open;
   if (open) chronicleOpen = false;
+  invalidateOverlay();
+  syncOverlay();
+}
+
+// Wissensdatenbank: `null` schließt den Eintrag wieder. Anders als Chronik und
+// Statistik schließt ein Wissenseintrag die übrigen Overlays NICHT, sondern
+// legt sich nur vor sie — beim Schließen erscheint deshalb wieder, was vorher
+// offen war (z. B. die Chronik). Das ist Absicht, damit Erklär-Buttons später
+// auch innerhalb anderer Modale sitzen können, ohne den Kontext des Spielers
+// zu zerstören.
+export function setKnowledgeOpen(id: KnowledgeId | null): void {
+  knowledgeEntry = id;
   invalidateOverlay();
   syncOverlay();
 }
@@ -42,11 +56,22 @@ export function syncOverlay(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="overlay-root"]');
   if (!root) return;
   const introNeedsDecision = !state.tutorial.introSeen;
-  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !introNeedsDecision) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
+  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !introNeedsDecision && !knowledgeEntry) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
   if (introNeedsDecision) {
     if (overlaySignature === 'intro') return;
     overlaySignature = 'intro';
     root.innerHTML = `<div class="modal-backdrop intro-backdrop"><section class="intro-modal" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-description"><div class="intro-brand"><span>COSMIC</span><b>CLICKER</b></div><small>DEIN KOSMISCHES EXPERIMENT</small><span class="intro-star">${icons.spark}</span><h2 id="intro-title">Entdecke das Schicksal der Sterne.</h2><p id="intro-description">Beginne mit einer kleinen Wolke aus kaltem Wasserstoff. Sammle Materie, forme einen Protostern und beobachte, welchen Entwicklungsweg die Physik ermöglicht.</p><div class="intro-pillars"><div><b>01</b><span>Materie sammeln</span><small>Forme aus der Urwolke einen Protostern.</small></div><div><b>02</b><span>Sternentwicklung verfolgen</span><small>Masse und Temperatur bestimmen den möglichen Lebensweg.</small></div><div><b>03</b><span>Kosmos erweitern</span><small>Nutze Sternenstaub für größere Wolken.</small></div></div><div class="intro-actions"><button class="primary-action" data-action="start-intro-tutorial" aria-label="Tutorial starten"><span>Tutorial starten</span><small>Kurze geführte Tour</small></button><button class="intro-secondary" data-action="skip-intro-tutorial">Ohne Tutorial starten</button></div></section></div>`;
+    return;
+  }
+  // Der Wissenseintrag steht vor allen anderen Overlays (nur das Intro geht
+  // vor), damit ein Erklär-Button auch aus einem geöffneten Modal heraus
+  // funktioniert. Die Zustände der anderen Overlays bleiben dabei erhalten.
+  if (knowledgeEntry) {
+    const knowledgeSignature = `knowledge:${knowledgeEntry}`;
+    if (knowledgeSignature === overlaySignature) return;
+    overlaySignature = knowledgeSignature;
+    const entry = KNOWLEDGE[knowledgeEntry];
+    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="knowledge" role="presentation"><section class="knowledge-modal" role="dialog" aria-modal="true" aria-labelledby="knowledge-title"><div class="chronicle-modal-heading"><div><small>${entry.eyebrow}</small><h2 id="knowledge-title">${entry.title}</h2></div><button data-action="close-knowledge" aria-label="Erklärung schließen">×</button></div><div class="knowledge-body">${entry.paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join('')}<div class="knowledge-ingame"><div class="section-label"><span>Im Spiel</span></div><p>${entry.inGame}</p></div></div></section></div>`;
     return;
   }
   if (chronicleOpen && !state.summaryOpen) {
@@ -131,6 +156,7 @@ export function syncOverlay(): void {
 export function makeSummaryExclusive(): void {
   chronicleOpen = false;
   statsOpen = false;
+  knowledgeEntry = null;
   setDebugOpen(false);
   overlaySignature = '';
   invalidateTutorial();

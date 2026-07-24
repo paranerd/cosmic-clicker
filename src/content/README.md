@@ -19,6 +19,7 @@ Stufenformel ist als gemeinsam verwendete Rechenregel Teil der Inhalte.
   (`ignitionAchievementTitle`/`completionAchievementTitle`)
 - `prestige.ts`: Sternenstaub, Ergebnisse und dauerhafte Perks
 - `tutorial.ts`: Reihenfolge und Texte der Einführung
+- `knowledge.ts`: Erklärtexte der Wissensdatenbank zu einzelnen Fachbegriffen
 - `index.ts`: gemeinsamer Einstiegspunkt für Importe
 
 Neue Balancewerte sollten möglichst nur an einer Stelle definiert und von
