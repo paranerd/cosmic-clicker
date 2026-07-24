@@ -143,7 +143,9 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .metric { min-height: 80px; padding: 15px 12px; display: flex; flex-direction: column; }
 .metric:nth-child(odd) { border-right: 1px solid $line; }
 .metric:nth-child(-n+2) { border-bottom: 1px solid $line; }
-.metric span { color: $muted; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
+// flex analog zu .primary-reading > span, damit der Erklär-Button der
+// Wissensdatenbank neben der Beschriftung auf einer Linie sitzt.
+.metric span { display: flex; align-items: center; gap: 6px; color: $muted; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
 .metric b { margin-top: 5px; font-family: ui-monospace, monospace; font-weight: 400; font-size: 17px; }
 .metric small { color: #536176; font-size: 8px; margin-top: 2px; }
 .section-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 17px; }

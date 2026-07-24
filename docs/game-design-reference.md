@@ -936,8 +936,21 @@ Hintergrund oder die Escape-Taste.
 
 Die Einträge stehen datengetrieben in `src/content/knowledge.ts`; eine neue
 Erklärstelle braucht nur einen weiteren Eintrag dort und einen Aufruf von
-`knowledgeButton()` an der passenden Stelle der Oberfläche. Erster Eintrag ist
-die **Kerntemperatur** im linken Datenpanel.
+`knowledgeButton()` an der passenden Stelle der Oberfläche.
+
+Erklärt sind bisher die fünf Kennzahlen des linken Datenpanels:
+
+| Eintrag | Erklärt |
+| --- | --- |
+| Kerntemperatur | Kern gegen Oberfläche, Kompressionswärme, Zündschwellen |
+| Sternmasse | „Masse ist Schicksal", M☉, Grenzen bei 0,08 und 8 M☉ |
+| Kerndruck | Hydrostatisches Gleichgewicht, Kontraktion als Zündmotor |
+| Energie | Massendefekt, MeV als Einheit der Kernphysik |
+| Akkretion | Materieaufsammlung, Akkretionsscheibe, Ende des Nachschubs |
+
+Die Sacherklärung nennt reale Vergleichswerte, der „Im Spiel"-Block übersetzt
+sie in die Spielgrößen (ME, MeV, % Zünddruck). Die genannten Schwellen decken
+sich mit den Werten in `src/content/progression.ts`.
 
 ### Popup-Exklusivität
 

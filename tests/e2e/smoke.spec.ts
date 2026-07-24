@@ -433,6 +433,33 @@ test('the core temperature offers an unobtrusive knowledge entry that survives t
   await expect(modal).toHaveCount(0);
 });
 
+test('every core metric carries its own knowledge entry', async ({ page }) => {
+  await gotoGame(page);
+  const modal = page.locator('.knowledge-modal');
+  // Reihenfolge und Beschriftung der vier Kacheln im linken Datenpanel.
+  const metrics: [string, string][] = [
+    ['starMass', 'Sternmasse'],
+    ['corePressure', 'Kerndruck'],
+    ['energy', 'Energie'],
+    ['accretion', 'Akkretion'],
+  ];
+
+  await expect(page.locator('.metric-grid .knowledge-button')).toHaveCount(metrics.length);
+  for (const [id, title] of metrics) {
+    // Der Button gehört zu genau der Kachel, deren Begriff er erklärt.
+    const metric = page.locator('.metric').filter({ hasText: title });
+    await expect(metric.locator(`[data-knowledge="${id}"]`)).toHaveCount(1);
+
+    await page.locator(`[data-knowledge="${id}"]`).click();
+    await expect(modal.locator('#knowledge-title')).toHaveText(title);
+    // Jeder Eintrag hat Erklärabsätze und einen abgesetzten Spielbezug.
+    expect(await modal.locator('.knowledge-body > p').count()).toBeGreaterThan(0);
+    await expect(modal.locator('.knowledge-ingame')).toContainText('Im Spiel');
+    await page.keyboard.press('Escape');
+    await expect(modal).toHaveCount(0);
+  }
+});
+
 test('new players can complete and replay the interactive tutorial', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
