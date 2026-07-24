@@ -23,6 +23,10 @@ export const formatNumber = (value: number, maximumFractionDigits = 0): string =
 export const formatCompact = (value: number): string => value < 1_000_000
   ? formatNumber(value)
   : new Intl.NumberFormat('de-DE', { notation: 'compact', maximumFractionDigits: 1 }).format(Math.round(value));
+// Energie wird immer ganzzahlig und abgerundet angezeigt. So bleibt die
+// Anzeige bei 0,99 E auf "0" und erreicht "1" erst gemeinsam mit dem Ziel.
+export const formatEnergy = (value: number): string =>
+  formatNumber(Math.floor(Math.max(0, value)));
 export const formatMatter = (value: number): string => formatCompact(Math.round(value));
 export const formatSolarMasses = (value: number): string => `${formatNumber(value, 2)} M☉`;
 

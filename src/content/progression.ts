@@ -4,7 +4,6 @@ export const INITIAL_TEMPERATURE = 10;
 
 export const THRESHOLDS = {
   matterPerSolarMass: 150_000,
-  firstHydrogenCollection: 1_000,
   protostarMass: 2_544,
   protostarTemperature: 100_000,
   deuteriumTemperature: 1_000_000,
@@ -30,12 +29,10 @@ export const LIMITS = {
 } as const;
 
 export const ACCRETION = {
-  manualBase: 48,
-  automaticBasePerLevel: 17,
+  manualBase: 1,
   energyPerMatter: .018,
-  gravityBonusPerLevel: .55,
+  gravityBonusPerLevel: 2,
   permanentGravityBonusPerLevel: .12,
-  pressureReferenceMass: 34_000,
   pressureExponent: 1.18,
 } as const;
 
@@ -70,11 +67,6 @@ export const MAIN_SEQUENCE_BURN = {
   referenceMass: THRESHOLDS.matterPerSolarMass,
   massExponent: 1.46,
 } as const;
-
-// Aliases retained for older prototype imports.
-export const ACCRETION_CLICK_BASE = ACCRETION.manualBase;
-export const ACCRETION_SECOND_BASE = ACCRETION.automaticBasePerLevel;
-export const STELLAR_WIND_FRACTION_PER_MINUTE = STELLAR_WIND.fractionOfInitialCloudPerMinute;
 
 export interface StageDefinition {
   label: string;

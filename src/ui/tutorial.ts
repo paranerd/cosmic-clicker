@@ -1,4 +1,4 @@
-import { LEGACY_TUTORIAL_STEP_IDS, TUTORIAL_STEPS, type TutorialStep } from '../content';
+import { LEGACY_TUTORIAL_STEP_ID_ALIASES, LEGACY_TUTORIAL_STEP_IDS, TUTORIAL_STEPS, type TutorialStep } from '../content';
 import { canBuyAutomation, canBuyUpgrade } from '../game/engine';
 import { saveGame } from '../game/storage';
 import { markCurrentObjectiveSeen, showToast } from './notifications';
@@ -15,7 +15,8 @@ const clampStep = (step: number): number => Math.max(0, Math.min(TUTORIAL_STEPS.
 function currentTutorialStepIndex(): number {
   const tutorial = getState().tutorial;
   if (tutorial.stepId) {
-    const storedIndex = TUTORIAL_STEPS.findIndex((step) => step.id === tutorial.stepId);
+    const canonicalStepId = LEGACY_TUTORIAL_STEP_ID_ALIASES[tutorial.stepId] ?? tutorial.stepId;
+    const storedIndex = TUTORIAL_STEPS.findIndex((step) => step.id === canonicalStepId);
     if (storedIndex >= 0) return storedIndex;
   }
   if (!tutorial.introSeen) return 0;
@@ -101,12 +102,17 @@ export function resolveIntro(startTutorial: boolean): void {
 function tutorialStepAvailable(step: TutorialStep): boolean {
   const state = getState();
   if (step.availability.type === 'immediate') return true;
+  if (step.availability.type === 'energy-at-least') return state.energy >= step.availability.amount;
   if (step.availability.type === 'upgrade-affordable') return canBuyUpgrade(state, step.availability.id);
   return canBuyAutomation(state, step.availability.id);
 }
 
 function prepareTutorialTarget(step: TutorialStep): void {
-  if (step.availability.type === 'immediate' || getActivePanel() === step.availability.panel) return;
+  if (
+    step.availability.type === 'immediate'
+    || step.availability.type === 'energy-at-least'
+    || getActivePanel() === step.availability.panel
+  ) return;
   switchPanel(step.availability.panel, false);
 }
 
@@ -114,19 +120,30 @@ function tutorialTarget(step: TutorialStep): Element | null {
   return step.selector ? app.querySelector(step.selector) : null;
 }
 
+function revealTutorialTarget(target: Element): void {
+  const rect = target.getBoundingClientRect();
+  const safeGap = 20;
+  const fullyVisible = rect.top >= safeGap
+    && rect.left >= safeGap
+    && rect.right <= window.innerWidth - safeGap
+    && rect.bottom <= window.innerHeight - safeGap;
+  if (!fullyVisible) {
+    target.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+  }
+}
+
 function positionTutorialFocus(target: Element): void {
   const rect = target.getBoundingClientRect();
   const viewportGap = 6;
   const maxFramePadding = 12;
   const frameBorderWidth = 1;
-  const horizontalFrameSpace = Math.min(
+  const availableFrameSpace = Math.min(
     rect.left - viewportGap - frameBorderWidth,
     window.innerWidth - viewportGap - rect.right - frameBorderWidth,
+    rect.top - viewportGap - frameBorderWidth,
+    window.innerHeight - viewportGap - rect.bottom - frameBorderWidth,
   );
-  const framePadding = Math.max(0, Math.min(maxFramePadding, horizontalFrameSpace));
-  if (target instanceof HTMLElement) {
-    target.style.setProperty('--tutorial-frame-padding', `${framePadding}px`);
-  }
+  const framePadding = Math.max(0, Math.min(maxFramePadding, availableFrameSpace));
   const roundDimmer = app.querySelector<HTMLElement>('[data-tutorial-round-dimmer]');
   if (roundDimmer) {
     roundDimmer.style.setProperty('--tutorial-focus-x', `${rect.left + rect.width / 2}px`);
@@ -137,6 +154,15 @@ function positionTutorialFocus(target: Element): void {
   const frameTop = Math.max(viewportGap, rect.top - framePadding);
   const frameRight = Math.min(window.innerWidth - viewportGap, rect.right + framePadding);
   const frameBottom = Math.min(window.innerHeight - viewportGap, rect.bottom + framePadding);
+  const focusFrame = app.querySelector<HTMLElement>('[data-tutorial-focus-frame]');
+  if (focusFrame) {
+    Object.assign(focusFrame.style, {
+      left: `${frameLeft}px`,
+      top: `${frameTop}px`,
+      width: `${Math.max(0, frameRight - frameLeft)}px`,
+      height: `${Math.max(0, frameBottom - frameTop)}px`,
+    });
+  }
   const blockerStyles: Record<string, Partial<CSSStyleDeclaration>> = {
     top: { left: '0px', top: '0px', width: `${window.innerWidth}px`, height: `${frameTop}px` },
     bottom: { left: '0px', top: `${frameBottom}px`, width: `${window.innerWidth}px`, height: `${Math.max(0, window.innerHeight - frameBottom)}px` },
@@ -183,9 +209,7 @@ export function syncTutorial(): void {
   const signature = `step:${step.id}:confirm:${tutorialEndConfirmation}`;
   if (signature !== tutorialSignature) {
     tutorialSignature = signature;
-    if (target && window.matchMedia('(max-width: 1100px)').matches) {
-      target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
-    }
+    if (target) revealTutorialTarget(target);
     const normalInteraction = step.trigger.type === 'action'
       ? `<small class="tutorial-hint">${step.trigger.hint}</small>`
       : `<button class="tutorial-action tutorial-primary tutorial-next" data-action="tutorial-next">${step.trigger.label}</button>`;
@@ -195,8 +219,9 @@ export function syncTutorial(): void {
     const roundFocus = target?.matches('.star-button') ?? false;
     const blockerClass = `tutorial-blocker${roundFocus ? ' tutorial-blocker-round' : ''}`;
     const roundDimmer = roundFocus ? '<div class="tutorial-round-dimmer" data-tutorial-round-dimmer aria-hidden="true"></div>' : '';
+    const focusFrame = `<div class="tutorial-focus-frame${roundFocus ? ' is-round' : ''}" data-tutorial-focus-frame aria-hidden="true"></div>`;
     const focusLayer = target
-      ? `${roundDimmer}<div class="${blockerClass}" data-tutorial-blocker="top" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="right" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="bottom" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="left" aria-hidden="true"></div>`
+      ? `${roundDimmer}${focusFrame}<div class="${blockerClass}" data-tutorial-blocker="top" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="right" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="bottom" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="left" aria-hidden="true"></div>`
       : '<div class="tutorial-blocker tutorial-blocker-full" aria-hidden="true"></div>';
     root.innerHTML = `${focusLayer}<aside class="tutorial-card" aria-label="Tutorial"><div class="tutorial-meta"><span>TUTORIAL · ${stepIndex + 1}/${TUTORIAL_STEPS.length}</span><button data-action="request-end-tutorial">Tutorial beenden</button></div><h2>${step.title}</h2><p>${step.text}</p>${interaction}</aside>`;
   }

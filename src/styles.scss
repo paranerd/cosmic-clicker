@@ -600,6 +600,8 @@ footer button:hover { color: $cyan; }
 .achievement-warning { margin: 0 0 12px; padding: 9px 10px; border: 1px solid rgba($amber,.32); background: rgba($amber,.05); }
 .achievement-warning b { display: block; color: $amber; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
 .achievement-warning span { display: block; margin-top: 4px; color: #aa9578; font-size: 8px; line-height: 1.45; }
+.achievement-timeout-bar { height: 2px; position: absolute; right: 0; bottom: 0; left: 0; overflow: hidden; background: rgba($cyan,.07); pointer-events: none; }
+.achievement-timeout-bar i { display: block; width: 100%; height: 100%; background: rgba($cyan,.55); box-shadow: 0 0 8px rgba($cyan,.35); transform-origin: left; animation: achievement-timeout var(--achievement-timeout,6000ms) linear forwards; }
 .cycle-end-banner { width: min(470px,calc(100vw - 32px)); position: fixed; z-index: 78; left: 50%; bottom: 24px; padding: 20px; opacity: 0; transform: translate(-50%,calc(100% + 48px)); border: 1px solid rgba($orange,.58); background: radial-gradient(circle at 100% 0, rgba($orange,.18), transparent 48%), rgba(13,13,20,.985); box-shadow: 0 22px 65px rgba(0,0,0,.55), 0 0 34px rgba($orange,.08); transition: opacity .42s ease, transform .72s cubic-bezier(.16,.8,.24,1); }
 .cycle-end-banner.is-visible { opacity: 1; transform: translate(-50%,0); }
 .cycle-end-banner.is-leaving { transition-duration: .24s,.32s; }
@@ -653,10 +655,11 @@ footer button:hover { color: $cyan; }
 .tutorial-danger { border-color: rgba($orange,.5); background: rgba($orange,.1); color: #efb49c; }
 .tutorial-danger:hover,.tutorial-danger:focus-visible { border-color: rgba($orange,.75); background: rgba($orange,.18); }
 .tutorial-secondary { color: $muted; }
-.tutorial-focus { position: relative; z-index: 43; outline: 1px solid rgba($cyan,.72); outline-offset: var(--tutorial-frame-padding, 12px); box-shadow: 0 0 0 var(--tutorial-frame-padding, 12px) rgba(2,5,9,.98), 0 0 32px var(--tutorial-frame-padding, 12px) rgba($cyan,.2) !important; }
-.star-button.tutorial-focus { z-index: 43; outline: 0; box-shadow: none !important; }
+.tutorial-focus { position: relative; z-index: 43; }
+.tutorial-focus-frame { position: fixed; z-index: 44; border: 1px solid rgba($cyan,.72); box-shadow: 0 0 32px rgba($cyan,.2); pointer-events: none; }
+.tutorial-focus-frame.is-round { border-radius: 50%; box-shadow: 0 0 45px rgba($cyan,.25); }
+.star-button.tutorial-focus { z-index: 43; }
 .star-button.tutorial-focus .star-corona { visibility: hidden; }
-.star-button.tutorial-focus::after { content: ""; position: absolute; z-index: 20; inset: calc(-1 * var(--tutorial-frame-padding, 12px)); border: 1px solid rgba($cyan,.72); border-radius: 50%; box-shadow: inset 0 0 0 var(--tutorial-frame-padding, 12px) rgba(2,5,9,.98), 0 0 45px rgba($cyan,.25); pointer-events: none; }
 .debug-panel { width: 320px; position: fixed; z-index: 90; right: 18px; top: 82px; padding: 15px; border: 1px solid rgba(#cf73ff,.5); background: rgba(12,8,19,.97); box-shadow: 0 20px 60px rgba(0,0,0,.55); }
 .debug-panel > div:first-child { display: flex; justify-content: space-between; color: #d29af0; font-size: 8px; letter-spacing: .14em; }
 .debug-panel > div:first-child button { border: 0; background: none; color: #b28fc4; cursor: pointer; }
@@ -678,6 +681,7 @@ footer button:hover { color: $cyan; }
 @keyframes gainRise { from { opacity: 0; transform: translate(-50%,0) scale(.75); } 24% { opacity: 1; transform: translate(-50%,-8px) scale(1.06); } to { opacity: 0; transform: translate(-50%,-48px) scale(1); } }
 @keyframes tabUnlockFlash { 0%,100% { color: inherit; text-shadow: none; } 28%,62% { color: $amber; border-bottom-color: $amber; background: rgba($amber,.07); text-shadow: 0 0 12px rgba($amber,.58); } }
 @keyframes perkAttention { 0%,100% { border-color: $line; background: rgba(255,255,255,.018); box-shadow: none; } 30%,68% { border-color: rgba($amber,.7); background: rgba($amber,.09); box-shadow: 0 0 24px rgba($amber,.16), inset 0 0 18px rgba($amber,.04); } }
+@keyframes achievement-timeout { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @keyframes introBackdropIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes introModalIn { from { opacity: 0; transform: translateY(18px) scale(.975); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes introContentIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
@@ -697,7 +701,6 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .stellar-lab { grid-template-columns: minmax(300px, 325px) minmax(390px, 1fr) var(--action-panel-width); }
   .stellar-lab, .star-chamber { min-height: 0; }
   .data-panel { padding: 14px 18px; overflow: hidden; }
-  .data-panel:has(.tutorial-focus) { overflow: visible; }
   .panel-heading { margin-bottom: 9px; }
   .primary-reading { margin-bottom: 7px; }
   .primary-reading > b { margin: 3px 0 7px; font-size: clamp(22px, 2vw, 29px); }
@@ -823,4 +826,5 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
   .intro-backdrop, .intro-modal, .intro-modal > * { animation-delay: 0s !important; }
+  .achievement-timeout-bar i { animation: none !important; opacity: .45; transform: none; }
 }

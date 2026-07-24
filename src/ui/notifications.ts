@@ -9,6 +9,8 @@ interface ToastMessage { id: number; text: string; leaving: boolean }
 export type Objective = ReturnType<typeof objectiveFor>;
 interface AchievementMessage { completedObjective: string; next: Objective }
 
+const ACHIEVEMENT_TIMEOUT_MS = 6_000;
+
 let toastSequence = 0;
 let toastMessages: ToastMessage[] = [];
 const toastTimers = new Map<number, number>();
@@ -19,6 +21,7 @@ let lastObjectiveRun = getState().run;
 let activeAchievement: AchievementMessage | null = null;
 let achievementQueue: AchievementMessage[] = [];
 let achievementTransitionTimer = 0;
+let achievementAutoDismissTimer = 0;
 let cycleEndNoticeRun = getState().completed ? getState().run : 0;
 let cycleEndNoticeVisible = false;
 let cycleEndTransitionTimer = 0;
@@ -187,15 +190,17 @@ function displayNextAchievement(): void {
   const state = getState();
   const root = app.querySelector<HTMLElement>('[data-ui="achievement-root"]');
   if (!root || activeAchievement) return;
+  window.clearTimeout(achievementAutoDismissTimer);
   activeAchievement = achievementQueue.shift() ?? null;
   if (!activeAchievement) { root.innerHTML = ''; return; }
   const title = achievementTitleFor(activeAchievement.completedObjective);
   if (!title) { activeAchievement = null; displayNextAchievement(); return; }
   const warning = warningFor(activeAchievement.completedObjective);
   const warningMarkup = warning ? `<div class="achievement-warning"><b>${warning.title}</b><span>${warning.text}</span></div>` : '';
-  root.innerHTML = `<aside class="achievement-banner" role="region" aria-labelledby="achievement-title"><button class="achievement-close" data-action="dismiss-achievement" aria-label="Zielhinweis schließen">×</button><div class="achievement-announcement" role="status" aria-live="polite" aria-atomic="true"><small>ZIEL ERREICHT</small><h2 id="achievement-title">${title}</h2></div>${warningMarkup}<div class="achievement-next"><span>Als Nächstes</span><b>${activeAchievement.next.title}</b><p>${activeAchievement.next.detail}</p></div></aside>`;
+  root.innerHTML = `<aside class="achievement-banner" role="region" aria-labelledby="achievement-title" style="--achievement-timeout:${ACHIEVEMENT_TIMEOUT_MS}ms"><button class="achievement-close" data-action="dismiss-achievement" aria-label="Zielhinweis schließen">×</button><div class="achievement-announcement" role="status" aria-live="polite" aria-atomic="true"><small>ZIEL ERREICHT</small><h2 id="achievement-title">${title}</h2></div>${warningMarkup}<div class="achievement-next"><span>Als Nächstes</span><b>${activeAchievement.next.title}</b><p>${activeAchievement.next.detail}</p></div><div class="achievement-timeout-bar" aria-hidden="true"><i></i></div></aside>`;
   const banner = root.querySelector<HTMLElement>('.achievement-banner');
   window.requestAnimationFrame(() => banner?.classList.add('is-visible'));
+  achievementAutoDismissTimer = window.setTimeout(dismissAchievement, ACHIEVEMENT_TIMEOUT_MS);
   playSound('unlock', state.soundEnabled, state.volume);
 }
 
@@ -207,6 +212,8 @@ function showAchievement(completedObjective: string, next: Objective): void {
 
 export function dismissAchievement(): void {
   if (!activeAchievement) return;
+  window.clearTimeout(achievementAutoDismissTimer);
+  achievementAutoDismissTimer = 0;
   const root = app.querySelector<HTMLElement>('[data-ui="achievement-root"]');
   const banner = root?.querySelector<HTMLElement>('.achievement-banner');
   window.clearTimeout(achievementTransitionTimer);
@@ -221,6 +228,8 @@ export function dismissAchievement(): void {
 
 export function clearAchievements(): void {
   window.clearTimeout(achievementTransitionTimer);
+  window.clearTimeout(achievementAutoDismissTimer);
+  achievementAutoDismissTimer = 0;
   achievementQueue = [];
   activeAchievement = null;
   const root = app.querySelector<HTMLElement>('[data-ui="achievement-root"]');

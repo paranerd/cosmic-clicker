@@ -682,14 +682,34 @@ export const objectiveFor = (state: GameState): { id: string; eyebrow: string; t
     const objective = OBJECTIVES['review-cycle'];
     return { id: 'review-cycle', eyebrow: objective.eyebrow, title: objective.title, progress: 100, detail: objective.detail };
   }
-  if (state.stage === 'nebula' && state.star.hydrogen < THRESHOLDS.firstHydrogenCollection) {
-    const objective = OBJECTIVES['collect-hydrogen'];
+  const firstMatterObjective = OBJECTIVES['collect-first-matter'];
+  if (state.stage === 'nebula' && starMass(state) < firstMatterObjective.target) {
     return {
-      id: 'collect-hydrogen',
-      eyebrow: objective.eyebrow,
-      title: objective.title,
-      progress: Math.min(100, state.star.hydrogen / THRESHOLDS.firstHydrogenCollection * 100),
-      detail: objective.detail,
+      id: 'collect-first-matter',
+      eyebrow: firstMatterObjective.eyebrow,
+      title: firstMatterObjective.title,
+      progress: Math.min(100, starMass(state) / firstMatterObjective.target * 100),
+      detail: firstMatterObjective.detail,
+    };
+  }
+  const firstEnergyObjective = OBJECTIVES['generate-first-energy'];
+  if (state.stage === 'nebula' && state.stats.energyGenerated < firstEnergyObjective.target) {
+    return {
+      id: 'generate-first-energy',
+      eyebrow: firstEnergyObjective.eyebrow,
+      title: firstEnergyObjective.title,
+      progress: Math.min(100, state.stats.energyGenerated / firstEnergyObjective.target * 100),
+      detail: firstEnergyObjective.detail,
+    };
+  }
+  const firstUpgradeObjective = OBJECTIVES['generate-upgrade-energy'];
+  if (state.stage === 'nebula' && state.stats.energyGenerated < firstUpgradeObjective.target) {
+    return {
+      id: 'generate-upgrade-energy',
+      eyebrow: firstUpgradeObjective.eyebrow,
+      title: firstUpgradeObjective.title,
+      progress: Math.min(100, state.stats.energyGenerated / firstUpgradeObjective.target * 100),
+      detail: firstUpgradeObjective.detail,
     };
   }
   if (state.stage === 'nebula') {

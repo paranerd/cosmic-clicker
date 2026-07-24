@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CLOUD_GROWTH, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, REACTIONS, REACTION_ORDER, STAGES, THRESHOLDS } from '../src/content';
+import { achievementTitleFor, AUTOMATIONS, CLOUD_GROWTH, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, OBJECTIVES, REACTIONS, REACTION_ORDER, STAGES, THRESHOLDS, TUTORIAL_STEPS } from '../src/content';
 import type { Stage } from '../src/game/types';
 import {
   accretionPerClick,
+  accretionPerSecond,
+  automationCost,
   calculateTemperature,
   cloudMass,
   createInitialState,
@@ -16,6 +18,7 @@ import {
   starMass,
   structuralHydrogenBurnPerSecond,
   tick,
+  upgradeCost,
 } from '../src/game/engine';
 import type { GameState, Matter, ReactionId } from '../src/game/types';
 
@@ -102,14 +105,14 @@ describe('data-driven stellar engine v0.4', () => {
     expect(cloudSolarMasses(9)).toBeCloseTo(35.84, 5);
   });
 
-  it('forms a protostar after roughly fifty impulses', () => {
+  it('starts at exactly one ME per impulse and forms a protostar after 2,544 base impulses', () => {
     let state = createInitialState();
+    expect(accretionPerClick(state)).toBe(1);
     let clicks = 0;
     while (state.stage === 'nebula') { state = reduceGame(state, { type: 'ACCRETE' }); clicks += 1; }
     expect(state.stage).toBe('protostar');
     expect(state.temperature).toBeGreaterThanOrEqual(THRESHOLDS.protostarTemperature);
-    expect(clicks).toBeGreaterThanOrEqual(50);
-    expect(clicks).toBeLessThanOrEqual(60);
+    expect(clicks).toBe(THRESHOLDS.protostarMass);
   });
 
   it('activates deuterium burning without a retroactive temperature jump', () => {
@@ -145,6 +148,28 @@ describe('data-driven stellar engine v0.4', () => {
     const next = reduceGame(state, { type: 'BUY_ACCRETION' });
     const purchase = next.log.find((entry) => entry.text === 'Akkretionsstrom ausgebaut.');
     expect(purchase).toMatchObject({ run: 1, elapsed: 42.9, totalElapsed: 142.9 });
+  });
+
+  it('unlocks the first accretion stream for 25 energy at a slow base rate', () => {
+    expect(automationCost('accretion', 0)).toBe(25);
+    expect(AUTOMATIONS.accretion.baseRate).toBe(1);
+
+    const state = createInitialState();
+    state.upgrades.gravity = 3;
+    state.automation.accretion = 1;
+    expect(accretionPerSecond(state)).toBe(7);
+  });
+
+  it('provides achievement text for every static and generated objective', () => {
+    const staticObjectives = Object.keys(OBJECTIVES);
+    const ignitionObjectives = REACTION_ORDER
+      .filter((reaction) => reaction !== 'hydrogen' && reaction !== 'alphaCapture')
+      .map((reaction) => `ignite-${reaction}`);
+    const burnObjectives = REACTION_ORDER.map((reaction) => `burn-${reaction}`);
+
+    [...staticObjectives, ...ignitionObjectives, ...burnObjectives].forEach((objectiveId) => {
+      expect(achievementTitleFor(objectiveId), `Fehlender Achievement-Text für ${objectiveId}`).toBeTruthy();
+    });
   });
 
   it('ends the 0.07 solar-mass cloud as a rewarded brown dwarf', () => {
@@ -309,24 +334,54 @@ describe('data-driven stellar engine v0.4', () => {
     expect(accretionPerClick(massive)).toBeGreaterThan(accretionPerClick(small) * 100);
   });
 
-  it('starts every cloud by collecting 1,000 ME hydrogen before forming the protostar and caps offline time', () => {
+  it('guides every cloud from its first ME through 1 and 3 generated energy before protostar formation', () => {
     const state = createInitialState({ largerCloud: 2 }, 0, 3, { cloudTier: 2 });
     expect(objectiveFor(state)).toMatchObject({
-      id: 'collect-hydrogen',
-      title: 'Sammle 1.000 ME Wasserstoff ein',
+      id: 'collect-first-matter',
+      title: 'Sammle 1 ME Materie ein',
       progress: 0,
     });
 
-    state.star.hydrogen = THRESHOLDS.firstHydrogenCollection / 2;
-    state.cloud.hydrogen -= THRESHOLDS.firstHydrogenCollection / 2;
-    expect(objectiveFor(state).progress).toBe(50);
+    const firstMatter = reduceGame(state, { type: 'ACCRETE' });
+    expect(starMass(firstMatter)).toBeCloseTo(1, 10);
+    expect(objectiveFor(firstMatter)).toMatchObject({ id: 'generate-first-energy' });
 
-    state.star.hydrogen = THRESHOLDS.firstHydrogenCollection;
-    state.cloud.hydrogen -= THRESHOLDS.firstHydrogenCollection / 2;
-    expect(objectiveFor(state).id).toBe('form-protostar');
-    const advanced = tick(state, 24 * 60 * 60);
+    firstMatter.stats.energyGenerated = OBJECTIVES['generate-first-energy'].target;
+    firstMatter.energy = OBJECTIVES['generate-first-energy'].target;
+    expect(objectiveFor(firstMatter)).toMatchObject({ id: 'generate-upgrade-energy', title: 'Erzeuge 3 Energie' });
+
+    firstMatter.stats.energyGenerated = OBJECTIVES['generate-upgrade-energy'].target;
+    firstMatter.energy = OBJECTIVES['generate-upgrade-energy'].target;
+    expect(objectiveFor(firstMatter).id).toBe('form-protostar');
+    const upgraded = reduceGame(firstMatter, { type: 'BUY_UPGRADE', upgrade: 'gravity' });
+    expect(upgraded.upgrades.gravity).toBe(1);
+    expect(upgraded.energy).toBe(0);
+    expect(accretionPerClick(upgraded)).toBe(3);
+    expect(objectiveFor(upgraded).id).toBe('form-protostar');
+
+    const advanced = tick(upgraded, 24 * 60 * 60);
     expect(advanced.elapsed).toBe(8 * 60 * 60);
     expect(advanced.totalElapsed).toBe(8 * 60 * 60);
+  });
+
+  it('gates the energy lesson at 1 energy and prices the first gravity level at 3 energy', () => {
+    const tutorialIds = TUTORIAL_STEPS.map((step) => step.id);
+    expect(tutorialIds.slice(
+      tutorialIds.indexOf('core-composition'),
+      tutorialIds.indexOf('first-upgrade') + 1,
+    )).toEqual([
+      'core-composition',
+      'next-objective',
+      'objective-progress',
+      'accretion-energy',
+      'first-upgrade',
+    ]);
+    expect(TUTORIAL_STEPS.find((step) => step.id === 'accretion-energy')?.availability).toEqual({
+      type: 'energy-at-least',
+      amount: 1,
+    });
+    expect([0, 1, 2, 3, 4].map((level) => upgradeCost('gravity', level))).toEqual([3, 8, 19, 47, 117]);
+    expect(upgradeCost('gravity', 0)).toBe(OBJECTIVES['generate-upgrade-energy'].target);
   });
 
   it('frames every active burn phase as building the next core, with real progress (Punkt 7)', () => {

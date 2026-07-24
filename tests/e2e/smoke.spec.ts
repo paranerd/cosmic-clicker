@@ -25,6 +25,30 @@ async function gotoGame(page: Page): Promise<void> {
   if (await acknowledgement.isVisible()) await acknowledgement.click();
 }
 
+async function expectTutorialFrameInsideViewport(page: Page): Promise<Locator> {
+  const frame = page.locator('[data-tutorial-focus-frame]');
+  await expect(frame).toBeVisible();
+  await expect(frame).toHaveCSS('position', 'fixed');
+  const geometry = await frame.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      parent: (element.parentElement as HTMLElement | null)?.dataset.ui,
+    };
+  });
+  expect(geometry.left).toBeGreaterThanOrEqual(5.5);
+  expect(geometry.top).toBeGreaterThanOrEqual(5.5);
+  expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth - 5.5);
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight - 5.5);
+  expect(geometry.parent).toBe('tutorial-root');
+  return frame;
+}
+
 test('player can accrete matter and see the stellar data update', async ({ page }) => {
   await gotoGame(page);
   expect(await page.evaluate(() => typeof (window as typeof window & { cheat?: unknown }).cheat)).toBe('undefined');
@@ -54,43 +78,47 @@ test('player can accrete matter and see the stellar data update', async ({ page 
     expect(['H', 'He']).toContain(text);
   }
   const gain = page.locator('.accretion-gain');
-  await expect(gain).toHaveText('+48 ME');
+  await expect(gain).toHaveText('+1 ME');
   const gainStyle = await gain.evaluate((element) => ({
     top: Number.parseFloat((element as HTMLElement).style.top),
     textShadow: getComputedStyle(element).textShadow,
   }));
   expect(gainStyle.top).toBeLessThan((starBox!.y + starBox!.height / 2) - chamberBox!.y);
   expect(gainStyle.textShadow).not.toBe('none');
-  await expect(page.locator('[data-ui="click-yield"]')).toHaveText('+48 ME');
-  await expect(page.getByText('48', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('[data-ui="click-yield"]')).toHaveText('+1 ME');
+  await expect(page.getByText('1', { exact: true }).first()).toBeVisible();
   await expect(page.locator('[data-matter="hydrogen"] strong')).toContainText('ME');
   await expect(page.locator('[data-matter="hydrogen"] strong')).not.toContainText('%');
 });
 
-test('the first objective collects 1,000 ME hydrogen before protostar formation', async ({ page }) => {
+test('the first objective collects one ME and congratulates the player', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, stage: 'nebula', cloudTier: 0, nextCloudTier: 0,
-    cloud: { hydrogen: 9_010, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
-    star: { hydrogen: 990, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    cloud: { hydrogen: 10_000, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
-    seenObjectives: ['collect-hydrogen'],
+    seenObjectives: ['collect-first-matter'],
   });
   await page.goto('/');
 
-  await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Sammle 1.000 ME Wasserstoff ein');
-  await expect(page.locator('[data-ui="objective-percent"]')).toHaveText('99%');
+  await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Sammle 1 ME Materie ein');
+  await expect(page.locator('[data-ui="objective-percent"]')).toHaveText('0%');
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
 
-  await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Protostern bilden');
-  await expect(page.locator('.achievement-banner')).toContainText('1.000 ME Wasserstoff gesammelt');
+  await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Erzeuge 1 Energie');
+  await expect(page.locator('[data-ui="energy"]')).toHaveText('0');
+  await expect(page.locator('.energy-metric small')).toHaveText('MeV');
+  await expect(page.locator('[data-ui="objective-percent"]')).toHaveText('1,8%');
+  await expect(page.locator('.achievement-banner')).toContainText('Glückwunsch – die erste Materie ist gesammelt!');
 });
 
 test('reaching an objective uses a non-blocking achievement banner and warns about stellar wind', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, stage: 'nebula', cloudTier: 0, nextCloudTier: 0,
-    cloud: { hydrogen: 9_504, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
-    star: { hydrogen: 2_496, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    cloud: { hydrogen: 9_457, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 2_543, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
     temperature: 97_184,
+    stats: { energyGenerated: 44 },
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
     seenObjectives: ['form-protostar'],
   });
@@ -104,11 +132,11 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await expect(achievement).toContainText('Sternwind setzt ein');
   await expect(achievement).toContainText('nicht mehr eingesammelt');
   await expect(achievement).toContainText('Als Nächstes');
+  await expect(achievement.locator('.achievement-timeout-bar i')).toHaveCSS('animation-duration', '6s');
   const bannerBox = await achievement.boundingBox();
   expect(Math.abs((bannerBox!.x + bannerBox!.width / 2) - page.viewportSize()!.width / 2)).toBeLessThanOrEqual(1);
   await page.waitForTimeout(4_800);
   await expect(achievement).toBeVisible();
-  await page.getByRole('button', { name: 'Zielhinweis schließen' }).click();
   await expect(achievement).toHaveCount(0);
   // Punkt 4: Aktive Warnungen erscheinen nicht mehr im Urwolken-Panel,
   // sondern als Warnsymbol unten rechts in der Star Chamber mit Popover.
@@ -386,27 +414,18 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await expect(tutorial).toContainText('Der kosmische Baustoff');
   const cloudComposition = page.locator('[data-tutorial="cloud-composition"]');
   await expect(cloudComposition).toHaveClass(/tutorial-focus/);
-  await expect(page.locator('.cloud-panel')).toHaveCSS('overflow-y', 'visible');
-  const cloudCompositionFrame = await cloudComposition.evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    const panelRect = element.closest('.cloud-panel')!.getBoundingClientRect();
-    const framePadding = Number.parseFloat(getComputedStyle(element).outlineOffset);
-    return {
-      frameBottom: rect.bottom + framePadding + 1,
-      panelBottom: panelRect.bottom,
-    };
-  });
-  expect(cloudCompositionFrame.frameBottom).toBeGreaterThan(cloudCompositionFrame.panelBottom);
+  await expect(page.locator('.cloud-panel')).toHaveCSS('overflow-y', 'hidden');
+  await expectTutorialFrameInsideViewport(page);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Dein erster Akkretionsimpuls');
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
   await expect(tutorial).toContainText('Materie für den Sternenkern');
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
-  await expect(tutorial).toContainText('Energie für dein Wachstum');
-  await expect(page.locator('.energy-metric')).toHaveClass(/tutorial-focus/);
-  await tutorial.getByRole('button', { name: 'Weiter' }).click();
-  await expect(tutorial).toContainText('Dein erstes Ziel');
-  await expect(page.locator('[data-tutorial="objective"]')).toHaveClass(/tutorial-focus/);
+  await expect(tutorial).toContainText('Dein nächstes Ziel');
+  const objectiveTarget = page.locator('[data-tutorial="objective"]');
+  await expect(objectiveTarget).toHaveClass(/tutorial-focus/);
+  await expect(page.locator('.mission-strip')).toHaveCSS('overflow', 'hidden');
+  await expectTutorialFrameInsideViewport(page);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Fortschritt im Blick');
   await expect(page.locator('[data-tutorial="objective-progress"]')).toHaveClass(/tutorial-focus/);
@@ -426,7 +445,9 @@ test('tutorial resumes when the first upgrade and automation can be purchased', 
     stage: 'protostar',
     cloud: { hydrogen: 7_456, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
     star: { hydrogen: 2_544, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
-    energy: 110,
+    // 3 E für die Verdichtung plus 25 E für die direkt danach getestete
+    // Akkretionsstrom-Freischaltung.
+    energy: 28,
     temperature: 100_000,
     tutorial: { introSeen: true, cosmosToastPending: false, completed: false, step: 8 },
   });
@@ -437,16 +458,20 @@ test('tutorial resumes when the first upgrade and automation can be purchased', 
   await expect(tutorial).toContainText('Dein erstes Upgrade');
   const gravityCard = page.locator('[data-upgrade-card="gravity"]');
   await expect(gravityCard).toHaveClass(/tutorial-focus/);
+  await expect(page.locator('.action-sidepanel')).toHaveCSS('overflow', 'hidden');
+  await expectTutorialFrameInsideViewport(page);
   await gravityCard.locator('[data-action="buy-gravity"]').click();
 
   await expect(page.getByRole('tab', { name: 'Automationen' })).toHaveAttribute('aria-selected', 'true');
   await expect(tutorial).toContainText('Automatische Akkretion');
   const accretionCard = page.locator('[data-automation-card="accretion"]');
   await expect(accretionCard).toHaveClass(/tutorial-focus/);
+  await expectTutorialFrameInsideViewport(page);
   await accretionCard.locator('[data-action="buy-accretion"]').click();
   await expect(tutorial).toContainText('Der Akkretionsstrom arbeitet');
   await expect(tutorial).toContainText('automatisch im Kern verdichtet');
   await expect(page.locator('[data-tutorial="left-panel"]')).toHaveClass(/tutorial-focus/);
+  await expectTutorialFrameInsideViewport(page);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toHaveCount(0);
 });
@@ -501,8 +526,9 @@ test('tutorial blocks the dimmed page while keeping its highlighted action click
   await expect(tutorial).toContainText('Dein erster Akkretionsimpuls');
   await expect(star).toHaveClass(/tutorial-focus/);
   await expect(page.locator('.tutorial-highlight-shield')).toHaveCount(0);
-  const starFocus = await star.evaluate((element) => {
-    const focusRing = getComputedStyle(element, '::after');
+  const starFrame = await expectTutorialFrameInsideViewport(page);
+  const starFocus = await starFrame.evaluate((element) => {
+    const focusRing = getComputedStyle(element);
     return {
       borderRadius: focusRing.borderRadius,
       borderColor: focusRing.borderTopColor,
@@ -515,37 +541,40 @@ test('tutorial blocks the dimmed page while keeping its highlighted action click
   expect(await roundDimmer.evaluate((element) => getComputedStyle(element).maskImage)).toContain('radial-gradient');
   expect(starFocus.borderRadius).toBe('50%');
   expect(starFocus.borderColor).toBe('rgba(120, 215, 223, 0.72)');
-  expect(starFocus.boxShadow).toContain('rgba(2, 5, 9, 0.98)');
+  expect(starFocus.boxShadow).toContain('rgba(120, 215, 223, 0.25)');
   await star.click();
   await expect(page.locator('[data-ui="mass"]')).not.toHaveText('0');
 });
 
-test('objective achievements remain visible while the tutorial is active', async ({ page }) => {
+test('the first-matter achievement remains visible while the tutorial is active', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 7,
-    cloud: { hydrogen: 9_010, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
-    star: { hydrogen: 990, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    cloud: { hydrogen: 10_000, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
     tutorial: { introSeen: true, cosmosToastPending: false, completed: false, step: 4, stepId: 'first-accretion' },
-    seenObjectives: ['collect-hydrogen'],
+    seenObjectives: ['collect-first-matter'],
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
 
   const achievement = page.locator('.achievement-banner');
   await expect(achievement).toBeVisible();
-  await expect(achievement).toContainText('1.000 ME Wasserstoff gesammelt');
-  await expect(achievement.locator('.achievement-next')).toContainText('Protostern bilden');
+  await expect(achievement).toContainText('Glückwunsch – die erste Materie ist gesammelt!');
+  await expect(achievement.locator('.achievement-next')).toContainText('Erzeuge 1 Energie');
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Materie für den Sternenkern');
+  await page.getByRole('button', { name: 'Zielhinweis schließen' }).click();
+  await expect(achievement).toHaveCount(0);
 });
 
 test('the protostar achievement and its next objective remain visible during the tutorial', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 7,
-    cloud: { hydrogen: 7_504, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
-    star: { hydrogen: 2_496, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    cloud: { hydrogen: 7_457, helium: 0, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 2_543, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
     temperature: 94_000,
+    stats: { energyGenerated: 44 },
     tutorial: { introSeen: true, cosmosToastPending: false, completed: false, step: 4, stepId: 'first-accretion' },
-    seenObjectives: ['collect-hydrogen', 'form-protostar'],
+    seenObjectives: ['collect-first-matter', 'generate-first-energy', 'generate-upgrade-energy', 'form-protostar'],
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
@@ -574,45 +603,25 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
     const rect = element.getBoundingClientRect();
     return rect.top < window.innerHeight && rect.bottom > 0;
   })).toBe(true);
-  await expect(firstTarget).toHaveCSS('outline-style', 'solid');
-  await expect(firstTarget).toHaveCSS('outline-color', 'rgba(120, 215, 223, 0.72)');
-  expect(await firstTarget.evaluate((element) => getComputedStyle(element).boxShadow)).toContain('rgba(2, 5, 9, 0.98)');
-  const focusFrame = await firstTarget.evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    const padding = Number.parseFloat(style.outlineOffset);
-    return {
-      padding,
-      left: rect.left - padding - 1,
-      right: rect.right + padding + 1,
-      viewportWidth: window.innerWidth,
-    };
-  });
-  expect(focusFrame.padding).toBeGreaterThan(0);
-  expect(focusFrame.padding).toBeLessThanOrEqual(12);
-  expect(focusFrame.left).toBeGreaterThanOrEqual(5.5);
-  expect(focusFrame.right).toBeLessThanOrEqual(focusFrame.viewportWidth - 5.5);
+  await expectTutorialFrameInsideViewport(page);
 
   // Der Scroll-Listener muss die Blocker noch im selben Scroll-Event
   // aktualisieren. Eine Positionierung erst im nächsten
   // requestAnimationFrame würde als sichtbares Nachziehen auffallen.
   const trackedBoxes = await page.evaluate(() => {
-    return new Promise<{ focusTop: number; framePadding: number; blockerBottom: number }>((resolve) => {
+    return new Promise<{ frameTop: number; blockerBottom: number }>((resolve) => {
       window.addEventListener('scroll', () => {
-        const focusElement = document.querySelector('[data-tutorial="realtime-data"]')!;
-        const focus = focusElement.getBoundingClientRect();
+        const focusFrame = document.querySelector<HTMLElement>('[data-tutorial-focus-frame]')!.getBoundingClientRect();
         const blocker = document.querySelector<HTMLElement>('[data-tutorial-blocker="top"]')!.getBoundingClientRect();
         resolve({
-          focusTop: focus.top,
-          framePadding: Number.parseFloat(getComputedStyle(focusElement).outlineOffset),
+          frameTop: focusFrame.top,
           blockerBottom: blocker.bottom,
         });
       }, { once: true, capture: true });
       window.scrollBy(0, 60);
     });
   });
-  const expectedFrameTop = Math.max(6, trackedBoxes.focusTop - trackedBoxes.framePadding);
-  expect(Math.abs(trackedBoxes.blockerBottom - expectedFrameTop)).toBeLessThanOrEqual(1);
+  expect(Math.abs(trackedBoxes.blockerBottom - trackedBoxes.frameTop)).toBeLessThanOrEqual(1);
 
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect.poll(() => page.locator('.left-panel').evaluate((element) => {
@@ -671,7 +680,7 @@ test('round statistics reflect gameplay and production exposes no debug function
   await page.getByRole('button', { name: 'Statistik öffnen' }).click();
   const stats = page.getByRole('dialog', { name: /Statistik/ });
   await expect(stats).toContainText('Eingesammelte Materie');
-  await expect(stats).toContainText('48 ME');
+  await expect(stats).toContainText('1 ME');
   const closeButton = page.getByRole('button', { name: 'Statistik schließen' });
   const originalCloseButton = await closeButton.elementHandle();
   await closeButton.hover();
@@ -753,7 +762,7 @@ test('upgrade and automation cards use compact heading rows with the rate moved 
   // Punkt 4: "Nächste Stufe" zeigt den Gesamtwert nach der nächsten
   // Ausbaustufe (hier identisch mit dem alten Inkrement, weil die aktuelle
   // Rate bei Stufe 0 noch 0 ist), nicht mehr nur die Differenz.
-  await expect(accretionCard).toContainText('Nächste Stufe: 17 ME/s');
+  await expect(accretionCard).toContainText('Nächste Stufe: 1 ME/s');
   await expect(page.getByRole('button', { name: /Protostern erforderlich/ })).toBeDisabled();
   await expect(page.locator('[data-automation-card="fusion"]')).toHaveCount(0);
   await expect(page.getByText('Automation', { exact: true })).toHaveCount(0);
@@ -772,7 +781,7 @@ test('upgrade and automation corner buttons keep the lock icon until the first l
   await page.goto('/');
 
   // Punkt 1: Die Gravitations-Verdichtung ist hier längst freigeschaltet und
-  // mit 150 Energie auch bezahlbar (Preis 45) — trotzdem zeigt der Button vor
+  // mit 150 Energie auch bezahlbar (Preis 3) — trotzdem zeigt der Button vor
   // dem ersten Ausbau noch das Schloss, kein Doppel-Caret. Der Fill ist dabei
   // (wieder, wie bei Reaktionen) am 100 %-Deckel, weil Energie den Preis
   // längst übersteigt — Icon-Wechsel und Fill sind zwei unabhängige Signale.
@@ -787,7 +796,7 @@ test('upgrade and automation corner buttons keep the lock icon until the first l
 
   // Dieselbe Logik gilt für Automationen: Der Akkretionsstrom ist bei dieser
   // Sternmasse (5.920 ME > 2.544 ME Protostern-Schwelle) unlocked und mit
-  // Preis 65 bezahlbar (105 Energie verbleiben nach dem Gravitations-Ausbau),
+  // Preis 25 bezahlbar (147 Energie verbleiben nach dem Gravitations-Ausbau),
   // zeigt aber vor der ersten Stufe ebenfalls das Schloss.
   await page.getByRole('tab', { name: /Automationen/ }).click();
   const automationButton = page.locator('[data-automation-card="accretion"] .tile-action-button');
@@ -810,7 +819,7 @@ test('locked and not-yet-affordable upgrades/automations show a fractional progr
     // Stadien-Sockelwert (100.000 K) neu berechnet, unabhängig vom Seed-Wert
     // hier — das ist genau ein Zehntel der für Deuteriumbrennen nötigen
     // 1 Mio. K und damit die tatsächlich bindende (kleinste) Voraussetzung.
-    energy: 20, temperature: 500_000,
+    energy: 2.5, temperature: 500_000,
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
   });
   await page.goto('/');
@@ -830,13 +839,13 @@ test('locked and not-yet-affordable upgrades/automations show a fractional progr
   // gerenderten Hintergrund prüfen statt nur die CSS-Variable.
   expect(await deuteriumButton.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
 
-  // Die Gravitations-Verdichtung ist freigeschaltet (keine Voraussetzungen),
-  // mit 20 von 45 nötigen Energie aber noch nicht bezahlbar — der Fill zeigt
-  // hier den Energie/Preis-Fortschritt (≈44,4 %), exakt wie bei Reaktionen.
+  // Die Gravitations-Verdichtung ist freigeschaltet (keine Voraussetzungen).
+  // Mit 2,5 von 5 nötigen Energie ist sie noch nicht bezahlbar —
+  // der Fill zeigt hier den Energie/Preis-Fortschritt (50 %).
   const gravityButton = page.locator('.upgrade-card').filter({ hasText: 'Gravitative Verdichtung' }).locator('.tile-action-button');
   await expect(gravityButton).not.toHaveClass(/is-buildable/);
   const gravityFill = await gravityButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'));
-  expect(parseFloat(gravityFill)).toBeCloseTo(20 / 45 * 100, 5);
+  expect(parseFloat(gravityFill)).toBeCloseTo(50, 5);
   expect(await gravityButton.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
 
   // Punkt 3/4: Der Akkretionsstrom ist bei dieser Sternmasse ebenfalls erst
@@ -1126,13 +1135,13 @@ test('an affordable next automation level uses an expansion toast', async ({ pag
     version: 4, run: 2, stage: 'protostar', cloudTier: 1, nextCloudTier: 1,
     cloud: { hydrogen: 54_000, helium: 17_000, deuterium: 100, carbon: 0, oxygen: 0 },
     star: { hydrogen: 2_000, helium: 1_900, deuterium: 0, carbon: 0, oxygen: 0 },
-    energy: 117, temperature: 200_000, automation: { accretion: 1, fusion: 0 },
+    energy: 119, temperature: 200_000, automation: { accretion: 1, fusion: 0 },
     perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
     seenObjectives: ['heat-protostar'], seenOpportunities: ['accretion:0'],
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Materie einsammeln' }).click({ clickCount: 4 });
+  await page.getByRole('button', { name: 'Materie einsammeln' }).click({ clickCount: 56 });
 
   await expect(page.getByRole('status')).toContainText('Automation kann ausgebaut werden.');
   await expect(page.getByText('Neue Automation verfügbar.', { exact: true })).toHaveCount(0);
@@ -1195,7 +1204,7 @@ test('restart uses an inline confirmation instead of a browser dialog', async ({
 test('cycle completion slides in a compact notice and opens the summary only on demand', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, stage: 'deuterium', cloudTier: 0, nextCloudTier: 0,
-    cloud: { hydrogen: 48, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    cloud: { hydrogen: 1, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
     star: { hydrogen: 10_442, helium: 0, deuterium: 10, carbon: 0, oxygen: 0 },
     temperature: 6_000_000,
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },

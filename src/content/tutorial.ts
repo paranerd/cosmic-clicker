@@ -1,8 +1,10 @@
 import type { AutomationKind } from './automations';
+import { OBJECTIVES } from './objectives';
 import type { UpgradeId } from './upgrades';
 
 export type TutorialAvailability =
   | { type: 'immediate' }
+  | { type: 'energy-at-least'; amount: number }
   | { type: 'upgrade-affordable'; id: UpgradeId; panel: 'upgrades' }
   | { type: 'automation-affordable'; id: AutomationKind; panel: 'automation' };
 
@@ -75,17 +77,9 @@ export const TUTORIAL_STEPS = [
     trigger: next,
   },
   {
-    id: 'accretion-energy',
-    title: 'Energie für dein Wachstum',
-    text: 'Jede Einheit eingesammelter Materie liefert auch Energie. Später kannst du sie nutzen, um Upgrades und Automationen freizuschalten.',
-    selector: '[data-tutorial="energy"]',
-    availability: immediate,
-    trigger: next,
-  },
-  {
-    id: 'first-objective',
-    title: 'Dein erstes Ziel',
-    text: 'Damit kennst du die Grundlagen. Hier siehst du dein erstes Ziel – es führt dich durch den nächsten Abschnitt deiner Sternentwicklung.',
+    id: 'next-objective',
+    title: 'Dein nächstes Ziel',
+    text: 'Sammle nun weiter Materie, bis ihre Verdichtung eine volle Energieeinheit erzeugt hat. Hier siehst du dein aktuelles Ziel.',
     selector: '[data-tutorial="objective"]',
     availability: immediate,
     trigger: next,
@@ -98,6 +92,14 @@ export const TUTORIAL_STEPS = [
     availability: immediate,
     trigger: { type: 'next', label: 'Verstanden' },
     completesInitialTour: true,
+  },
+  {
+    id: 'accretion-energy',
+    title: 'Energie für dein Wachstum',
+    text: `Geschafft! Durch die Verdichtung deiner gesammelten Materie hast du Energie erzeugt. Sammle weiter, bis du ${OBJECTIVES['generate-upgrade-energy'].target} Energie für dein erstes Upgrade hast.`,
+    selector: '[data-tutorial="energy"]',
+    availability: { type: 'energy-at-least', amount: 1 },
+    trigger: next,
   },
   {
     id: 'first-upgrade',
@@ -140,3 +142,9 @@ export const LEGACY_TUTORIAL_STEP_IDS = [
   'first-upgrade',
   'first-automation',
 ] as const;
+
+// Stabile Zuordnung für Spielstände, die den inzwischen präziser benannten
+// Schritt noch als `first-objective` gespeichert haben.
+export const LEGACY_TUTORIAL_STEP_ID_ALIASES: Readonly<Record<string, string>> = {
+  'first-objective': 'next-objective',
+};

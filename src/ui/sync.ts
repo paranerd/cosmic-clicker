@@ -22,7 +22,7 @@ import {
   starMass,
 } from '../game/engine';
 import { syncDebug } from './debug';
-import { formatCompact, formatDuration, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, temperatureScale } from './format';
+import { formatDuration, formatEnergy, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, temperatureScale } from './format';
 import { isWarningsOpen, setWarningsOpen } from './menus';
 import { isMissionCollapsed } from './mission';
 import { markOpportunitiesSeen, syncCycleEndNotice, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
@@ -67,7 +67,7 @@ export function renderShell(): void {
           <section class="data-panel core-panel" data-tutorial="realtime-data">
             <div class="panel-heading"><span class="index">01</span><div><small>Echtzeitdaten</small><h2>Stellarer Kern</h2></div></div>
             <div class="primary-reading"><span>Kerntemperatur</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>${formatTemperature(INITIAL_TEMPERATURE)}</span><span data-ui="temperature-max"></span></small></div>
-            <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric energy-metric" data-tutorial="energy"><span>Energie</span><b data-ui="energy"></b><small>verfügbar</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
+            <div class="metric-grid"><div class="metric"><span>Sternmasse</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric energy-metric" data-tutorial="energy"><span>Energie</span><b data-ui="energy"></b><small>MeV</small></div><div class="metric"><span>Akkretion</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
             <div class="composition" data-tutorial="core-composition"><div class="section-label"><span>Kernzusammensetzung</span></div><div class="matter-elements core-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><p><b>${RESOURCES[key].label}</b><strong data-ui="${key}-value"></strong></p></div>`).join('')}</div></div>
           </section>
           <section class="data-panel cloud-panel" data-ui="cloud-panel" data-tutorial="matter-reservoir">
@@ -281,7 +281,7 @@ export function updateUI(forcePanel = false): void {
   setText('temperature-max', scale.label); uiElement('temperature-bar')?.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
   setText('mass', formatMatter(mass));
   setText('pressure', formatNumber(pressureProgress(state), 1));
-  setText('energy', formatCompact(state.energy));
+  setText('energy', formatEnergy(state.energy));
   setText('accretion-rate', formatMatter(accretionPerSecond(state)));
   DISPLAY_MATTER_KEYS.forEach((key) => {
     setText(`${key}-value`, `${formatMatter(state.star[key])} ME`);

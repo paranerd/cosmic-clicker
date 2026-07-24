@@ -8,16 +8,35 @@ export interface ObjectiveDefinition {
   eyebrow: string;
   title: string;
   detail: string;
-  // Erfolgstitel für das Ziel-Banner, sobald dieses Ziel abgeschlossen ist.
-  // Fehlt bei Zielen, die selbst nie als "completedObjective" auftauchen
-  // (aktuell nur `review-cycle`, siehe achievementTitleFor unten).
-  achievementTitle?: string;
+  // Verpflichtender Erfolgstitel für das Ziel-Banner, sobald dieses Ziel
+  // abgeschlossen ist. Neue statische Objectives können dadurch nicht mehr
+  // versehentlich ohne Achievement-Text angelegt werden.
+  achievementTitle: string;
   // Zusätzlicher Warnhinweis, der beim Erreichen dieses Ziels einmalig im
   // Achievement-Banner erscheint (z. B. "Sternwind setzt ein").
   warning?: Warning;
 }
 
-export type StaticObjectiveId = 'review-cycle' | 'collect-hydrogen' | 'form-protostar' | 'heat-protostar' | 'ignite-hydrogen' | 'stabilize-star';
+export type StaticObjectiveId =
+  | 'review-cycle'
+  | 'collect-first-matter'
+  | 'generate-first-energy'
+  | 'generate-upgrade-energy'
+  | 'form-protostar'
+  | 'heat-protostar'
+  | 'ignite-hydrogen'
+  | 'stabilize-star';
+
+type TargetedObjectiveId =
+  | 'collect-first-matter'
+  | 'generate-first-energy'
+  | 'generate-upgrade-energy';
+
+type ObjectiveDefinitions = {
+  [Id in StaticObjectiveId]: Id extends TargetedObjectiveId
+    ? ObjectiveDefinition & { target: number }
+    : ObjectiveDefinition;
+};
 
 // Ziele der frühen Formationsphasen und des Rundenabschlusses, die keiner
 // Reaktion entsprechen. Die reaktionsbezogenen Zielphasen (`ignite-<reaktion>`
@@ -26,21 +45,37 @@ export type StaticObjectiveId = 'review-cycle' | 'collect-hydrogen' | 'form-prot
 // objectiveFor() in game/engine.ts und OBJECTIVE_EYEBROWS/OBJECTIVE_TEMPLATES
 // unten; ihre Erfolgstitel und Warnungen liegen entsprechend direkt bei
 // der jeweiligen Reaktionsdefinition in reactions.ts.
-export const OBJECTIVES: Record<StaticObjectiveId, ObjectiveDefinition> = {
+export const OBJECTIVES: ObjectiveDefinitions = {
   'review-cycle': {
     eyebrow: 'Entwicklung abgeschlossen',
     title: 'Runde auswerten',
     detail: 'Investiere Sternenstaub oder beginne den nächsten Zyklus.',
+    achievementTitle: 'Zyklus ausgewertet',
   },
-  'collect-hydrogen': {
+  'collect-first-matter': {
+    target: 1,
     eyebrow: 'Erstes Ziel',
-    title: 'Sammle 1.000 ME Wasserstoff ein',
-    detail: 'Ziehe Wasserstoff aus der Urwolke in den entstehenden Stern.',
-    achievementTitle: '1.000 ME Wasserstoff gesammelt',
+    title: 'Sammle 1 ME Materie ein',
+    detail: 'Ziehe die erste Materie aus der Urwolke in den entstehenden Stern.',
+    achievementTitle: 'Glückwunsch – die erste Materie ist gesammelt!',
+  },
+  'generate-first-energy': {
+    target: 1,
+    eyebrow: 'Nächstes Ziel',
+    title: 'Erzeuge 1 Energie',
+    detail: 'Sammle weiter Materie. Ihre Verdichtung setzt nach und nach Energie frei.',
+    achievementTitle: 'Erste Energie erzeugt',
+  },
+  'generate-upgrade-energy': {
+    target: 3,
+    eyebrow: 'Nächstes Ziel',
+    title: 'Erzeuge 3 Energie',
+    detail: 'Sammle genügend Materie, um dein erstes Upgrade freizuschalten.',
+    achievementTitle: 'Erstes Upgrade verfügbar',
   },
   'form-protostar': {
     eyebrow: 'Nächstes Ziel',
-    title: 'Protostern bilden',
+    title: 'Bilde einen Protostern',
     detail: 'Sammle weiter Wasserstoff, um die Materie im Zentrum der Urwolke zu verdichten.',
     achievementTitle: 'Protostern gebildet',
     warning: {
@@ -53,7 +88,7 @@ export const OBJECTIVES: Record<StaticObjectiveId, ObjectiveDefinition> = {
   // aktivierbar wird.
   'heat-protostar': {
     eyebrow: 'Nächstes Ziel',
-    title: `${THRESHOLDS.deuteriumTemperature.toLocaleString('de-DE')} K erreichen`,
+    title: `Erreiche ${THRESHOLDS.deuteriumTemperature.toLocaleString('de-DE')} K`,
     detail: 'Verdichte weiter, bis Deuteriumbrennen aktiviert werden kann.',
     achievementTitle: `${THRESHOLDS.deuteriumTemperature.toLocaleString('de-DE')} Kelvin erreicht`,
   },
@@ -91,9 +126,9 @@ export const OBJECTIVE_TEMPLATES = {
 // Generischer Auflöser für Erfolgstitel: zuerst die statischen Formationsziele
 // oben (OBJECTIVES[id].achievementTitle), sonst per Muster
 // `ignite-<reaktion>`/`burn-<reaktion>` direkt aus der jeweiligen
-// Reaktionsdefinition. Liefert `undefined`, wenn die ID kein bekanntes Ziel
-// ist oder (wie bei Alpha-Einfangs Zündung) keinen eigenen Erfolgstitel
-// besitzt — der Aufrufer zeigt dann kein Banner.
+// Reaktionsdefinition. Liefert nur für unbekannte IDs `undefined`;
+// Alpha-Einfang besitzt keine separate Zündungs-Zielphase und damit auch
+// keine entsprechende Ziel-ID.
 export function achievementTitleFor(objectiveId: string): string | undefined {
   if (objectiveId in OBJECTIVES) return OBJECTIVES[objectiveId as StaticObjectiveId].achievementTitle;
   const ignited = /^ignite-(.+)$/.exec(objectiveId);

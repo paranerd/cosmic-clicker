@@ -110,7 +110,7 @@ Investitionsreihenfolge und aktives Spiel dürfen sie verändern.
 | --- | --- | --- |
 | Materie | ME | Gemeinsame Spielmaßeinheit für Stern und Wolke |
 | Sternmasse | ME und M☉ | Hauptvoraussetzung für Zündung und Endzustand |
-| Energie | ohne eigene Einheit | Kaufwährung innerhalb einer Runde |
+| Energie | MeV | Kaufwährung innerhalb einer Runde |
 | Temperatur | K | Zweite Zündvoraussetzung und Phasenindikator |
 | Kerndruck | % | Lesbare Fortschrittsanzeige zur Wasserstoffzündung |
 | Sternenstaub | ✦ | Permanente Währung zwischen Zyklen |
@@ -260,28 +260,28 @@ unverhältnismäßig langen Klickphasen führen.
 
 | Wert | Referenz |
 | --- | ---: |
-| Manuelle Akkretion | 48 ME pro Klick |
-| Automatische Akkretion | 17 ME/s je Akkretionsstufe |
+| Manuelle Akkretion | 1 ME pro Klick |
+| Automatische Akkretion | 1 ME/s je Akkretionsstufe |
 | Energie je akkretiertem ME | 0,018 |
-| Bonus je Gravitationsstufe | +55 % |
+| Bonus je Gravitationsstufe | +200 % des Basiswerts |
 | Permanenter Bonus je Gravitations-Perk | +12 % |
 | Maximalstufe Gravitation | 5 |
 | Maximalstufe Akkretionsstrom | 8 |
 
-Ein Basisklick erzeugt zu Rundenbeginn `48 × 0,018 = 0,864` Energie.
+Ein Basisklick erzeugt zu Rundenbeginn `1 × 0,018 = 0,018` Energie.
 
 ### Formeln
 
 ```text
 Gravitationsmultiplikator
-  = 1 + 0,55 × Gravitationsstufe
+  = 1 + 2 × Gravitationsstufe
       + 0,12 × permanentes Gravitationsgedächtnis
 
 Materie pro Klick
-  = 48 × Reife-Akkretion × Gravitationsmultiplikator
+  = 1 × Reife-Akkretion × Gravitationsmultiplikator
 
 Materie pro Sekunde
-  = Akkretionsstufe × 17
+  = Akkretionsstufe × 1
     × Reife-Akkretion
     × Gravitationsmultiplikator
 ```
@@ -307,11 +307,6 @@ Wasserstoff-Zündmasse:
 Druckfortschritt
   = min(100; (Sternmasse / 12.000)^1,18 × 100)
 ```
-
-Der Inhaltswert `pressureReferenceMass = 34.000 ME` ist aktuell ein
-unverwendeter früherer Tuningwert. In einem Folgeprojekt sollte er entweder in
-die Formel übernommen oder entfernt werden, damit keine Scheinkonfiguration
-entsteht.
 
 ### Kompressionswärme
 
@@ -365,7 +360,9 @@ Weitere Progressionsschwellen:
 
 | Schwelle | Wert |
 | --- | ---: |
-| Erstes Wasserstoffziel | 1.000 ME |
+| Erste Materie | 1 ME |
+| Erste Energie | 1 Energie |
+| Erstes Upgrade | 3 Energie |
 | Hauptreihe stabilisiert | 15.000 ME fusionierter Wasserstoff |
 | Referenz Heliumkern | 4.500 ME |
 | Referenz Sauerstoffkern | 1.200 ME |
@@ -459,14 +456,14 @@ Hauptreihe deutlich schneller, aber nicht um astronomisch unspielbare Faktoren.
 | Eigenschaft | Wert |
 | --- | --- |
 | Typ | wiederholbar |
-| Basiskosten | 45 Energie |
-| Kostenwachstum | ×2,2 |
+| Erste Stufe | 3 Energie |
+| Kostenwachstum | ×2,5 |
 | Maximum | 5 |
-| Wirkung | +55 % aktive und automatische Akkretion je Stufe |
+| Wirkung | +200 % des jeweiligen Basiswerts auf aktive und automatische Akkretion je Stufe |
 | Sichtbarkeit | von Beginn an |
 | Ende | kein weiterer Kauf bei leerer Urwolke |
 
-Kostenfolge durch Rundung: 45, 99, 218, 479, 1.054 Energie.
+Kostenfolge durch Rundung: 3, 8, 19, 47, 117 Energie.
 
 ### Deuteriumbrennen
 
@@ -509,14 +506,14 @@ Rate(L) = L × Basisrate × (1 + 0,08 × L)
 Für den Akkretionsstrom ist der Wachstumsanteil 0:
 
 ```text
-Rate(L) = L × 17 ME/s × Akkretionsmultiplikatoren
+Rate(L) = L × 1 ME/s × Akkretionsmultiplikatoren
 ```
 
 ### Werte
 
 | Automation | Basisrate | Basiskosten | Kostenwachstum | Freischaltung | Maximum |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Akkretionsstrom | 17 ME/s | 65 | ×1,85 | 2.544 ME Sternmasse | 8 |
+| Akkretionsstrom | 1 ME/s | 25 | ×1,85 | 2.544 ME Sternmasse | 8 |
 | Wasserstofffusion | 64 H/s | 280 | ×1,9 | 5.000 ME He erzeugt | 8 |
 | Heliumfusion | 48 He/s | 520 | ×1,9 | 1.500 ME C erzeugt | 8 |
 | Alpha-Einfang | 24 O/s | 900 | ×1,9 | 400 ME O erzeugt | 8 |
@@ -706,7 +703,9 @@ Zurückgesetzt werden:
 
 | ID | Ziel | Abschluss |
 | --- | --- | --- |
-| `collect-hydrogen` | 1.000 ME Wasserstoff sammeln | H im Stern ≥ 1.000 |
+| `collect-first-matter` | 1 ME Materie sammeln | Sternmasse ≥ 1 ME |
+| `generate-first-energy` | 1 Energie erzeugen | erzeugte Energie ≥ 1 |
+| `generate-upgrade-energy` | 3 Energie erzeugen | erzeugte Energie ≥ 3 |
 | `form-protostar` | Protostern bilden | Sternmasse ≥ 2.544 ME |
 | `heat-protostar` | 1.000.000 K erreichen | Temperatur ≥ 1 Mio. K |
 | `ignite-hydrogen` | Wasserstoffkern zünden | Temperatur und 12.000 ME |
@@ -1199,9 +1198,9 @@ Die Temperaturskala springt durch fachlich relevante Obergrenzen:
 | `cloud-composition` | Zusammensetzung | sofort | Weiter |
 | `first-accretion` | erste Materie | sofort | Stern anklicken |
 | `core-composition` | Ziel der Materie | sofort | Weiter |
-| `accretion-energy` | Energiegewinn | sofort | Weiter |
-| `first-objective` | Zieltext | sofort | Weiter |
+| `next-objective` | nächstes Ziel | sofort | Weiter |
 | `objective-progress` | Fortschrittsbalken | sofort | Verstanden; Pause |
+| `accretion-energy` | Energiegewinn | ab 1 Energie | Weiter |
 | `first-upgrade` | Gravitative Verdichtung | wenn bezahlbar | kaufen |
 | `first-automation` | Akkretionsstrom | wenn bezahlbar | kaufen |
 | `automatic-accretion-effect` | sichtbare Wirkung | unmittelbar danach | Weiter |
