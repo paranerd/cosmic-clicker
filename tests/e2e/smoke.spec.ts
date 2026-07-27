@@ -278,13 +278,21 @@ test('chronicle expands from the persistent bottom dock', async ({ page }) => {
   await expect(chronicle).toHaveCount(0);
 });
 
-test('chronicle shows runtime timestamps and entries from earlier cycles', async ({ page }) => {
+test('chronicle shows runtime timestamps and only entries from the current cycle', async ({ page }) => {
   const archivedEntries = Array.from({ length: 30 }, (_, index) => ({
     id: 100 + index,
     run: 1,
     elapsed: index,
     totalElapsed: index,
     text: `Archivierter Eintrag ${index + 1}.`,
+    kind: 'info',
+  }));
+  const currentEntries = Array.from({ length: 30 }, (_, index) => ({
+    id: 200 + index,
+    run: 2,
+    elapsed: index,
+    totalElapsed: 65 + index,
+    text: `Aktueller Eintrag ${index + 1}.`,
     kind: 'info',
   }));
   await seedLegacyGame(page, {
@@ -295,19 +303,25 @@ test('chronicle shows runtime timestamps and entries from earlier cycles', async
     log: [
       { id: 2, run: 2, elapsed: 42, totalElapsed: 107, text: 'Zweiter Zyklus gestartet.', kind: 'info' },
       { id: 1, run: 1, elapsed: 65, totalElapsed: 65, text: 'Erster Zyklus abgeschlossen.', kind: 'discovery' },
+      ...currentEntries,
       ...archivedEntries,
     ],
   });
   await gotoGame(page);
+  const dockLog = page.locator('[data-ui="dock-log"]');
+  await expect(dockLog).toContainText('Zweiter Zyklus gestartet.');
+  await expect(dockLog).not.toContainText('Erster Zyklus abgeschlossen.');
   await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   const chronicle = page.getByRole('dialog', { name: 'Lebenswege der Sterne' });
 
   await expect(chronicle.locator('[data-ui="chronicle-elapsed"]')).toHaveText(/^LAUFZEIT \d{2}:\d{2}:\d{2}$/);
   await expect(chronicle).not.toContainText('ALLE ZYKLEN');
-  await expect(chronicle).toContainText('Zyklus 02 · 00:00:42 · Gesamt 00:01:47');
+  await expect(chronicle.locator('.log-entry time').first()).toHaveText('00:00:42');
+  await expect(chronicle.locator('.log-list')).not.toContainText('Zyklus 02');
+  await expect(chronicle.locator('.log-list')).not.toContainText('Gesamt');
   await expect(chronicle).toContainText('Zweiter Zyklus gestartet.');
-  await expect(chronicle).toContainText('Zyklus 01 · 00:01:05 · Gesamt 00:01:05');
-  await expect(chronicle).toContainText('Erster Zyklus abgeschlossen.');
+  await expect(chronicle).not.toContainText('Erster Zyklus abgeschlossen.');
+  await expect(chronicle).not.toContainText('Archivierter Eintrag');
   const scrolling = await chronicle.locator('.log-list').evaluate((element) => {
     const modal = element.closest<HTMLElement>('.chronicle-modal')!;
     element.scrollTop = element.scrollHeight;
@@ -745,14 +759,15 @@ test('audio settings persist volume and mute state', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Ton einschalten' })).toBeVisible();
 });
 
-test('round statistics reflect gameplay and production exposes no debug function', async ({ page }) => {
+test('round statistics are integrated into the chronicle and production exposes no debug function', async ({ page }) => {
   await gotoGame(page);
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
-  await page.getByRole('button', { name: 'Statistik öffnen' }).click();
-  const stats = page.getByRole('dialog', { name: /Statistik/ });
+  await expect(page.getByRole('button', { name: 'Statistik öffnen' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
+  const stats = page.getByRole('dialog', { name: 'Lebenswege der Sterne' }).locator('.chronicle-stats');
   await expect(stats).toContainText('Eingesammelte Materie');
   await expect(stats).toContainText('1 ME');
-  const closeButton = page.getByRole('button', { name: 'Statistik schließen' });
+  const closeButton = page.getByRole('button', { name: 'Chronik schließen' });
   const originalCloseButton = await closeButton.elementHandle();
   await closeButton.hover();
   await page.waitForTimeout(1_200);
@@ -1295,8 +1310,8 @@ test('cycle completion slides in a compact notice and opens the summary only on 
 
   await page.getByRole('button', { name: 'Tutorial starten' }).click();
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toBeVisible();
-  await page.getByRole('button', { name: 'Statistik öffnen' }).evaluate((button: HTMLButtonElement) => button.click());
-  await expect(page.getByRole('dialog', { name: /Statistik/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Chronik öffnen' }).evaluate((button: HTMLButtonElement) => button.click());
+  await expect(page.getByRole('dialog', { name: 'Lebenswege der Sterne' })).toBeVisible();
   await page.locator('[data-ui="achievement-root"]').evaluate((root) => { root.innerHTML = '<aside class="achievement-banner is-visible">Alter Zielhinweis</aside>'; });
 
   await page.getByRole('button', { name: 'Materie einsammeln' }).evaluate((button: HTMLButtonElement) => button.click());

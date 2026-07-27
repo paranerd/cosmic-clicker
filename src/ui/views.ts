@@ -491,8 +491,10 @@ export function evolutionMapMarkup(): string {
 }
 
 export function logMarkup(limit?: number): string {
-  const entries = limit === undefined ? getState().log : getState().log.slice(0, limit);
-  return entries.map((entry) => `<div class="log-entry ${entry.kind}"><i></i><div><time>Zyklus ${entry.run.toString().padStart(2, '0')} · ${formatDuration(entry.elapsed)} · Gesamt ${formatDuration(entry.totalElapsed)}</time><p>${entry.text}</p></div></div>`).join('');
+  const state = getState();
+  const currentCycleEntries = state.log.filter((entry) => entry.run === state.run);
+  const entries = limit === undefined ? currentCycleEntries : currentCycleEntries.slice(0, limit);
+  return entries.map((entry) => `<div class="log-entry ${entry.kind}"><i></i><div><time>${formatDuration(entry.elapsed)}</time><p>${entry.text}</p></div></div>`).join('');
 }
 
 export function orderedUpgradeCards(): { view: UpgradeView; markup: string }[] {
