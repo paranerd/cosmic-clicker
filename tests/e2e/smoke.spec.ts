@@ -266,8 +266,9 @@ test('chronicle expands from the persistent bottom dock', async ({ page }) => {
   // Urwolke) plus genau einen offenen „?“-Knoten — keine Zukunftsprognose.
   await expect(chronicle.locator('.timeline-node')).toHaveCount(2);
   await expect(chronicle.locator('.timeline-node.is-open')).toHaveText(/\?.*Sternentwicklung.*Ausgang offen/s);
-  await expect(chronicle.locator('.evolution-branch')).toHaveCount(6);
-  await expect(chronicle).toContainText('Unterhalb der Zündmasse');
+  await expect(chronicle.locator('.evolution-branch')).toHaveCount(0);
+  await expect(chronicle.locator('.chronicle-stats')).toContainText('Eingesammelte Materie');
+  await expect(chronicle.locator('.chronicle-stats .run-stat-grid > div')).toHaveCount(9);
   const closeButton = page.getByRole('button', { name: 'Chronik schließen' });
   const restingBackground = await closeButton.evaluate((element) => getComputedStyle(element).backgroundColor);
   await closeButton.hover();

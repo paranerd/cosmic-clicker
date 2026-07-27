@@ -5,7 +5,7 @@ import { disabled, formatDuration, formatMatter, formatSolarMasses, icons } from
 import { clearPrestigeConfirmation, closeResetMenu, setPerksOpen, setSoundMenuOpen } from './menus';
 import { clearAchievements, clearToasts } from './notifications';
 import { app, getState } from './store';
-import { evolutionMapMarkup, historyMarkup, logMarkup, statsEntries, statsGridMarkup, timelineMarkup } from './views';
+import { historyMarkup, logMarkup, statsEntries, statsGridMarkup, timelineMarkup } from './views';
 import { invalidateTutorial } from './tutorial';
 
 let chronicleOpen = false;
@@ -76,9 +76,11 @@ export function syncOverlay(): void {
   }
   if (chronicleOpen && !state.summaryOpen) {
     const chronicleSignature = `chronicle:${state.stage}:${state.log.map((entry) => entry.id).join(',')}`;
-    if (chronicleSignature === overlaySignature) return;
-    overlaySignature = chronicleSignature;
-    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="chronicle" role="presentation"><section class="chronicle-modal" role="dialog" aria-modal="true" aria-labelledby="chronicle-title"><div class="chronicle-modal-heading"><div><small>KOSMISCHE CHRONIK</small><h2 id="chronicle-title">Lebenswege der Sterne</h2></div><button data-action="close-chronicle" aria-label="Chronik schließen">×</button></div><div class="chronicle-layout"><div class="timeline-card"><div class="section-label"><span>Aktueller Entwicklungspfad</span><small>${cloudDefinition(state.cloudTier).name}</small></div><div class="timeline">${timelineMarkup()}</div>${evolutionMapMarkup()}</div><div class="log-card"><div class="section-label"><span>Sternenlogbuch</span><small>ALLE ZYKLEN</small></div><div class="log-list">${logMarkup()}</div></div></div></section></div>`;
+    if (chronicleSignature !== overlaySignature) {
+      overlaySignature = chronicleSignature;
+      root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="chronicle" role="presentation"><section class="chronicle-modal" role="dialog" aria-modal="true" aria-labelledby="chronicle-title"><div class="chronicle-modal-heading"><div><small>KOSMISCHE CHRONIK</small><h2 id="chronicle-title">Lebenswege der Sterne</h2></div><button data-action="close-chronicle" aria-label="Chronik schließen">×</button></div><div class="chronicle-layout"><div class="timeline-card"><div class="section-label"><span>Aktueller Entwicklungspfad</span><small>${cloudDefinition(state.cloudTier).name}</small></div><div class="timeline">${timelineMarkup()}</div><div class="chronicle-stats"><div class="section-label"><span>Statistik</span><small>ZYKLUS ${state.run.toString().padStart(2, '0')}</small></div><div class="run-stat-grid">${statsGridMarkup(true)}</div></div></div><div class="log-card"><div class="section-label"><span>Sternenlogbuch</span><small>ALLE ZYKLEN</small></div><div class="log-list">${logMarkup()}</div></div></div></section></div>`;
+    }
+    syncLiveStats(root);
     return;
   }
   if (statsOpen && !state.summaryOpen) {
