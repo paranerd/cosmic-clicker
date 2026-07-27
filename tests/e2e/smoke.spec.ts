@@ -526,8 +526,9 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await expect(page.getByRole('dialog', { name: 'Protostern bilden' })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Reaktionen' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Ein neuer Kosmos beginnt.', { exact: true })).toBeVisible();
-  const settings = await openSettings(page);
+  let settings = await openSettings(page);
   await settings.getByRole('switch', { name: 'Tutorial ausschalten' }).click();
+  settings = await openSettings(page);
   await settings.getByRole('switch', { name: 'Tutorial einschalten' }).click();
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Willkommen bei Cosmic Clicker!');
 });
