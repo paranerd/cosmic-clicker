@@ -483,7 +483,7 @@ test('every core metric carries its own knowledge entry', async ({ page }) => {
   }
 });
 
-test('new players can complete and replay the interactive tutorial', async ({ page }) => {
+test('new players can complete and resume the interactive tutorial', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   const intro = page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' });
@@ -530,7 +530,29 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await settings.getByRole('switch', { name: 'Tutorial ausschalten' }).click();
   settings = await openSettings(page);
   await settings.getByRole('switch', { name: 'Tutorial einschalten' }).click();
-  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Willkommen bei Cosmic Clicker!');
+  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toHaveCount(0);
+  settings = await openSettings(page);
+  await expect(settings.getByRole('switch', { name: 'Tutorial ausschalten' })).toBeVisible();
+  await expect(settings).toContainText('passend zu deinem Fortschritt fortgesetzt');
+});
+
+test('reactivating the tutorial skips actions the player has already completed', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 7,
+    cloud: { hydrogen: 9_999, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 1, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    stats: { matterAccreted: 1, energyGenerated: .018 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0, stepId: 'welcome' },
+  });
+  await page.goto('/');
+
+  const settings = await openSettings(page);
+  await settings.getByRole('switch', { name: 'Tutorial einschalten' }).click();
+
+  const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(tutorial).toContainText('Materie für den Sternenkern');
+  await expect(tutorial).not.toContainText('Dein erster Akkretionsimpuls');
+  await expect(page.getByText('Tutorial eingeschaltet und passend zu deinem Fortschritt fortgesetzt.', { exact: true })).toBeVisible();
 });
 
 test('tutorial resumes when the first upgrade and automation can be purchased', async ({ page }) => {
@@ -603,7 +625,7 @@ test('ending the tutorial requires confirmation and can be cancelled', async ({ 
   await tutorial.getByRole('button', { name: 'Tutorial beenden', exact: true }).click();
   await tutorial.locator('[data-action="confirm-end-tutorial"]').click();
   await expect(tutorial).toHaveCount(0);
-  await expect(page.getByText('Tutorial beendet. Über ? kannst du es erneut starten.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Tutorial beendet. In den Einstellungen kannst du es wieder einschalten.', { exact: true })).toBeVisible();
 });
 
 test('tutorial blocks the dimmed page while keeping its highlighted action clickable', async ({ page }) => {
@@ -726,7 +748,7 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
 
   await tutorial.getByRole('button', { name: 'Tutorial beenden', exact: true }).click();
   await tutorial.locator('[data-action="confirm-end-tutorial"]').click();
-  const toast = page.getByText('Tutorial beendet. Über ? kannst du es erneut starten.', { exact: true });
+  const toast = page.getByText('Tutorial beendet. In den Einstellungen kannst du es wieder einschalten.', { exact: true });
   await expect(toast).toBeVisible();
   const toastBox = await toast.boundingBox();
   expect(Math.abs(toastBox!.x + toastBox!.width / 2 - 195)).toBeLessThanOrEqual(1);
@@ -742,7 +764,7 @@ test('rapid onboarding toasts stack, shift and disappear independently', async (
   await tutorial.getByRole('button', { name: 'Tutorial beenden', exact: true }).click();
   await tutorial.locator('[data-action="confirm-end-tutorial"]').click();
 
-  const skipped = page.getByText('Tutorial beendet. Über ? kannst du es erneut starten.', { exact: true });
+  const skipped = page.getByText('Tutorial beendet. In den Einstellungen kannst du es wieder einschalten.', { exact: true });
   const cosmos = page.getByText('Ein neuer Kosmos beginnt.', { exact: true });
   await expect(page.getByRole('status')).toHaveCount(2);
   await expect(skipped).toBeVisible();

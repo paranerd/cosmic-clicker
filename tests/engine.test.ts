@@ -23,6 +23,7 @@ import {
   tick,
   upgradeCost,
 } from '../src/game/engine';
+import { tutorialProgressStepIndex, tutorialResumeStepIndex } from '../src/game/tutorial-progress';
 import type { GameState, Matter, ReactionId } from '../src/game/types';
 
 const accreteUntil = (initial: GameState, targetMass: number, guardLimit = 20_000): GameState => {
@@ -436,6 +437,31 @@ describe('data-driven stellar engine v0.4', () => {
     });
     expect([0, 1, 2, 3, 4].map((level) => upgradeCost('gravity', level))).toEqual([3, 8, 19, 47, 117]);
     expect(upgradeCost('gravity', 0)).toBe(OBJECTIVES['generate-upgrade-energy'].target);
+  });
+
+  it('resumes the tutorial after completed actions without losing a later stored step', () => {
+    const state = createInitialState();
+    const tutorialIds = TUTORIAL_STEPS.map((step) => step.id);
+    const indexOf = (id: (typeof TUTORIAL_STEPS)[number]['id']): number => tutorialIds.indexOf(id);
+
+    expect(tutorialProgressStepIndex(state)).toBe(indexOf('welcome'));
+
+    state.star.hydrogen = 1;
+    state.stats.matterAccreted = 1;
+    expect(tutorialProgressStepIndex(state)).toBe(indexOf('core-composition'));
+
+    state.stats.energyGenerated = OBJECTIVES['generate-first-energy'].target;
+    expect(tutorialProgressStepIndex(state)).toBe(indexOf('accretion-energy'));
+
+    state.stats.energyGenerated = OBJECTIVES['generate-upgrade-energy'].target;
+    expect(tutorialProgressStepIndex(state)).toBe(indexOf('first-upgrade'));
+
+    state.upgrades.gravity = 1;
+    expect(tutorialProgressStepIndex(state)).toBe(indexOf('first-automation'));
+
+    state.automation.accretion = 1;
+    expect(tutorialProgressStepIndex(state)).toBe(indexOf('automatic-accretion-effect'));
+    expect(tutorialResumeStepIndex(state, TUTORIAL_STEPS.length - 1)).toBe(TUTORIAL_STEPS.length - 1);
   });
 
   it('frames every active burn phase as building the next core, with real progress (Punkt 7)', () => {

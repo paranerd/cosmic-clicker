@@ -124,7 +124,7 @@ export function syncOverlay(): void {
             </div>
           </section>
           <section class="settings-section settings-tutorial-section">
-            <div class="settings-section-copy"><span>Hilfestellung</span><h3>Tutorial</h3><p>Zeige die geführten Hinweise im Spiel. Beim Einschalten beginnt das Tutorial von vorn.</p></div>
+            <div class="settings-section-copy"><span>Hilfestellung</span><h3>Tutorial</h3><p>Zeige die geführten Hinweise im Spiel. Beim Einschalten wird das Tutorial passend zu deinem Fortschritt fortgesetzt.</p></div>
             <button class="settings-switch ${tutorialEnabled ? 'is-on' : ''}" data-action="toggle-tutorial" role="switch" aria-checked="${String(tutorialEnabled)}" aria-label="Tutorial ${tutorialEnabled ? 'ausschalten' : 'einschalten'}"><span>${tutorialEnabled ? 'Ein' : 'Aus'}</span><i aria-hidden="true"></i></button>
           </section>
         </div>

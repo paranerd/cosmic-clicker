@@ -1,6 +1,7 @@
 import { LEGACY_TUTORIAL_STEP_ID_ALIASES, LEGACY_TUTORIAL_STEP_IDS, TUTORIAL_STEPS, type TutorialStep } from '../content';
 import { canBuyAutomation, canBuyUpgrade } from '../game/engine';
 import { saveGame } from '../game/storage';
+import { tutorialResumeStepIndex } from '../game/tutorial-progress';
 import { markCurrentObjectiveSeen, showToast } from './notifications';
 import { invalidateOverlay, syncOverlay } from './overlay';
 import { app, getActivePanel, getState } from './store';
@@ -64,8 +65,8 @@ export function setTutorial(step: number, completed = false): void {
 
 export function setTutorialEnabled(enabled: boolean): void {
   if (enabled) {
-    setTutorial(0, false);
-    showToast('Tutorial eingeschaltet und neu gestartet.');
+    setTutorial(tutorialResumeStepIndex(getState(), currentTutorialStepIndex()), false);
+    showToast('Tutorial eingeschaltet und passend zu deinem Fortschritt fortgesetzt.');
     return;
   }
   setTutorial(currentTutorialStepIndex(), true);
@@ -87,7 +88,7 @@ export function cancelTutorialEnd(): void {
 export function confirmTutorialEnd(): void {
   const step = currentTutorialStepIndex();
   commitTutorial(step, true, step <= initialTourEnd);
-  showToast('Tutorial beendet. Über ? kannst du es erneut starten.');
+  showToast('Tutorial beendet. In den Einstellungen kannst du es wieder einschalten.');
 }
 
 export function resolveIntro(startTutorial: boolean): void {
@@ -106,7 +107,7 @@ export function resolveIntro(startTutorial: boolean): void {
   invalidateTutorial();
   syncOverlay();
   syncTutorial();
-  if (!startTutorial) showToast('Tutorial übersprungen. Über ? kannst du es erneut starten.');
+  if (!startTutorial) showToast('Tutorial übersprungen. In den Einstellungen kannst du es jederzeit einschalten.');
 }
 
 function tutorialStepAvailable(step: TutorialStep): boolean {
