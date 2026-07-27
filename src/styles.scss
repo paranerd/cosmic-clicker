@@ -86,7 +86,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .reset-control.is-open .reset-choices { display: flex; }
 
 main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(100% - 48px)); margin: 0 auto; }
-.mission-strip { min-height: 88px; position: relative; display: grid; grid-template-columns: 1fr minmax(260px, 430px) max-content; gap: 32px; align-items: center; overflow: hidden; border-bottom: 1px solid $line; }
+.mission-strip { min-height: 88px; position: relative; display: grid; grid-template-columns: 1fr minmax(260px, 430px); gap: 32px; align-items: center; overflow: hidden; border-bottom: 1px solid $line; }
 .mission-copy { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; visibility: visible; opacity: 1; transform: translateY(0); transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s; }
 .mission-copy span, .card-kicker { color: $cyan; font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
 .mission-copy h2 { margin: 4px 0 0; font-family: Georgia, serif; font-size: 18px; font-weight: 400; letter-spacing: .02em; }
@@ -95,9 +95,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .progress-label b { color: $cyan; font-weight: 600; }
 .progress-track, .mini-track { position: relative; height: 3px; background: rgba(255,255,255,.07); overflow: hidden; }
 .progress-track i, .mini-track i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color.adjust($cyan, $lightness: -20%), $cyan); box-shadow: 0 0 12px rgba($cyan, .5); transition: width .3s ease; }
-.elapsed { min-width: 9ch; border-left: 1px solid $line; padding-left: 22px; display: flex; flex-direction: column; }
-.elapsed span { color: $muted; font-size: 8px; letter-spacing: .14em; text-transform: uppercase; }
-.elapsed b { width: 8ch; margin-top: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; font-weight: 400; font-variant-numeric: tabular-nums; }
 .mission-collapse { width: 28px; height: 28px; position: absolute; z-index: 2; right: 0; top: 10px; display: grid; place-items: center; padding: 0; border: 1px solid $line; background: rgba(8,13,22,.92); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .mission-collapse svg { width: 14px; height: 14px; display: block; transform: rotate(180deg); transform-origin: center; transition: transform .2s ease; }
 .mission-strip.is-collapsed .mission-collapse svg { transform: none; }
@@ -105,14 +102,11 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 @media (hover: hover) and (pointer: fine) {
   .mission-collapse:hover { color: $cyan; border-color: rgba($cyan,.45); background: rgba($cyan,.07); }
 }
-.mission-strip:not(.is-collapsed) .elapsed { margin-right: 38px; }
-.mission-strip.is-collapsed { min-height: 44px; grid-template-columns: minmax(0,1fr) auto 22px; gap: 12px; padding: 8px 0; }
+.mission-strip:not(.is-collapsed) { padding-right: 38px; }
+.mission-strip.is-collapsed { min-height: 44px; grid-template-columns: minmax(0,1fr) 22px; gap: 12px; padding: 8px 0; }
 .mission-strip.is-collapsed .mission-copy { position: absolute; visibility: hidden; opacity: 0; transform: translateY(-10px); pointer-events: none; transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s .34s; }
 .mission-strip.is-collapsed .mission-progress { min-width: 0; grid-column: 1; grid-row: 1; padding: 0; }
-.mission-strip.is-collapsed .elapsed { min-width: 0; grid-column: 2; grid-row: 1; align-self: stretch; justify-content: center; margin: 0; padding-left: 12px; }
-.mission-strip.is-collapsed .elapsed span { font-size: 6px; letter-spacing: .1em; }
-.mission-strip.is-collapsed .elapsed b { width: auto; margin-top: 2px; font-size: 11px; }
-.mission-strip.is-collapsed .mission-collapse { width: 22px; height: 22px; position: relative; right: auto; top: auto; grid-column: 3; grid-row: 1; transform: none; }
+.mission-strip.is-collapsed .mission-collapse { width: 22px; height: 22px; position: relative; right: auto; top: auto; grid-column: 2; grid-row: 1; transform: none; }
 
 .stellar-lab { min-height: 600px; display: grid; grid-template-columns: minmax(280px, 345px) minmax(400px, 1fr) var(--action-panel-width); border-bottom: 1px solid $line; }
 .data-panel { padding: 30px; background: linear-gradient(180deg, rgba(12,18,29,.5), rgba(8,13,22,.35)); }
@@ -775,12 +769,11 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .reset-control.is-open .reset-choices { width: 170px; height: auto; position: absolute; z-index: 30; right: 0; top: 45px; flex-direction: column; padding: 5px; background: #080d16; border: 1px solid $line; box-shadow: 0 15px 35px rgba(0,0,0,.4); }
   .reset-choices button { min-height: 38px; }
   main, footer { width: min(100% - 24px, 620px); }
-  .mission-strip { grid-template-columns: 1fr auto; gap: 20px; padding: 18px 0; }
+  .mission-strip { grid-template-columns: 1fr; gap: 20px; padding: 18px 0; }
   .mission-progress { grid-column: 1 / -1; grid-row: 2; }
   .mission-copy { display: block; }
   .mission-copy h2 { margin-top: 4px; }
   .mission-copy p { margin-top: 5px; }
-  .elapsed { grid-column: 2; grid-row: 1; }
   .stellar-lab { grid-template-columns: 1fr; }
   .left-panel { grid-row: 3; border-right: 0; border-top: 1px solid $line; border-bottom: 1px solid $line; }
   .star-chamber { min-height: 520px; grid-row: 1; }

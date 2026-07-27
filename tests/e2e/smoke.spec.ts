@@ -230,7 +230,7 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByText('SIMULATION AKTIV', { exact: true })).toHaveCount(0);
   await expect(page.locator('[data-ui="temperature-max"]')).toHaveText('100.000 K');
   await expect(page.locator('[data-ui="core-total"]')).toHaveCount(0);
-  await expect(page.locator('[data-ui="elapsed"]')).toHaveText(/^\d{2}:\d{2}:\d{2}$/);
+  await expect(page.locator('[data-ui="elapsed"]')).toHaveCount(0);
 
   const objectivePositions = await page.locator('.mission-copy').evaluate((element) => {
     const eyebrow = element.querySelector('[data-ui="objective-eyebrow"]')!.getBoundingClientRect();
@@ -302,6 +302,8 @@ test('chronicle shows runtime timestamps and entries from earlier cycles', async
   await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   const chronicle = page.getByRole('dialog', { name: 'Lebenswege der Sterne' });
 
+  await expect(chronicle.locator('[data-ui="chronicle-elapsed"]')).toHaveText(/^LAUFZEIT \d{2}:\d{2}:\d{2}$/);
+  await expect(chronicle).not.toContainText('ALLE ZYKLEN');
   await expect(chronicle).toContainText('Zyklus 02 · 00:00:42 · Gesamt 00:01:47');
   await expect(chronicle).toContainText('Zweiter Zyklus gestartet.');
   await expect(chronicle).toContainText('Zyklus 01 · 00:01:05 · Gesamt 00:01:05');
@@ -320,7 +322,7 @@ test('chronicle shows runtime timestamps and entries from earlier cycles', async
   expect(scrolling.logScrollTop).toBeGreaterThan(0);
 });
 
-test('mission strip collapses to compact progress, percentage and runtime details', async ({ browser, baseURL }) => {
+test('mission strip collapses to compact progress and percentage details', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 700 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
   await gotoGame(page);
@@ -349,8 +351,7 @@ test('mission strip collapses to compact progress, percentage and runtime detail
   await expect(strip.locator('[data-ui="objective-percent"]')).toHaveText(/%$/);
   await expect(strip.locator('.progress-track')).toBeVisible();
   await expect(strip.locator('.mission-copy')).toBeHidden();
-  await expect(strip.locator('.elapsed')).toBeVisible();
-  await expect(strip.locator('[data-ui="elapsed"]')).toHaveText(/^\d{2}:\d{2}:\d{2}$/);
+  await expect(strip.locator('.elapsed')).toHaveCount(0);
   const stripBox = (await strip.boundingBox())!;
   const expandButton = page.getByRole('button', { name: 'Zielbereich vergrößern' });
   const collapseButtonBox = (await expandButton.boundingBox())!;
@@ -468,7 +469,7 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await expect(intro).toContainText('COSMICCLICKER');
   await expect(intro).toContainText('kleinen Wolke aus kaltem Wasserstoff');
   await expect(intro).toHaveCSS('animation-name', 'introModalIn');
-  await expect(page.locator('[data-ui="elapsed"]')).toHaveText('00:00:00');
+  await expect(page.locator('[data-ui="elapsed"]')).toHaveCount(0);
   await expect(page.getByRole('dialog', { name: 'Protostern bilden' })).toHaveCount(0);
   await intro.getByRole('button', { name: 'Tutorial starten', exact: true }).click();
   const tutorial = page.getByRole('complementary', { name: 'Tutorial' });

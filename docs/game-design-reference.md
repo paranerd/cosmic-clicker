@@ -852,13 +852,14 @@ Referenzbreiten:
 
 ### Verantwortlichkeiten
 
-- **Zielleiste:** aktuelles Ziel, Fortschritt und Laufzeit
+- **Zielleiste:** aktuelles Ziel und Fortschritt
 - **Linkes Panel:** Temperatur, Masse, Druck, Energie, Rate und
   Zusammensetzungen
 - **Star Chamber:** Hauptaktion, Entwicklungsstadium, Warnungen und
   Aktionsfeedback
 - **Kontrollzentrum:** Reaktionen, Upgrades und Automationen
-- **Chronik-Dock:** Entwicklungsweg und jüngste Logeinträge
+- **Chronik-Dock:** Entwicklungsweg und jüngste Logeinträge; die geöffnete
+  Chronik zeigt zusätzlich die aktuelle Laufzeit
 - **Header:** Marke, Zyklus, Sternenstaub, Sound, Export und Reset
 
 ### Kartenprinzipien
@@ -918,9 +919,9 @@ flackern oder verloren gehen.
 
 ### Missionsleiste
 
-Die Missionsleiste ist einklappbar. Im kompakten Zustand bleiben
-Fortschrittsbalken und Laufzeit sichtbar; der ausführliche Zieltext
-verschwindet. Die Entscheidung wird separat im Browser gespeichert.
+Die Missionsleiste ist einklappbar. Im kompakten Zustand bleibt der
+Fortschrittsbalken sichtbar; der ausführliche Zieltext verschwindet. Die
+Entscheidung wird separat im Browser gespeichert.
 
 ### Wissensdatenbank
 

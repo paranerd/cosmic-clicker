@@ -22,7 +22,7 @@ import {
   starMass,
 } from '../game/engine';
 import { syncDebug } from './debug';
-import { formatDuration, formatEnergy, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, temperatureScale } from './format';
+import { formatEnergy, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, temperatureScale } from './format';
 import { isWarningsOpen, setWarningsOpen } from './menus';
 import { isMissionCollapsed } from './mission';
 import { markOpportunitiesSeen, syncCycleEndNotice, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
@@ -61,7 +61,7 @@ export function renderShell(): void {
     </header>
 
     <main class="${isMissionCollapsed() ? 'mission-is-collapsed' : ''}">
-      <section class="mission-strip ${isMissionCollapsed() ? 'is-collapsed' : ''}" data-ui="mission-strip"><div class="mission-copy" data-tutorial="objective"><span data-ui="objective-eyebrow"></span><h2 data-ui="objective-title"></h2><p data-ui="objective-detail"></p></div><div class="mission-progress" data-tutorial="objective-progress"><div class="progress-label"><span>Fortschritt</span><b data-ui="objective-percent"></b></div><div class="progress-track"><i data-ui="objective-bar"></i></div></div><div class="elapsed"><span>Laufzeit</span><b data-ui="elapsed"></b></div><button class="mission-collapse" data-action="toggle-mission" aria-expanded="${String(!isMissionCollapsed())}" aria-label="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}" title="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}">${icons.chevron}</button></section>
+      <section class="mission-strip ${isMissionCollapsed() ? 'is-collapsed' : ''}" data-ui="mission-strip"><div class="mission-copy" data-tutorial="objective"><span data-ui="objective-eyebrow"></span><h2 data-ui="objective-title"></h2><p data-ui="objective-detail"></p></div><div class="mission-progress" data-tutorial="objective-progress"><div class="progress-label"><span>Fortschritt</span><b data-ui="objective-percent"></b></div><div class="progress-track"><i data-ui="objective-bar"></i></div></div><button class="mission-collapse" data-action="toggle-mission" aria-expanded="${String(!isMissionCollapsed())}" aria-label="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}" title="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}">${icons.chevron}</button></section>
 
       <section class="stellar-lab">
         <aside class="left-panel" data-tutorial="left-panel">
@@ -268,7 +268,6 @@ export function updateUI(forcePanel = false): void {
 
   setText('run', `ZYKLUS ${state.run.toString().padStart(2, '0')}`);
   setText('stardust', formatNumber(state.stardust));
-  setText('elapsed', formatDuration(state.elapsed));
   setText('cloud-perk-level', String(state.perks.largerCloud));
   setText('gravity-perk-level', String(state.perks.permanentGravity));
   setText('fusion-perk-level', String(state.perks.fusionMemory));
