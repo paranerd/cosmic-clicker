@@ -62,6 +62,16 @@ export function setTutorial(step: number, completed = false): void {
   commitTutorial(step, completed, isSkippingInitialTour);
 }
 
+export function setTutorialEnabled(enabled: boolean): void {
+  if (enabled) {
+    setTutorial(0, false);
+    showToast('Tutorial eingeschaltet und neu gestartet.');
+    return;
+  }
+  setTutorial(currentTutorialStepIndex(), true);
+  showToast('Tutorial ausgeschaltet.');
+}
+
 export function requestTutorialEnd(): void {
   tutorialEndConfirmation = true;
   invalidateTutorial();
@@ -187,6 +197,8 @@ export function syncTutorial(): void {
   const state = getState();
   const root = app.querySelector<HTMLElement>('[data-ui="tutorial-root"]');
   if (!root) return;
+  const topbar = app.querySelector<HTMLElement>('.topbar');
+  topbar?.classList.remove('tutorial-settings-access');
   app.querySelectorAll('.tutorial-focus').forEach((element) => element.classList.remove('tutorial-focus'));
   if (state.completed || state.summaryOpen || !state.tutorial.introSeen || state.tutorial.completed) {
     if (root.innerHTML) root.innerHTML = '';
@@ -203,6 +215,7 @@ export function syncTutorial(): void {
     return;
   }
 
+  topbar?.classList.add('tutorial-settings-access');
   prepareTutorialTarget(step);
   const target = tutorialTarget(step);
   target?.classList.add('tutorial-focus');

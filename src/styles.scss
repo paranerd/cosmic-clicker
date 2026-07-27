@@ -42,6 +42,9 @@ button:disabled { cursor: not-allowed; }
 svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 
 .topbar { height: 72px; padding: 0 max(24px, calc((100vw - 1460px) / 2)); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1px solid $line; background: rgba(5, 9, 16, .73); backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 20; }
+.topbar.tutorial-settings-access { z-index: 46; pointer-events: none; }
+.topbar.tutorial-settings-access::after { content: ''; position: absolute; z-index: 1; inset: 0; background: rgba(2,5,9,.82); pointer-events: none; }
+.topbar.tutorial-settings-access .settings-button { position: relative; z-index: 2; pointer-events: auto; }
 .brand { display: flex; align-items: center; gap: 12px; color: $text; text-decoration: none; width: max-content; }
 .brand-mark { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid rgba($cyan, .35); color: $cyan; transform: rotate(45deg); }
 .brand-mark svg { width: 19px; transform: rotate(-45deg); }
@@ -64,26 +67,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .perk-popover small { color: $muted; font-size: 8px; }
 .perk-popover i { color: $amber; font-style: normal; }
 .perk-popover p { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid $line; color: $muted; font-size: 8px; }
-.sound-menu { position: relative; }
-.sound-popover { width: 220px; padding: 14px; position: absolute; z-index: 40; right: 0; top: 46px; visibility: hidden; opacity: 0; transform: translateY(-5px); border: 1px solid $line; background: rgba(8,13,22,.98); box-shadow: 0 18px 45px rgba(0,0,0,.45); transition: .18s ease; }
-.sound-menu.is-open .sound-popover { visibility: visible; opacity: 1; transform: translateY(0); }
-.sound-popover > div { display: flex; justify-content: space-between; color: $muted; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
-.sound-popover > div b { color: $cyan; font-family: ui-monospace,monospace; font-weight: 500; }
-.sound-popover input { width: 100%; margin: 13px 0; accent-color: $cyan; cursor: pointer; }
-.sound-popover button { width: 100%; min-height: 32px; border: 1px solid $line; background: rgba($cyan,.035); color: #91a0b3; font-size: 8px; text-transform: uppercase; cursor: pointer; }
-.sound-popover button:hover { color: $text; border-color: rgba($cyan,.45); background: rgba($cyan,.075); }
 .icon-button { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid $line; background: transparent; color: $muted; cursor: pointer; transition: .2s ease; }
 .icon-button:hover, .resource-chip:hover, .chronicle-modal-heading button:hover { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 .icon-button svg { width: 17px; }
-.reset-control { width: 40px; height: 40px; position: relative; transition: width .22s ease; }
-.reset-choices { display: none; height: 40px; gap: 5px; }
-.reset-choices button { min-width: 118px; padding: 0 12px; border: 1px solid $line; background: rgba(8,13,22,.96); color: #9aa7b6; font-size: 8px; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; transition: .18s ease; }
-.reset-choices button:hover { color: $text; border-color: rgba($cyan,.4); background: rgba($cyan,.06); }
-.reset-choices [data-action="reset-full"] { color: #b88178; }
-.reset-choices [data-action="reset-full"]:hover, .reset-choices [data-action="reset-full"].is-armed { color: #1b0b09; border-color: #db715f; background: #db715f; }
-.reset-control.is-open { width: 260px; }
-.reset-control.is-open .reset-button { display: none; }
-.reset-control.is-open .reset-choices { display: flex; }
 
 main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(100% - 48px)); margin: 0 auto; }
 .mission-strip { min-height: 88px; position: relative; display: grid; grid-template-columns: 1fr minmax(260px, 430px); gap: 32px; align-items: center; overflow: hidden; border-bottom: 1px solid $line; }
@@ -494,6 +480,37 @@ footer button { border: 0; background: none; color: #627086; font-size: 8px; tex
 footer button:hover { color: $cyan; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(2,5,9,.82); backdrop-filter: blur(12px); }
+.settings-modal { width: min(680px,100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.settings-body { padding: 0 28px 8px; }
+.settings-section { display: grid; grid-template-columns: minmax(170px,.75fr) minmax(270px,1.25fr); gap: 28px; align-items: center; padding: 22px 0; border-bottom: 1px solid $line; }
+.settings-section:last-child { border-bottom: 0; }
+.settings-section-copy > span { color: $cyan; font-size: 7px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.settings-section-copy h3 { margin: 5px 0 5px; font-family: Georgia,serif; font-size: 17px; font-weight: 400; }
+.settings-section-copy p { margin: 0; color: $muted; font-size: 8px; line-height: 1.55; }
+.settings-volume > div { display: flex; align-items: center; justify-content: space-between; color: $muted; font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }
+.settings-volume > div b { color: $cyan; font-family: ui-monospace,monospace; font-weight: 500; }
+.settings-volume input { width: 100%; margin: 13px 0; accent-color: $cyan; cursor: pointer; }
+.settings-secondary { width: 100%; min-height: 34px; border: 1px solid $line; background: rgba($cyan,.035); color: #91a0b3; font-size: 8px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: .18s ease; }
+.settings-secondary:hover,.settings-secondary:focus-visible { color: $text; border-color: rgba($cyan,.45); background: rgba($cyan,.075); }
+.settings-action-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.settings-action { min-height: 62px; padding: 10px 12px; display: grid; grid-template-columns: 24px minmax(0,1fr); gap: 10px; align-items: center; text-align: left; border: 1px solid $line; background: rgba(255,255,255,.018); color: #9aa7b6; cursor: pointer; transition: .18s ease; }
+.settings-action:hover,.settings-action:focus-visible { color: $text; border-color: rgba($cyan,.45); background: rgba($cyan,.06); }
+.settings-action svg { width: 18px; color: $cyan; }
+.settings-action span { min-width: 0; display: flex; flex-direction: column; }
+.settings-action b { color: inherit; font-size: 9px; font-weight: 500; }
+.settings-action small { margin-top: 3px; color: $muted; font-size: 7px; line-height: 1.35; }
+.settings-danger { color: #c88f86; }
+.settings-danger svg { color: #c88f86; }
+.settings-danger:hover,.settings-danger:focus-visible { border-color: rgba($orange,.52); background: rgba($orange,.08); }
+.settings-danger.is-armed { color: #1b0b09; border-color: #db715f; background: #db715f; }
+.settings-danger.is-armed svg,.settings-danger.is-armed small { color: #36120d; }
+.settings-tutorial-section { min-height: 106px; }
+.settings-switch { width: 78px; min-height: 34px; justify-self: end; display: flex; align-items: center; justify-content: flex-end; gap: 9px; padding: 0 8px 0 10px; border: 1px solid $line; border-radius: 20px; background: rgba(255,255,255,.018); color: $muted; cursor: pointer; transition: .18s ease; }
+.settings-switch span { font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.settings-switch i { width: 16px; height: 16px; border-radius: 50%; background: #596678; box-shadow: 0 0 0 3px rgba(255,255,255,.025); transition: .18s ease; }
+.settings-switch.is-on { color: $cyan; border-color: rgba($cyan,.42); background: rgba($cyan,.06); }
+.settings-switch.is-on i { background: $cyan; box-shadow: 0 0 10px rgba($cyan,.35); }
+.settings-switch:hover,.settings-switch:focus-visible { border-color: rgba($cyan,.58); color: $text; }
 .intro-backdrop { background: radial-gradient(circle at 50% 35%, rgba($cyan,.08), transparent 42%), rgba(2,5,9,.88); animation: introBackdropIn .35s ease-out both; }
 .intro-modal { width: min(640px,100%); padding: 32px 42px 40px; overflow: hidden; text-align: center; border: 1px solid rgba($cyan,.35); background: radial-gradient(circle at 50% 0, rgba($cyan,.12), transparent 42%), #09111b; box-shadow: 0 32px 100px rgba(0,0,0,.62), 0 0 48px rgba($cyan,.07); animation: introModalIn .55s cubic-bezier(.2,.8,.25,1) both; }
 .intro-brand { margin-bottom: 8px; font-size: 11px; letter-spacing: .2em; }
@@ -762,12 +779,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .run-status { display: none; }
   .brand > span:last-child { font-size: 11px; }
   .resource-chip { padding: 0 8px; }
-  .header-actions > .export-button { display: none; }
   .header-actions { position: relative; }
-  .sound-popover { right: 0; }
-  .reset-control.is-open { width: 40px; }
-  .reset-control.is-open .reset-choices { width: 170px; height: auto; position: absolute; z-index: 30; right: 0; top: 45px; flex-direction: column; padding: 5px; background: #080d16; border: 1px solid $line; box-shadow: 0 15px 35px rgba(0,0,0,.4); }
-  .reset-choices button { min-height: 38px; }
   main, footer { width: min(100% - 24px, 620px); }
   .mission-strip { grid-template-columns: 1fr; gap: 20px; padding: 18px 0; }
   .mission-progress { grid-column: 1 / -1; grid-row: 2; }
@@ -809,6 +821,9 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .future-strip p { display: none; }
   footer { flex-wrap: wrap; justify-content: center; padding: 18px 0; }
   footer p { order: 3; width: 100%; flex: auto; }
+  .settings-body { padding: 0 20px 6px; }
+  .settings-section { grid-template-columns: 1fr; gap: 14px; padding: 18px 0; }
+  .settings-switch { justify-self: start; }
   .tutorial-card { left: 50%; bottom: 16px; transform: translateX(-50%); }
   .achievement-banner, .cycle-end-banner { bottom: 16px; }
   .toast-stack { top: 76px; }
@@ -837,6 +852,9 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .run-stat-grid { grid-template-columns: 1fr; }
   .stats-modal-body { padding: 18px 16px 22px; }
   .knowledge-body { padding: 18px 16px 22px; }
+  .settings-body { padding: 0 16px 6px; }
+  .settings-section { grid-template-columns: 1fr; gap: 14px; padding: 18px 0; }
+  .settings-switch { justify-self: start; }
 }
 
 @media (prefers-reduced-motion: reduce) {

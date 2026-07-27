@@ -17,16 +17,13 @@ import {
   isFullResetArmed,
   isPerksOpen,
   isPrestigeConfirmationArmed,
-  isSoundMenuOpen,
   isWarningsOpen,
   setPerksOpen,
-  setSoundMenuOpen,
   setWarningsOpen,
-  toggleResetMenu,
 } from './ui/menus';
 import { toggleMissionCollapsed } from './ui/mission';
 import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement, dismissCycleEndNotice, showToast } from './ui/notifications';
-import { isKnowledgeOpen, makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setKnowledgeOpen, setStatsOpen } from './ui/overlay';
+import { isKnowledgeOpen, isSettingsOpen, makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setKnowledgeOpen, setSettingsOpen, setStatsOpen } from './ui/overlay';
 import { app, getActivePanel, getState, loaded, setActivePanel, setState, type Panel } from './ui/store';
 import { renderShell, switchPanel, updateUI } from './ui/sync';
 import {
@@ -35,7 +32,7 @@ import {
   confirmTutorialEnd,
   requestTutorialEnd,
   resolveIntro,
-  setTutorial,
+  setTutorialEnabled,
   syncTutorialFocusPosition,
 } from './ui/tutorial';
 
@@ -69,6 +66,7 @@ function exportSave(): void {
 
 function performReset(mode: ResetMode): void {
   closeResetMenu();
+  setSettingsOpen(false);
   clearPrestigeConfirmation();
   clearAchievements();
   clearCycleEndNotice();
@@ -85,13 +83,12 @@ app.addEventListener('click', (event) => {
   const debugButton = target.closest<HTMLButtonElement>('[data-debug]'); if (debugButton?.dataset.debug) { runDebugAction(debugButton.dataset.debug); return; }
   const insidePerkMenu = target.closest('.resource-menu');
   if (isPerksOpen() && !insidePerkMenu) setPerksOpen(false);
-  const insideSoundMenu = target.closest('.sound-menu');
-  if (isSoundMenuOpen() && !insideSoundMenu) setSoundMenuOpen(false);
   const insideWarningCorner = target.closest('.warning-corner');
   if (isWarningsOpen() && !insideWarningCorner) setWarningsOpen(false);
   if (target.closest('.chronicle-dock')) { setChronicleOpen(true); advanceTutorial('open-chronicle'); return; }
   if (target.dataset.overlayDismiss === 'chronicle') { setChronicleOpen(false); return; }
   if (target.dataset.overlayDismiss === 'stats') { setStatsOpen(false); return; }
+  if (target.dataset.overlayDismiss === 'settings') { setSettingsOpen(false); return; }
   if (target.dataset.overlayDismiss === 'knowledge') { setKnowledgeOpen(null); return; }
   const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); advanceTutorial('panel'); return; }
   const button = target.closest<HTMLButtonElement>('[data-action]'); if (!button || button.disabled) return;
@@ -102,14 +99,14 @@ app.addEventListener('click', (event) => {
   if (action === 'request-end-tutorial') { requestTutorialEnd(); return; }
   if (action === 'cancel-end-tutorial') { cancelTutorialEnd(); return; }
   if (action === 'confirm-end-tutorial') { confirmTutorialEnd(); return; }
-  if (action === 'replay-tutorial') { setTutorial(0, false); showToast('Tutorial neu gestartet.'); return; }
+  if (action === 'toggle-tutorial') { setSettingsOpen(false); setTutorialEnabled(getState().tutorial.completed); return; }
   if (action === 'dismiss-achievement') { dismissAchievement(); return; }
   if (action === 'toggle-mission') { toggleMissionCollapsed(); if (event.detail > 0) button.blur(); return; }
-  if (action === 'reset-menu') { toggleResetMenu(); return; }
   if (action === 'reset-run') { performReset('run'); return; }
   if (action === 'reset-full') { if (isFullResetArmed()) performReset('full'); else armFullReset(); return; }
   if (action === 'toggle-perks') { setPerksOpen(!isPerksOpen()); return; }
-  if (action === 'toggle-sound-menu') { setSoundMenuOpen(!isSoundMenuOpen()); return; }
+  if (action === 'open-settings') { setSettingsOpen(true); return; }
+  if (action === 'close-settings') { setSettingsOpen(false); return; }
   if (action === 'toggle-warnings') { setWarningsOpen(!isWarningsOpen()); return; }
   // Wissensdatenbank: Der Eintrag steckt als data-knowledge am Erklär-Button,
   // die Texte kommen aus content/knowledge.ts — neue Erklärstellen brauchen
@@ -172,13 +169,14 @@ app.addEventListener('keydown', (event) => {
   advanceTutorial('open-chronicle');
 });
 
-// Escape schließt einen offenen Wissenseintrag. Der Listener hängt bewusst am
+// Escape schließt einen offenen Wissenseintrag oder die Einstellungen. Der Listener hängt bewusst am
 // window und nicht an `app`: Nach einem Klick auf den Modal-Hintergrund liegt
 // der Fokus auf dem <body> und damit außerhalb von `app`.
 window.addEventListener('keydown', (event) => {
-  if (event.key !== 'Escape' || !isKnowledgeOpen()) return;
+  if (event.key !== 'Escape' || (!isKnowledgeOpen() && !isSettingsOpen())) return;
   event.preventDefault();
-  setKnowledgeOpen(null);
+  if (isKnowledgeOpen()) setKnowledgeOpen(null);
+  else setSettingsOpen(false);
 });
 
 app.addEventListener('input', (event) => {
@@ -194,7 +192,7 @@ app.addEventListener('change', async (event) => {
   try {
     const imported = normalizeGameState(JSON.parse(await input.files[0].text()));
     if (!imported) throw new Error('Invalid save');
-    clearAchievements(); setState({ ...imported, lastTick: Date.now() }); saveGame(getState()); updateUI(true); showToast('Spielstand erfolgreich importiert.');
+    clearAchievements(); setState({ ...imported, lastTick: Date.now() }); saveGame(getState()); setSettingsOpen(false); updateUI(true); showToast('Spielstand erfolgreich importiert.');
   } catch { showToast('Diese Datei ist kein gültiger Spielstand.'); }
 });
 

@@ -25,6 +25,13 @@ async function gotoGame(page: Page): Promise<void> {
   if (await acknowledgement.isVisible()) await acknowledgement.click();
 }
 
+async function openSettings(page: Page): Promise<Locator> {
+  await page.getByRole('button', { name: 'Einstellungen öffnen' }).click();
+  const settings = page.getByRole('dialog', { name: 'Einstellungen' });
+  await expect(settings).toBeVisible();
+  return settings;
+}
+
 async function expectTutorialFrameInsideViewport(page: Page): Promise<Locator> {
   const frame = page.locator('[data-tutorial-focus-frame]');
   await expect(frame).toBeVisible();
@@ -519,7 +526,8 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await expect(page.getByRole('dialog', { name: 'Protostern bilden' })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Reaktionen' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Ein neuer Kosmos beginnt.', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Tutorial starten' }).click();
+  const settings = await openSettings(page);
+  await settings.getByRole('switch', { name: 'Tutorial einschalten' }).click();
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Willkommen bei Cosmic Clicker!');
 });
 
@@ -746,17 +754,51 @@ test('rapid onboarding toasts stack, shift and disappear independently', async (
 
 test('audio settings persist volume and mute state', async ({ page }) => {
   await gotoGame(page);
-  await page.getByRole('button', { name: 'Audioeinstellungen öffnen' }).click();
-  const slider = page.getByRole('slider', { name: 'Effektlautstärke' });
+  let settings = await openSettings(page);
+  const slider = settings.getByRole('slider', { name: 'Effektlautstärke' });
   await expect(slider).toHaveValue('35');
   await slider.fill('60');
-  await expect(page.getByText('60%', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Ton stummschalten' }).click();
-  await expect(page.getByRole('button', { name: 'Ton einschalten' })).toBeVisible();
+  await expect(settings.getByText('60%', { exact: true })).toBeVisible();
+  await settings.getByRole('button', { name: 'Ton stummschalten' }).click();
+  await expect(settings.getByRole('button', { name: 'Ton einschalten' })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Audioeinstellungen öffnen' }).click();
-  await expect(page.getByRole('slider', { name: 'Effektlautstärke' })).toHaveValue('60');
-  await expect(page.getByRole('button', { name: 'Ton einschalten' })).toBeVisible();
+  settings = await openSettings(page);
+  await expect(settings.getByRole('slider', { name: 'Effektlautstärke' })).toHaveValue('60');
+  await expect(settings.getByRole('button', { name: 'Ton einschalten' })).toBeVisible();
+});
+
+test('settings export and import saves and tutorial state', async ({ page }) => {
+  await gotoGame(page);
+  let settings = await openSettings(page);
+  await expect(settings.getByRole('heading', { name: 'Effektlautstärke' })).toBeVisible();
+  await expect(settings.getByRole('heading', { name: 'Sichern und übertragen' })).toBeVisible();
+  await expect(settings.getByRole('heading', { name: 'Fortschritt zurücksetzen' })).toBeVisible();
+
+  const downloadPromise = page.waitForEvent('download');
+  await settings.getByRole('button', { name: /Exportieren/ }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('cosmic-clicker-zyklus-1.json');
+  const exportedSave = await download.path();
+  expect(exportedSave).not.toBeNull();
+
+  await settings.getByRole('button', { name: 'Einstellungen schließen' }).click();
+  await page.getByRole('button', { name: 'Materie einsammeln' }).click();
+  await expect(page.locator('[data-ui="hydrogen-value"]')).toHaveText('1');
+  settings = await openSettings(page);
+
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await settings.getByRole('button', { name: /Importieren/ }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles(exportedSave!);
+  await expect(page.getByText('Spielstand erfolgreich importiert.', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-ui="hydrogen-value"]')).toHaveText('0');
+
+  settings = await openSettings(page);
+  await settings.getByRole('switch', { name: 'Tutorial einschalten' }).click();
+  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toBeVisible();
+  settings = await openSettings(page);
+  await settings.getByRole('switch', { name: 'Tutorial ausschalten' }).click();
+  await expect(page.getByRole('complementary', { name: 'Tutorial' })).toHaveCount(0);
 });
 
 test('round statistics are integrated into the chronicle and production exposes no debug function', async ({ page }) => {
@@ -1256,12 +1298,11 @@ test('header and chronicle utility buttons share the same translucent hover trea
     });
   };
 
-  const downloadStyle = await hoverStyle(page.getByRole('button', { name: 'Spielstand exportieren' }));
-  expect(await hoverStyle(page.getByRole('button', { name: 'Neustartoptionen öffnen' }))).toEqual(downloadStyle);
-  expect(await hoverStyle(page.getByRole('button', { name: 'Sternenstaub und aktive Vermächtnis-Perks anzeigen' }))).toEqual(downloadStyle);
+  const settingsStyle = await hoverStyle(page.getByRole('button', { name: 'Einstellungen öffnen' }));
+  expect(await hoverStyle(page.getByRole('button', { name: 'Sternenstaub und aktive Vermächtnis-Perks anzeigen' }))).toEqual(settingsStyle);
 
   await page.getByRole('button', { name: 'Chronik öffnen' }).click();
-  expect(await hoverStyle(page.getByRole('button', { name: 'Chronik schließen' }))).toEqual(downloadStyle);
+  expect(await hoverStyle(page.getByRole('button', { name: 'Chronik schließen' }))).toEqual(settingsStyle);
 });
 
 test('mobile cockpit stacks star, actions, stats and chronicle without horizontal overflow', async ({ page }) => {
@@ -1286,14 +1327,14 @@ test('mobile cockpit stacks star, actions, stats and chronicle without horizonta
 
 test('restart uses an inline confirmation instead of a browser dialog', async ({ page }) => {
   await gotoGame(page);
-  await page.getByRole('button', { name: 'Neustartoptionen öffnen' }).click();
-  await expect(page.getByRole('button', { name: 'Runde neu starten' })).toBeVisible();
-  const fullReset = page.getByRole('button', { name: 'Spielstand löschen' });
+  const settings = await openSettings(page);
+  await expect(settings.getByRole('button', { name: /Runde neu starten/ })).toBeVisible();
+  const fullReset = settings.getByRole('button', { name: /Spielstand löschen/ });
   await expect(fullReset).toBeVisible();
   await fullReset.click();
-  await expect(page.getByRole('button', { name: 'Wirklich alles löschen?' })).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Wirklich alles löschen?' }).click();
+  await expect(settings.getByRole('button', { name: /Wirklich alles löschen?/ })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await settings.getByRole('button', { name: /Wirklich alles löschen?/ }).click();
   await expect(page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' })).toBeVisible();
   await expect(page.getByText('Ein neuer Kosmos beginnt.')).toHaveCount(0);
 });
@@ -1308,7 +1349,8 @@ test('cycle completion slides in a compact notice and opens the summary only on 
   });
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Tutorial starten' }).click();
+  const settings = await openSettings(page);
+  await settings.getByRole('switch', { name: 'Tutorial einschalten' }).click();
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toBeVisible();
   await page.getByRole('button', { name: 'Chronik öffnen' }).evaluate((button: HTMLButtonElement) => button.click());
   await expect(page.getByRole('dialog', { name: 'Lebenswege der Sterne' })).toBeVisible();

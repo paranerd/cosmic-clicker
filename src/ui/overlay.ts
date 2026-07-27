@@ -2,7 +2,7 @@ import { KNOWLEDGE, OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS, prestigePerkDescri
 import { cloudDefinition, cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost, starMass } from '../game/engine';
 import { setDebugOpen, syncDebug } from './debug';
 import { disabled, formatDuration, formatMatter, formatSolarMasses, icons } from './format';
-import { clearPrestigeConfirmation, closeResetMenu, setPerksOpen, setSoundMenuOpen } from './menus';
+import { clearPrestigeConfirmation, closeResetMenu, setPerksOpen } from './menus';
 import { clearAchievements, clearToasts } from './notifications';
 import { app, getState } from './store';
 import { historyMarkup, logMarkup, statsEntries, statsGridMarkup, timelineMarkup } from './views';
@@ -10,6 +10,7 @@ import { invalidateTutorial } from './tutorial';
 
 let chronicleOpen = false;
 let statsOpen = false;
+let settingsOpen = false;
 let knowledgeEntry: KnowledgeId | null = null;
 let overlaySignature = '';
 let summaryAttentionRun = 0;
@@ -17,6 +18,7 @@ let summaryAttentionRun = 0;
 export const invalidateOverlay = (): void => { overlaySignature = ''; };
 export const resetSummaryAttention = (): void => { summaryAttentionRun = 0; };
 export const isKnowledgeOpen = (): boolean => knowledgeEntry !== null;
+export const isSettingsOpen = (): boolean => settingsOpen;
 
 export function setChronicleOpen(open: boolean): void {
   chronicleOpen = open;
@@ -28,6 +30,19 @@ export function setChronicleOpen(open: boolean): void {
 export function setStatsOpen(open: boolean): void {
   statsOpen = open;
   if (open) chronicleOpen = false;
+  invalidateOverlay();
+  syncOverlay();
+}
+
+export function setSettingsOpen(open: boolean): void {
+  settingsOpen = open;
+  closeResetMenu();
+  if (open) {
+    chronicleOpen = false;
+    statsOpen = false;
+    knowledgeEntry = null;
+    setPerksOpen(false);
+  }
   invalidateOverlay();
   syncOverlay();
 }
@@ -59,7 +74,7 @@ export function syncOverlay(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="overlay-root"]');
   if (!root) return;
   const introNeedsDecision = !state.tutorial.introSeen;
-  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !introNeedsDecision && !knowledgeEntry) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
+  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !settingsOpen && !introNeedsDecision && !knowledgeEntry) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
   if (introNeedsDecision) {
     if (overlaySignature === 'intro') return;
     overlaySignature = 'intro';
@@ -75,6 +90,46 @@ export function syncOverlay(): void {
     overlaySignature = knowledgeSignature;
     const entry = KNOWLEDGE[knowledgeEntry];
     root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="knowledge" role="presentation"><section class="knowledge-modal" role="dialog" aria-modal="true" aria-labelledby="knowledge-title"><div class="chronicle-modal-heading"><div><small>${entry.eyebrow}</small><h2 id="knowledge-title">${entry.title}</h2></div><button data-action="close-knowledge" aria-label="Erklärung schließen">×</button></div><div class="knowledge-body">${entry.paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join('')}<div class="knowledge-ingame"><div class="section-label"><span>Im Spiel</span></div><p>${entry.inGame}</p></div></div></section></div>`;
+    return;
+  }
+  if (settingsOpen && !state.summaryOpen) {
+    if (overlaySignature === 'settings') return;
+    overlaySignature = 'settings';
+    const tutorialEnabled = !state.tutorial.completed;
+    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="settings" role="presentation">
+      <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="chronicle-modal-heading"><div><small>SYSTEMKONFIGURATION</small><h2 id="settings-title">Einstellungen</h2></div><button data-action="close-settings" aria-label="Einstellungen schließen">×</button></div>
+        <div class="settings-body">
+          <section class="settings-section">
+            <div class="settings-section-copy"><span>Audio</span><h3>Effektlautstärke</h3><p>Lautstärke der Klicks, Reaktionen und Ereignisse.</p></div>
+            <div class="settings-volume">
+              <div><span>Lautstärke</span><b data-ui="volume-label">${Math.round(state.volume * 100)}%</b></div>
+              <input data-action="set-volume" aria-label="Effektlautstärke" type="range" min="0" max="100" step="1" value="${Math.round(state.volume * 100)}">
+              <button class="settings-secondary" data-action="toggle-sound" data-ui="mute-label">${state.soundEnabled ? 'Ton stummschalten' : 'Ton einschalten'}</button>
+            </div>
+          </section>
+          <section class="settings-section">
+            <div class="settings-section-copy"><span>Spielstand</span><h3>Sichern und übertragen</h3><p>Speichere deinen Fortschritt als JSON-Datei oder lade einen exportierten Spielstand.</p></div>
+            <div class="settings-action-grid">
+              <button class="settings-action" data-action="export">${icons.download}<span><b>Exportieren</b><small>Spielstand herunterladen</small></span></button>
+              <button class="settings-action" data-action="import">${icons.upload}<span><b>Importieren</b><small>Spielstand auswählen</small></span></button>
+              <input id="save-import" type="file" accept="application/json" hidden>
+            </div>
+          </section>
+          <section class="settings-section">
+            <div class="settings-section-copy"><span>Neustart</span><h3>Fortschritt zurücksetzen</h3><p>Starte nur den aktuellen Zyklus neu oder lösche den gesamten Spielstand.</p></div>
+            <div class="settings-action-grid settings-reset-actions">
+              <button class="settings-action" data-action="reset-run">${icons.reset}<span><b>Runde neu starten</b><small>Dauerhafte Fortschritte behalten</small></span></button>
+              <button class="settings-action settings-danger" data-action="reset-full">${icons.reset}<span><b data-full-reset-label>Spielstand löschen</b><small>Alle Fortschritte entfernen</small></span></button>
+            </div>
+          </section>
+          <section class="settings-section settings-tutorial-section">
+            <div class="settings-section-copy"><span>Hilfestellung</span><h3>Tutorial</h3><p>Zeige die geführten Hinweise im Spiel. Beim Einschalten beginnt das Tutorial von vorn.</p></div>
+            <button class="settings-switch ${tutorialEnabled ? 'is-on' : ''}" data-action="toggle-tutorial" role="switch" aria-checked="${String(tutorialEnabled)}" aria-label="Tutorial ${tutorialEnabled ? 'ausschalten' : 'einschalten'}"><span>${tutorialEnabled ? 'Ein' : 'Aus'}</span><i aria-hidden="true"></i></button>
+          </section>
+        </div>
+      </section>
+    </div>`;
     return;
   }
   if (chronicleOpen && !state.summaryOpen) {
@@ -161,6 +216,7 @@ export function syncOverlay(): void {
 export function makeSummaryExclusive(): void {
   chronicleOpen = false;
   statsOpen = false;
+  settingsOpen = false;
   knowledgeEntry = null;
   setDebugOpen(false);
   overlaySignature = '';
@@ -170,6 +226,5 @@ export function makeSummaryExclusive(): void {
   clearPrestigeConfirmation();
   closeResetMenu();
   setPerksOpen(false);
-  setSoundMenuOpen(false);
   syncDebug();
 }
