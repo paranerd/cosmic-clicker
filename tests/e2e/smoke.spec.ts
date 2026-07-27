@@ -527,6 +527,7 @@ test('new players can complete and replay the interactive tutorial', async ({ pa
   await expect(page.getByRole('tab', { name: 'Reaktionen' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Ein neuer Kosmos beginnt.', { exact: true })).toBeVisible();
   const settings = await openSettings(page);
+  await settings.getByRole('switch', { name: 'Tutorial ausschalten' }).click();
   await settings.getByRole('switch', { name: 'Tutorial einschalten' }).click();
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toContainText('Willkommen bei Cosmic Clicker!');
 });
@@ -783,7 +784,7 @@ test('settings export and import saves and tutorial state', async ({ page }) => 
 
   await settings.getByRole('button', { name: 'Einstellungen schließen' }).click();
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
-  await expect(page.locator('[data-ui="hydrogen-value"]')).toHaveText('1');
+  await expect(page.locator('[data-ui="hydrogen-value"]')).toHaveText('1 ME');
   settings = await openSettings(page);
 
   const fileChooserPromise = page.waitForEvent('filechooser');
@@ -791,7 +792,7 @@ test('settings export and import saves and tutorial state', async ({ page }) => 
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(exportedSave!);
   await expect(page.getByText('Spielstand erfolgreich importiert.', { exact: true })).toBeVisible();
-  await expect(page.locator('[data-ui="hydrogen-value"]')).toHaveText('0');
+  await expect(page.locator('[data-ui="hydrogen-value"]')).toHaveText('0 ME');
 
   settings = await openSettings(page);
   await settings.getByRole('switch', { name: 'Tutorial einschalten' }).click();
