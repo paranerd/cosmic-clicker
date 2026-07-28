@@ -160,19 +160,20 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .click-callout:not(:disabled) { pointer-events: auto; cursor: pointer; }
 .click-callout:not(:disabled):hover span, .click-callout:not(:disabled):focus-visible span { color: #ffd193; text-shadow: 0 0 12px rgba($orange,.5); }
 .click-callout:focus-visible { outline: 1px solid rgba($amber,.55); outline-offset: 7px; }
-// Settings sitzt dauerhaft unten rechts; aktive Warnungen erscheinen direkt
-// links daneben, damit beide Funktionen einen festen, runden Platz behalten.
+// Settings sitzt dauerhaft unten rechts. Aktive Warnungen erhalten den
+// gegenüberliegenden Eckplatz ganz links, damit sie nicht wie ein zweiter
+// Settings-Schalter wirken.
 .chamber-settings { width: 34px; height: 34px; padding: 0; position: absolute; right: 14px; bottom: 14px; z-index: 30; display: grid; place-items: center; border: 1px solid $line; border-radius: 50%; background: rgba(8,13,22,.84); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .chamber-settings svg { width: 15px; height: 15px; display: block; }
 .chamber-settings:hover, .chamber-settings:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 .chamber-settings.tutorial-settings-access { z-index: 46; pointer-events: auto; }
-.warning-corner { position: absolute; right: 56px; bottom: 14px; z-index: 30; }
+.warning-corner { position: absolute; left: 14px; bottom: 14px; z-index: 30; }
 .warning-toggle { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba($amber,.45); border-radius: 50%; background: rgba($amber,.09); color: $amber; cursor: pointer; transition: .2s; animation: warning-pulse 2.6s ease-in-out infinite; }
 .warning-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .warning-toggle:hover { background: rgba($amber,.16); border-color: rgba($amber,.7); }
 @keyframes warning-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba($amber,.25); } 50% { box-shadow: 0 0 0 7px rgba($amber,0); } }
 @media (prefers-reduced-motion: reduce) { .warning-toggle { animation: none; } }
-.warning-popover { width: 265px; padding: 14px; position: absolute; z-index: 40; right: 0; bottom: 44px; visibility: hidden; opacity: 0; transform: translateY(5px); border: 1px solid rgba($amber,.28); background: rgba(8,13,22,.98); box-shadow: 0 18px 45px rgba(0,0,0,.45); transition: .18s ease; text-align: left; }
+.warning-popover { width: 265px; padding: 14px; position: absolute; z-index: 40; left: 0; bottom: 44px; visibility: hidden; opacity: 0; transform: translateY(5px); border: 1px solid rgba($amber,.28); background: rgba(8,13,22,.98); box-shadow: 0 18px 45px rgba(0,0,0,.45); transition: .18s ease; text-align: left; }
 .warning-corner.is-open .warning-popover { visibility: visible; opacity: 1; transform: translateY(0); }
 .warning-popover-title { display: block; color: $amber; font-size: 7px; letter-spacing: .14em; text-transform: uppercase; }
 .warning-entry { margin-top: 11px; display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; align-items: baseline; }
@@ -182,7 +183,7 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .warning-entry p { grid-column: 1 / -1; margin: 0; color: $muted; font-size: 8px; line-height: 1.5; }
 .click-callout span { display: block; color: $amber; font-family: ui-monospace, monospace; font-size: 13px; }
 .click-callout small { display: block; margin-top: 5px; color: $muted; font-size: 8px; letter-spacing: .14em; text-transform: uppercase; }
-.chamber-objective-progress { width: min(220px, calc(100% - 150px)); min-width: 120px; padding: 7px 0 0; position: absolute; z-index: 5; bottom: 20px; display: flex; flex-direction: column; align-items: stretch; border: 0; background: transparent; color: $cyan; cursor: pointer; touch-action: manipulation; }
+.chamber-objective-progress { width: min(220px, calc(100% - 150px)); min-width: 120px; padding: 7px 0 0; position: absolute; z-index: 4; bottom: 20px; display: flex; flex-direction: column; align-items: stretch; border: 0; background: transparent; color: $cyan; cursor: pointer; touch-action: manipulation; }
 .chamber-progress-track { height: 3px; position: relative; overflow: hidden; background: rgba(255,255,255,.07); }
 .chamber-progress-track i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color.adjust($cyan, $lightness: -20%), $cyan); box-shadow: 0 0 12px rgba($cyan,.5); transition: width .3s ease; }
 .chamber-objective-progress b { margin-top: 6px; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 500; line-height: 1; text-align: center; }
@@ -670,6 +671,7 @@ footer button:hover { color: $cyan; }
 .tutorial-danger:hover,.tutorial-danger:focus-visible { border-color: rgba($orange,.75); background: rgba($orange,.18); }
 .tutorial-secondary { color: $muted; }
 .tutorial-focus { position: relative; z-index: 43; }
+.chamber-objective-progress.tutorial-focus { z-index: 4; }
 .tutorial-focus-frame { position: fixed; z-index: 44; border: 1px solid rgba($cyan,.72); box-shadow: 0 0 32px rgba($cyan,.2); pointer-events: none; }
 .tutorial-focus-frame.is-round { border-radius: 50%; box-shadow: 0 0 45px rgba($cyan,.25); }
 .star-button.tutorial-focus { z-index: 43; }
@@ -753,10 +755,11 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 }
 
 @media (max-width: 780px) {
-  main, footer { width: min(100% - 24px, 620px); }
+  main { width: 100%; }
+  footer { width: min(100% - 24px, 620px); }
   .stellar-lab { grid-template-columns: 1fr; }
   .left-panel { grid-row: 3; border-right: 0; border-top: 1px solid $line; border-bottom: 1px solid $line; }
-  .star-chamber { min-height: 520px; grid-row: 1; }
+  .star-chamber { min-height: 100svh; min-height: 100dvh; grid-row: 1; }
   .action-sidepanel { min-height: 520px; grid-row: 2; }
   .sidepanel-heading { padding: 20px 20px 12px; }
   .side-content { padding: 16px 20px; }
@@ -799,7 +802,6 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 }
 
 @media (max-width: 430px) {
-  .stellar-lab, .star-chamber { min-height: 480px; }
   .chamber-resources { width: calc(100% - 16px); }
   .chamber-resource { padding-right: 3px; padding-left: 3px; }
   .chamber-resource span { font-size: 6px; letter-spacing: .06em; }

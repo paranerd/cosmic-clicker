@@ -169,8 +169,8 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await page.waitForTimeout(4_800);
   await expect(achievement).toBeVisible();
   await expect(achievement).toHaveCount(0);
-  // Punkt 4: Aktive Warnungen erscheinen nicht mehr im Urwolken-Panel,
-  // sondern als Warnsymbol unten rechts in der Star Chamber mit Popover.
+  // Aktive Warnungen erscheinen nicht mehr im Urwolken-Panel, sondern im
+  // gegenüberliegenden linken Eck der Star Chamber mit Popover.
   const warningCorner = page.locator('[data-ui="warning-corner"]');
   await expect(warningCorner).toBeVisible();
   const warningPopover = page.locator('.warning-popover');
@@ -180,7 +180,9 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await expect(warningPopover).toContainText('Sternwind aktiv');
   await expect(warningPopover).toContainText('ME/s');
   const warningBox = (await warningCorner.boundingBox())!;
+  const chamberBox = (await page.locator('.star-chamber').boundingBox())!;
   const settingsBox = (await page.getByRole('button', { name: 'Einstellungen öffnen' }).boundingBox())!;
+  expect(warningBox.x - chamberBox.x).toBe(14);
   expect(warningBox.x + warningBox.width).toBeLessThanOrEqual(settingsBox.x);
   expect(warningBox.y).toBe(settingsBox.y);
   await page.locator('.star-button').click({ position: { x: 10, y: 10 }, force: true });
@@ -523,6 +525,11 @@ test('new players can complete and resume the interactive tutorial', async ({ pa
   const objectiveTarget = page.locator('[data-tutorial="objective-progress"]');
   await expect(objectiveTarget).toHaveClass(/tutorial-focus/);
   await expectTutorialFrameInsideViewport(page);
+  const tutorialLayering = await page.evaluate(() => ({
+    progress: Number(getComputedStyle(document.querySelector<HTMLElement>('.chamber-objective-progress')!).zIndex),
+    callout: Number(getComputedStyle(document.querySelector<HTMLElement>('.click-callout')!).zIndex),
+  }));
+  expect(tutorialLayering.progress).toBeLessThan(tutorialLayering.callout);
   await expect(tutorial).toContainText('Klicke auf den markierten Fortschrittsbalken');
   await objectiveTarget.click();
   await expect(tutorial).toHaveCount(0);
@@ -1442,16 +1449,29 @@ test('mobile cockpit stacks star, actions, stats and chronicle without horizonta
   await gotoGame(page);
   await expect(page.getByRole('button', { name: 'Materie einsammeln' })).toHaveCSS('touch-action', 'manipulation');
 
-  const positions = await page.evaluate(() => ({
-    star: document.querySelector('.star-chamber')?.getBoundingClientRect().top ?? 0,
-    actions: document.querySelector('.action-sidepanel')?.getBoundingClientRect().top ?? 0,
-    stats: document.querySelector('.left-panel')?.getBoundingClientRect().top ?? 0,
-    chronicle: document.querySelector('.chronicle-dock')?.getBoundingClientRect().top ?? 0,
-    documentWidth: document.documentElement.scrollWidth,
-    viewportWidth: window.innerWidth,
-  }));
+  const positions = await page.evaluate(() => {
+    const chamber = document.querySelector('.star-chamber')?.getBoundingClientRect();
+    const star = document.querySelector('.star-button')?.getBoundingClientRect();
+    return {
+      chamber: chamber ? { x: chamber.x, y: chamber.y, width: chamber.width, height: chamber.height } : null,
+      star: star ? { x: star.x, y: star.y, width: star.width, height: star.height } : null,
+      actions: document.querySelector('.action-sidepanel')?.getBoundingClientRect().top ?? 0,
+      stats: document.querySelector('.left-panel')?.getBoundingClientRect().top ?? 0,
+      chronicle: document.querySelector('.chronicle-dock')?.getBoundingClientRect().top ?? 0,
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+    };
+  });
 
-  expect(positions.star).toBeLessThan(positions.actions);
+  expect(positions.chamber).not.toBeNull();
+  expect(positions.star).not.toBeNull();
+  expect(positions.chamber!.width).toBe(positions.viewportWidth);
+  expect(positions.chamber!.height).toBeGreaterThanOrEqual(844);
+  expect(positions.actions).toBeGreaterThanOrEqual(844);
+  expect(Math.abs(
+    positions.star!.y + positions.star!.height / 2
+      - (positions.chamber!.y + positions.chamber!.height / 2),
+  )).toBeLessThanOrEqual(1);
   expect(positions.actions).toBeLessThan(positions.stats);
   expect(positions.stats).toBeLessThan(positions.chronicle);
   expect(positions.documentWidth).toBeLessThanOrEqual(positions.viewportWidth);

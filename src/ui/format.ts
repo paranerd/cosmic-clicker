@@ -40,9 +40,9 @@ export const formatRate = (value: number): string => {
 };
 
 export function formatTemperature(value: number): string {
-  if (value >= 1_000_000_000) return `${formatNumber(value / 1_000_000_000, 2)} Mrd. K`;
-  if (value >= 1_000_000) return `${formatNumber(value / 1_000_000, 2)} Mio. K`;
-  return `${formatNumber(value, value < 100_000 ? 1 : 0)} K`;
+  if (value >= 1_000_000_000) return `${formatNumber(value / 1_000_000_000)} Mrd. K`;
+  if (value >= 1_000_000) return `${formatNumber(value / 1_000_000)} Mio. K`;
+  return `${formatNumber(value)} K`;
 }
 
 export function formatDuration(seconds: number): string {
