@@ -666,7 +666,8 @@ test('tutorial blocks the dimmed page while keeping its highlighted action click
 
   await page.mouse.click(starBox!.x + starBox!.width / 2, starBox!.y + starBox!.height / 2);
   await expect(page.locator('[data-ui="mass"]')).toHaveText('0');
-  await expect(page.locator('.tutorial-blocker')).toHaveCSS('pointer-events', 'auto');
+  await expect(page.locator('#app')).toHaveClass(/tutorial-active/);
+  await expect(page.locator('.tutorial-blocker')).toHaveCSS('pointer-events', 'none');
 
   for (let step = 0; step < 4; step += 1) await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Dein erster Akkretionsimpuls');

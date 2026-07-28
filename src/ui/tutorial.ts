@@ -198,6 +198,7 @@ export function syncTutorial(): void {
   const state = getState();
   const root = app.querySelector<HTMLElement>('[data-ui="tutorial-root"]');
   if (!root) return;
+  app.classList.remove('tutorial-active');
   const settingsButton = app.querySelector<HTMLElement>('[data-action="open-settings"]');
   settingsButton?.classList.remove('tutorial-settings-access');
   app.querySelectorAll('.tutorial-focus').forEach((element) => element.classList.remove('tutorial-focus'));
@@ -216,6 +217,7 @@ export function syncTutorial(): void {
     return;
   }
 
+  app.classList.add('tutorial-active');
   settingsButton?.classList.add('tutorial-settings-access');
   prepareTutorialTarget(step);
   const target = tutorialTarget(step);
