@@ -182,12 +182,12 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .warning-entry p { grid-column: 1 / -1; margin: 0; color: $muted; font-size: 8px; line-height: 1.5; }
 .click-callout span { display: block; color: $amber; font-family: ui-monospace, monospace; font-size: 13px; }
 .click-callout small { display: block; margin-top: 5px; color: $muted; font-size: 8px; letter-spacing: .14em; text-transform: uppercase; }
-.chamber-objective-progress { width: min(220px, calc(100% - 150px)); min-width: 120px; padding: 7px 0 0; position: absolute; z-index: 5; bottom: 20px; display: flex; flex-direction: column; align-items: stretch; border: 0; background: transparent; color: $amber; cursor: pointer; touch-action: manipulation; }
-.chamber-progress-track { height: 3px; position: relative; overflow: hidden; background: rgba($amber,.12); }
-.chamber-progress-track i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color.adjust($orange, $lightness: -8%), $amber); box-shadow: 0 0 10px rgba($amber,.45); transition: width .3s ease; }
+.chamber-objective-progress { width: min(220px, calc(100% - 150px)); min-width: 120px; padding: 7px 0 0; position: absolute; z-index: 5; bottom: 20px; display: flex; flex-direction: column; align-items: stretch; border: 0; background: transparent; color: $cyan; cursor: pointer; touch-action: manipulation; }
+.chamber-progress-track { height: 3px; position: relative; overflow: hidden; background: rgba(255,255,255,.07); }
+.chamber-progress-track i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color.adjust($cyan, $lightness: -20%), $cyan); box-shadow: 0 0 12px rgba($cyan,.5); transition: width .3s ease; }
 .chamber-objective-progress b { margin-top: 6px; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 500; line-height: 1; text-align: center; }
-.chamber-objective-progress:hover .chamber-progress-track, .chamber-objective-progress:focus-visible .chamber-progress-track { background: rgba($amber,.2); }
-.chamber-objective-progress:focus-visible { outline: 1px solid rgba($amber,.55); outline-offset: 4px; }
+.chamber-objective-progress:hover .chamber-progress-track, .chamber-objective-progress:focus-visible .chamber-progress-track { background: rgba($cyan,.14); }
+.chamber-objective-progress:focus-visible { outline: 1px solid rgba($cyan,.55); outline-offset: 4px; }
 
 .cloud-gauge { display: flex; gap: 17px; align-items: center; padding-bottom: 25px; border-bottom: 1px solid $line; }
 .gauge-ring { width: 84px; height: 84px; flex: 0 0 auto; padding: 4px; border-radius: 50%; background: conic-gradient($cyan var(--remaining), rgba(255,255,255,.06) 0); transform: rotate(-90deg); }
@@ -453,8 +453,8 @@ footer button { border: 0; background: none; color: #627086; font-size: 8px; tex
 footer button:hover { color: $cyan; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(2,5,9,.82); backdrop-filter: blur(12px); }
-.objective-modal { width: min(560px,100%); border: 1px solid rgba($amber,.36); background: radial-gradient(circle at 100% 0, rgba($amber,.08), transparent 42%), #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
-.objective-modal .chronicle-modal-heading small { color: $amber; }
+.objective-modal { width: min(560px,100%); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.objective-modal .chronicle-modal-heading small { color: $cyan; }
 .objective-modal-body { padding: 22px 28px 26px; }
 .objective-modal-body p { margin: 0; color: #94a2b5; font-size: 10px; line-height: 1.75; }
 .settings-modal { width: min(680px,100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }

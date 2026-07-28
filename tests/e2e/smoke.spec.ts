@@ -380,6 +380,14 @@ test('the chamber progress is the only persistent objective display and opens a 
   await chamberProgress.tap();
   const objective = page.getByRole('dialog', { name: 'Aktuelles Ziel' });
   await expect(objective).toBeVisible();
+  await expect(chamberProgress).toHaveCSS('color', 'rgb(120, 215, 223)');
+  await expect(chamberProgress.locator('.chamber-progress-track i')).toHaveCSS(
+    'background-image',
+    'linear-gradient(90deg, rgb(46, 183, 195), rgb(120, 215, 223))',
+  );
+  await expect(objective).toHaveCSS('border-color', 'rgba(120, 215, 223, 0.3)');
+  await expect(objective).toHaveCSS('background-color', 'rgb(10, 16, 26)');
+  await expect(objective.locator('.chronicle-modal-heading small')).toHaveCSS('color', 'rgb(120, 215, 223)');
   await expect(objective).toContainText('Erstes Ziel');
   await expect(objective).toContainText('Sammle 1 ME Materie ein');
   await expect(objective).toContainText('Ziehe die erste Materie aus der Urwolke');
