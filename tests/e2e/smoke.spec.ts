@@ -1043,6 +1043,13 @@ test('locked and not-yet-affordable upgrades/automations show a fractional progr
   const gravityFill = await gravityButton.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill'));
   expect(parseFloat(gravityFill)).toBeCloseTo(2.5 / 3 * 100, 5);
   expect(await gravityButton.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
+  // Ein normaler UI-Tick darf die unmittelbar nach dem Tabwechsel gerenderte
+  // Kachel nicht nochmals ersetzen. Ein abgelöster Knoten liefert bei
+  // getComputedStyle() leere Werte und machte diese Prüfung zuvor flakey.
+  expect(await gravityButton.evaluate(async (element) => {
+    await new Promise((resolve) => window.setTimeout(resolve, 150));
+    return element.isConnected;
+  })).toBe(true);
 
   // Punkt 3/4: Der Akkretionsstrom ist bei dieser Sternmasse ebenfalls erst
   // zur Hälfte freigeschaltet — 50 % Fill, Schloss-Icon, und "Aktuell" zeigt

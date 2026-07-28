@@ -50,6 +50,23 @@ let lastUpgradeOrderSignature = '';
 let lastDynamicPanelSignature = '';
 const uiElements = new Map<string, HTMLElement>();
 
+function dynamicPanelSignature(panel: Panel): string {
+  const state = getState();
+  if (panel === 'reactions') {
+    return `${state.unlockedReactions.join(',')}:${Object.values(state.reactionUpgrades).join(',')}`;
+  }
+  if (panel === 'automation') {
+    return `${state.unlockedReactions.join(',')}:${Object.values(state.automation).join(',')}:${AUTOMATION_ORDER.map((kind) => automationView(kind).unlocked).join(',')}`;
+  }
+  if (panel === 'perks') return Object.values(state.perks).join(',');
+  return '';
+}
+
+function rememberPanelStructure(panel: Panel): void {
+  lastUpgradeOrderSignature = panel === 'upgrades' ? upgradeOrderSignature() : '';
+  lastDynamicPanelSignature = dynamicPanelSignature(panel);
+}
+
 export function renderShell(): void {
   const state = getState();
   app.innerHTML = `
@@ -354,15 +371,9 @@ export function updateUI(forcePanel = false): void {
   // entfernt statt ihn nur per Text zu leeren. Für Automationen gilt dasselbe
   // zusätzlich für den Freischalt-Zustand (Meisterschaftsschwelle erreicht),
   // der unabhängig von einem Stufenwechsel eintreten kann.
-  const dynamicPanelSignature = activePanel === 'reactions'
-    ? `${state.unlockedReactions.join(',')}:${Object.values(state.reactionUpgrades).join(',')}`
-    : activePanel === 'automation'
-      ? `${state.unlockedReactions.join(',')}:${Object.values(state.automation).join(',')}:${AUTOMATION_ORDER.map((kind) => automationView(kind).unlocked).join(',')}`
-      : activePanel === 'perks'
-        ? Object.values(state.perks).join(',')
-      : '';
-  const dynamicPanelChanged = dynamicPanelSignature !== lastDynamicPanelSignature;
-  if (forcePanel || stageChanged || upgradeOrderChanged || dynamicPanelChanged) { const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(activePanel); lastStage = state.stage; lastUpgradeOrderSignature = currentUpgradeOrder; lastDynamicPanelSignature = dynamicPanelSignature; }
+  const currentDynamicPanelSignature = dynamicPanelSignature(activePanel);
+  const dynamicPanelChanged = currentDynamicPanelSignature !== lastDynamicPanelSignature;
+  if (forcePanel || stageChanged || upgradeOrderChanged || dynamicPanelChanged) { const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(activePanel); lastStage = state.stage; lastUpgradeOrderSignature = currentUpgradeOrder; lastDynamicPanelSignature = currentDynamicPanelSignature; }
   syncNotifications(); syncActivePanel(); syncChronicleDock(); syncOverlay(); syncCycleEndNotice(); syncTutorial(); syncToast();
   if (import.meta.hot) syncDebug();
 }
@@ -371,6 +382,11 @@ export function switchPanel(panel: Panel, markSeen = true): void {
   setActivePanel(panel);
   app.querySelectorAll<HTMLButtonElement>('[data-panel]').forEach((button) => { const active = button.dataset.panel === panel; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
   const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(panel);
+  // Der nächste UI-Tick darf das soeben gerenderte Panel nicht direkt erneut
+  // ersetzen. Andernfalls zeigen die gespeicherten Signaturen noch auf den
+  // vorherigen Tab und bereits gefundene DOM-Knoten werden kurz nach dem
+  // Wechsel wieder abgelöst.
+  rememberPanelStructure(panel);
   syncActivePanel();
   if (markSeen) markOpportunitiesSeen(panel, currentOpportunities());
   syncNotifications();
