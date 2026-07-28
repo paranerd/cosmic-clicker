@@ -46,15 +46,13 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .icon-button svg { width: 17px; }
 
 main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(100% - 48px)); margin: 0 auto; }
-.mission-strip { min-height: 88px; position: relative; display: grid; grid-template-columns: 1fr minmax(260px, 430px); gap: 32px; align-items: center; overflow: hidden; }
+.mission-strip { min-height: 88px; position: relative; display: grid; grid-template-columns: 1fr; align-items: center; overflow: hidden; }
 .mission-copy { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; visibility: visible; opacity: 1; transform: translateY(0); transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s; }
 .mission-copy span, .card-kicker { color: $cyan; font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
 .mission-copy h2 { margin: 4px 0 0; font-family: Georgia, serif; font-size: 18px; font-weight: 400; letter-spacing: .02em; }
 .mission-copy p { margin: 4px 0 0; color: $muted; font-size: 11px; }
-.progress-label { display: flex; justify-content: space-between; color: $muted; font-size: 9px; text-transform: uppercase; letter-spacing: .12em; margin-bottom: 7px; }
-.progress-label b { color: $cyan; font-weight: 600; }
-.progress-track, .mini-track { position: relative; height: 3px; background: rgba(255,255,255,.07); overflow: hidden; }
-.progress-track i, .mini-track i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color.adjust($cyan, $lightness: -20%), $cyan); box-shadow: 0 0 12px rgba($cyan, .5); transition: width .3s ease; }
+.mini-track { position: relative; height: 3px; background: rgba(255,255,255,.07); overflow: hidden; }
+.mini-track i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color.adjust($cyan, $lightness: -20%), $cyan); box-shadow: 0 0 12px rgba($cyan, .5); transition: width .3s ease; }
 .mission-actions { position: absolute; right: 0; top: 10px; display: flex; gap: 6px; }
 .mission-collapse { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid $line; background: rgba(8,13,22,.92); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .mission-collapse svg { width: 14px; height: 14px; display: block; transform: rotate(180deg); transform-origin: center; transition: transform .2s ease; }
@@ -66,7 +64,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .mission-strip:not(.is-collapsed) { padding-right: 34px; }
 .mission-strip.is-collapsed { min-height: 44px; grid-template-columns: minmax(0,1fr) auto; gap: 12px; padding: 8px 0; }
 .mission-strip.is-collapsed .mission-copy { position: absolute; visibility: hidden; opacity: 0; transform: translateY(-10px); pointer-events: none; transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s .34s; }
-.mission-strip.is-collapsed .mission-progress { min-width: 0; grid-column: 1; grid-row: 1; padding: 0; }
 .mission-strip.is-collapsed .mission-actions { position: relative; right: auto; top: auto; grid-column: 2; grid-row: 1; gap: 6px; }
 .mission-strip.is-collapsed .mission-collapse { width: 22px; height: 22px; }
 
@@ -773,8 +770,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 
 @media (max-width: 780px) {
   main, footer { width: min(100% - 24px, 620px); }
-  .mission-strip { grid-template-columns: 1fr; gap: 20px; padding: 18px 0; }
-  .mission-progress { grid-column: 1 / -1; grid-row: 2; }
+  .mission-strip { grid-template-columns: 1fr; padding: 18px 0; }
   .mission-copy { display: block; }
   .mission-copy h2 { margin-top: 4px; }
   .mission-copy p { margin-top: 5px; }

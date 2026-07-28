@@ -128,13 +128,13 @@ test('the first objective collects one ME and congratulates the player', async (
   await page.goto('/');
 
   await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Sammle 1 ME Materie ein');
-  await expect(page.locator('[data-ui="objective-percent"]')).toHaveText('0%');
+  await expect(page.locator('[data-ui="chamber-objective-percent"]')).toHaveText('0%');
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
 
   await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Erzeuge 1 MeV Energie');
   await expect(page.locator('[data-ui="energy"]')).toHaveText('0');
   await expect(page.locator('.energy-metric small')).toHaveText('MeV');
-  await expect(page.locator('[data-ui="objective-percent"]')).toHaveText('1,8%');
+  await expect(page.locator('[data-ui="chamber-objective-percent"]')).toHaveText('1,8%');
   await expect(page.locator('.achievement-banner')).toContainText('Glückwunsch – die erste Materie ist gesammelt!');
 });
 
@@ -366,7 +366,7 @@ test('chronicle shows runtime timestamps and only entries from the current cycle
   expect(scrolling.logScrollTop).toBeGreaterThan(0);
 });
 
-test('mission strip collapses to compact progress and percentage details', async ({ browser, baseURL }) => {
+test('mission strip collapses without duplicating the chamber progress', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 700 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
   await gotoGame(page);
@@ -390,10 +390,9 @@ test('mission strip collapses to compact progress and percentage details', async
   await expect(strip).toHaveClass(/is-collapsed/);
   expect(await strip.evaluate((element) => element.getAnimations({ subtree: true }).some((animation) => animation.playState === 'running'))).toBe(true);
   await strip.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished.catch(() => undefined))));
-  await expect(strip.locator('.progress-label')).toBeVisible();
-  await expect(strip.locator('.progress-label')).toContainText('Fortschritt');
-  await expect(strip.locator('[data-ui="objective-percent"]')).toHaveText(/%$/);
-  await expect(strip.locator('.progress-track')).toBeVisible();
+  await expect(strip.locator('.mission-progress')).toHaveCount(0);
+  await expect(strip.locator('[data-ui="objective-percent"]')).toHaveCount(0);
+  await expect(strip.locator('.progress-track')).toHaveCount(0);
   await expect(strip.locator('.mission-copy')).toBeHidden();
   await expect(strip.locator('.elapsed')).toHaveCount(0);
   const stripBox = (await strip.boundingBox())!;
@@ -415,9 +414,7 @@ test('mission strip collapses to compact progress and percentage details', async
   await expect(page.locator('.mission-strip')).toHaveClass(/is-collapsed/);
   const chamberProgress = page.getByRole('button', { name: 'Aktuelles Ziel öffnen' });
   await expect(page.locator('.phase-dots')).toHaveCount(0);
-  await expect(chamberProgress.locator('[data-ui="chamber-objective-percent"]')).toHaveText(
-    await page.locator('[data-ui="objective-percent"]').textContent() ?? '',
-  );
+  await expect(chamberProgress.locator('[data-ui="chamber-objective-percent"]')).toHaveText(/%$/);
   expect(await chamberProgress.locator('.chamber-progress-track i').evaluate(
     (element) => getComputedStyle(element).backgroundImage,
   )).toContain('gradient');
@@ -549,7 +546,9 @@ test('new players can complete and resume the interactive tutorial', async ({ pa
   await expectTutorialFrameInsideViewport(page);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Fortschritt im Blick');
-  await expect(page.locator('[data-tutorial="objective-progress"]')).toHaveClass(/tutorial-focus/);
+  await expect(tutorial).toContainText('orangefarbene Balken unter deinem Stern');
+  await expect(page.locator('.mission-strip [data-tutorial="objective-progress"]')).toHaveCount(0);
+  await expect(page.locator('.chamber-objective-progress[data-tutorial="objective-progress"]')).toHaveClass(/tutorial-focus/);
   await tutorial.getByRole('button', { name: 'Verstanden' }).click();
   await expect(tutorial).toHaveCount(0);
   await expect(page.getByRole('dialog', { name: 'Protostern bilden' })).toHaveCount(0);

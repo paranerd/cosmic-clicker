@@ -29,7 +29,7 @@ export function setMissionCollapsed(collapsed: boolean): void {
   const strip = app.querySelector<HTMLElement>('[data-ui="mission-strip"]');
   const main = app.querySelector<HTMLElement>('main');
   const movingElements = strip
-    ? Array.from(strip.querySelectorAll<HTMLElement>('.mission-progress, .elapsed, .mission-actions'))
+    ? Array.from(strip.querySelectorAll<HTMLElement>('.elapsed, .mission-actions'))
     : [];
   const beforeRects = new Map(movingElements.map((element) => [element, element.getBoundingClientRect()]));
   const beforeHeight = strip?.getBoundingClientRect().height ?? 0;

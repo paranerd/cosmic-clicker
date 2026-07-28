@@ -87,7 +87,7 @@ export const TUTORIAL_STEPS = [
   {
     id: 'objective-progress',
     title: 'Fortschritt im Blick',
-    text: 'Der Fortschrittsbalken zeigt dir, wie nah du deinem aktuellen Ziel bist. Behalte ihn im Auge, um zu sehen, ob du auf dem richtigen Weg bist.',
+    text: 'Der orangefarbene Balken unter deinem Stern zeigt dir, wie nah du deinem aktuellen Ziel bist. Mit einem Klick darauf kannst du die Zielbeschreibung jederzeit öffnen.',
     selector: '[data-tutorial="objective-progress"]',
     availability: immediate,
     trigger: { type: 'next', label: 'Verstanden' },

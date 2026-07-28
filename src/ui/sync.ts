@@ -73,7 +73,7 @@ export function renderShell(): void {
   app.innerHTML = `
     <div class="cosmos" aria-hidden="true"><div class="stars stars-a"></div><div class="stars stars-b"></div><div class="nebula-glow"></div></div>
     <main class="${isMissionCollapsed() ? 'mission-is-collapsed' : ''}">
-      <section class="mission-strip ${isMissionCollapsed() ? 'is-collapsed' : ''}" data-ui="mission-strip"><div class="mission-copy" data-tutorial="objective"><span data-ui="objective-eyebrow"></span><h2 data-ui="objective-title"></h2><p data-ui="objective-detail"></p></div><div class="mission-progress" data-tutorial="objective-progress"><div class="progress-label"><span>Fortschritt</span><b data-ui="objective-percent"></b></div><div class="progress-track"><i data-ui="objective-bar"></i></div></div><div class="mission-actions"><button class="mission-collapse" data-action="toggle-mission" aria-expanded="${String(!isMissionCollapsed())}" aria-label="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}" title="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}">${icons.chevron}</button></div></section>
+      <section class="mission-strip ${isMissionCollapsed() ? 'is-collapsed' : ''}" data-ui="mission-strip"><div class="mission-copy" data-tutorial="objective"><span data-ui="objective-eyebrow"></span><h2 data-ui="objective-title"></h2><p data-ui="objective-detail"></p></div><div class="mission-actions"><button class="mission-collapse" data-action="toggle-mission" aria-expanded="${String(!isMissionCollapsed())}" aria-label="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}" title="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}">${icons.chevron}</button></div></section>
 
       <section class="stellar-lab">
         <aside class="left-panel" data-tutorial="left-panel">
@@ -99,7 +99,7 @@ export function renderShell(): void {
           <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">${index % 5 !== 4 ? 'H' : 'He'}</i>`).join('')}</div>
           <button class="star-button" data-action="accrete" data-tutorial="star" aria-label="Materie einsammeln"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
           <button class="click-callout" type="button" disabled><span data-ui="click-yield"></span><small data-ui="click-detail"></small></button>
-          <button class="chamber-objective-progress" type="button" data-action="open-mission" aria-label="Aktuelles Ziel öffnen">
+          <button class="chamber-objective-progress" type="button" data-action="open-mission" data-tutorial="objective-progress" aria-label="Aktuelles Ziel öffnen">
             <span class="chamber-progress-track"><i data-ui="chamber-objective-bar"></i></span>
             <b data-ui="chamber-objective-percent"></b>
           </button>
@@ -310,8 +310,6 @@ export function updateUI(forcePanel = false): void {
   setText('objective-eyebrow', objective.eyebrow);
   setText('objective-title', objective.title);
   setText('objective-detail', objective.detail);
-  setText('objective-percent', `${formatNumber(objective.progress, 1)}%`);
-  setWidth('objective-bar', objective.progress);
   setText('chamber-objective-percent', `${formatNumber(objective.progress, 1)}%`);
   setWidth('chamber-objective-bar', objective.progress);
   syncObjectiveAchievement(objective);

@@ -431,6 +431,8 @@ describe('data-driven stellar engine v0.4', () => {
       'accretion-energy',
       'first-upgrade',
     ]);
+    expect(TUTORIAL_STEPS.find((step) => step.id === 'objective-progress')?.selector)
+      .toBe('[data-tutorial="objective-progress"]');
     expect(TUTORIAL_STEPS.find((step) => step.id === 'accretion-energy')?.availability).toEqual({
       type: 'energy-at-least',
       amount: 1,
