@@ -42,7 +42,6 @@ import {
   reactionView,
   tileButtonInner,
   timelineMarkup,
-  timelineNodes,
   upgradeOrderSignature,
 } from './views';
 
@@ -74,7 +73,7 @@ export function renderShell(): void {
   app.innerHTML = `
     <div class="cosmos" aria-hidden="true"><div class="stars stars-a"></div><div class="stars stars-b"></div><div class="nebula-glow"></div></div>
     <main class="${isMissionCollapsed() ? 'mission-is-collapsed' : ''}">
-      <section class="mission-strip ${isMissionCollapsed() ? 'is-collapsed' : ''}" data-ui="mission-strip"><div class="mission-copy" data-tutorial="objective"><span data-ui="objective-eyebrow"></span><h2 data-ui="objective-title"></h2><p data-ui="objective-detail"></p></div><div class="mission-progress" data-tutorial="objective-progress"><div class="progress-label"><span>Fortschritt</span><b data-ui="objective-percent"></b></div><div class="progress-track"><i data-ui="objective-bar"></i></div></div><div class="mission-actions"><button class="mission-collapse" data-action="toggle-mission" aria-expanded="${String(!isMissionCollapsed())}" aria-label="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}" title="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}">${icons.chevron}</button><button class="icon-button settings-button mission-settings" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button></div></section>
+      <section class="mission-strip ${isMissionCollapsed() ? 'is-collapsed' : ''}" data-ui="mission-strip"><div class="mission-copy" data-tutorial="objective"><span data-ui="objective-eyebrow"></span><h2 data-ui="objective-title"></h2><p data-ui="objective-detail"></p></div><div class="mission-progress" data-tutorial="objective-progress"><div class="progress-label"><span>Fortschritt</span><b data-ui="objective-percent"></b></div><div class="progress-track"><i data-ui="objective-bar"></i></div></div><div class="mission-actions"><button class="mission-collapse" data-action="toggle-mission" aria-expanded="${String(!isMissionCollapsed())}" aria-label="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}" title="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}">${icons.chevron}</button></div></section>
 
       <section class="stellar-lab">
         <aside class="left-panel" data-tutorial="left-panel">
@@ -95,12 +94,16 @@ export function renderShell(): void {
             <div class="chamber-resource"><span>Temperatur</span><b data-ui="chamber-temperature"></b><small>K</small></div>
             <div class="chamber-resource"><span>Energie</span><b data-ui="chamber-energy"></b><small>MeV</small></div>
             <div class="chamber-resource"><span>Masse</span><b data-ui="chamber-mass"></b><small>ME</small></div>
-            <div class="chamber-resource"><span>Sternenstaub</span><b data-ui="chamber-stardust"></b><small>✦</small></div>
           </div>
           <div class="stage-label"><span data-ui="stage"></span><b data-ui="stage-detail"></b></div>
           <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">${index % 5 !== 4 ? 'H' : 'He'}</i>`).join('')}</div>
           <button class="star-button" data-action="accrete" data-tutorial="star" aria-label="Materie einsammeln"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
-          <button class="click-callout" type="button" disabled><span data-ui="click-yield"></span><small data-ui="click-detail"></small></button><div class="phase-dots">${Array.from({length:8},(_, index)=>`<i data-phase="${index}"></i>`).join('')}</div>
+          <button class="click-callout" type="button" disabled><span data-ui="click-yield"></span><small data-ui="click-detail"></small></button>
+          <button class="chamber-objective-progress" type="button" data-action="open-mission" aria-label="Aktuelles Ziel öffnen">
+            <span class="chamber-progress-track"><i data-ui="chamber-objective-bar"></i></span>
+            <b data-ui="chamber-objective-percent"></b>
+          </button>
+          <button class="chamber-settings settings-button" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button>
           <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
         </section>
 
@@ -217,6 +220,13 @@ function syncTileButton(
 function syncActivePanel(): void {
   const state = getState();
   const activePanel = getActivePanel();
+  const panelResource = app.querySelector<HTMLElement>('[data-panel-resource]');
+  if (panelResource) {
+    const value = panelResource.dataset.panelResource === 'stardust'
+      ? formatNumber(state.stardust)
+      : formatEnergy(state.energy);
+    if (panelResource.textContent !== value) panelResource.textContent = value;
+  }
   if (activePanel === 'reactions') syncReactionPanel();
   if (activePanel === 'upgrades') {
     orderedUpgradeCards().forEach(({ view }) => {
@@ -302,6 +312,8 @@ export function updateUI(forcePanel = false): void {
   setText('objective-detail', objective.detail);
   setText('objective-percent', `${formatNumber(objective.progress, 1)}%`);
   setWidth('objective-bar', objective.progress);
+  setText('chamber-objective-percent', `${formatNumber(objective.progress, 1)}%`);
+  setWidth('chamber-objective-bar', objective.progress);
   syncObjectiveAchievement(objective);
   setText('temperature', formatTemperature(state.temperature));
   setText('chamber-temperature', formatTemperature(state.temperature).replace(/ K$/, ''));
@@ -311,7 +323,6 @@ export function updateUI(forcePanel = false): void {
   setText('pressure', formatNumber(pressureProgress(state), 1));
   setText('energy', formatEnergy(state.energy));
   setText('chamber-energy', formatEnergy(state.energy));
-  setText('chamber-stardust', formatNumber(state.stardust));
   setText('accretion-rate', formatMatter(accretionPerSecond(state)));
   DISPLAY_MATTER_KEYS.forEach((key) => {
     setText(`${key}-value`, `${formatMatter(state.star[key])} ME`);
@@ -342,12 +353,6 @@ export function updateUI(forcePanel = false): void {
   chamber?.style.setProperty('--auto-accretion-duration', `${Math.max(1.45, 3.2 - state.automation.accretion * .2)}s`);
   chamber?.classList.toggle('has-auto-accretion', state.automation.accretion > 0 && !state.completed && remaining > 0);
   setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Hier klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken, um Materie einzusammeln');
-  if (forcePanel || stageChanged) {
-    const nodes = timelineNodes();
-    const stageIndex = Math.max(0, nodes.findIndex(([stage]) => stage === state.stage));
-    const normalizedStage = nodes.length <= 1 ? 7 : Math.round(stageIndex / (nodes.length - 1) * 7);
-    app.querySelectorAll<HTMLElement>('[data-phase]').forEach((dot) => dot.classList.toggle('active', Number(dot.dataset.phase) <= normalizedStage));
-  }
   const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatMatter(remaining)} ME`); setText('cloud-initial', `von ${formatMatter(initialCloud)} ME`); app.querySelector<HTMLElement>('.gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
   // Punkt 4: Warnsymbol unten rechts in der Star Chamber, sobald mindestens
   // eine Warnung aktiv ist; das Popover listet alle aktiven Warnungen samt

@@ -68,12 +68,12 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   await expect(page.locator('[data-ui="temperature"]')).toHaveText('10 K');
   const chamberResources = page.getByRole('region', { name: 'Ressourcen' });
   await expect(chamberResources).toBeVisible();
-  await expect(chamberResources.locator('.chamber-resource')).toHaveCount(4);
+  await expect(chamberResources.locator('.chamber-resource')).toHaveCount(3);
   await expect(chamberResources.locator('[data-ui="chamber-temperature"]')).toHaveText('10');
   await expect(chamberResources.locator('[data-ui="chamber-energy"]')).toHaveText('0');
   await expect(chamberResources.locator('[data-ui="chamber-mass"]')).toHaveText('0');
-  await expect(chamberResources.locator('[data-ui="chamber-stardust"]')).toHaveText('0');
-  await expect(chamberResources.locator('.chamber-resource small')).toHaveText(['K', 'MeV', 'ME', '✦']);
+  await expect(chamberResources.locator('[data-ui="chamber-stardust"]')).toHaveCount(0);
+  await expect(chamberResources.locator('.chamber-resource small')).toHaveText(['K', 'MeV', 'ME']);
   await expect(chamberResources).toHaveCSS('border-top-width', '0px');
   await expect(chamberResources).toHaveCSS('border-bottom-width', '0px');
   const resourceWidthsBefore = await chamberResources.locator('.chamber-resource').evaluateAll(
@@ -174,6 +174,10 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await expect(warningPopover).toBeVisible();
   await expect(warningPopover).toContainText('Sternwind aktiv');
   await expect(warningPopover).toContainText('ME/s');
+  const warningBox = (await warningCorner.boundingBox())!;
+  const settingsBox = (await page.getByRole('button', { name: 'Einstellungen öffnen' }).boundingBox())!;
+  expect(warningBox.x + warningBox.width).toBeLessThanOrEqual(settingsBox.x);
+  expect(warningBox.y).toBe(settingsBox.y);
   await page.locator('.star-button').click({ position: { x: 10, y: 10 }, force: true });
   await expect(warningPopover).not.toBeVisible();
 });
@@ -368,7 +372,6 @@ test('mission strip collapses to compact progress and percentage details', async
   await gotoGame(page);
   const strip = page.locator('.mission-strip');
   const collapseButton = page.getByRole('button', { name: 'Zielbereich verkleinern' });
-  const settingsButton = page.getByRole('button', { name: 'Einstellungen öffnen' });
   const restingColors = await collapseButton.evaluate((element) => {
     const style = getComputedStyle(element);
     return { background: style.backgroundColor, border: style.borderColor, color: style.color };
@@ -380,11 +383,8 @@ test('mission strip collapses to compact progress and percentage details', async
   })).toEqual({ x: 0, y: 0 });
   const expandedStripBox = (await strip.boundingBox())!;
   const expandedButtonBox = (await collapseButton.boundingBox())!;
-  const expandedSettingsBox = (await settingsButton.boundingBox())!;
   expect(expandedButtonBox.y - expandedStripBox.y).toBe(10);
-  expect(expandedSettingsBox.y).toBe(expandedButtonBox.y);
-  expect(expandedSettingsBox.x).toBeGreaterThan(expandedButtonBox.x + expandedButtonBox.width);
-  expect(expandedStripBox.x + expandedStripBox.width - (expandedSettingsBox.x + expandedSettingsBox.width)).toBe(0);
+  expect(expandedStripBox.x + expandedStripBox.width - (expandedButtonBox.x + expandedButtonBox.width)).toBe(0);
   await collapseButton.tap();
 
   await expect(strip).toHaveClass(/is-collapsed/);
@@ -399,10 +399,8 @@ test('mission strip collapses to compact progress and percentage details', async
   const stripBox = (await strip.boundingBox())!;
   const expandButton = page.getByRole('button', { name: 'Zielbereich vergrößern' });
   const collapseButtonBox = (await expandButton.boundingBox())!;
-  const collapsedSettingsBox = (await settingsButton.boundingBox())!;
   expect(stripBox.height).toBeLessThanOrEqual(48);
   expect(collapseButtonBox.height).toBeLessThan(stripBox.height);
-  expect(collapsedSettingsBox.x).toBeGreaterThan(collapseButtonBox.x + collapseButtonBox.width);
   expect(await expandButton.evaluate((element) => {
     const style = getComputedStyle(element);
     return { background: style.backgroundColor, border: style.borderColor, color: style.color };
@@ -415,23 +413,31 @@ test('mission strip collapses to compact progress and percentage details', async
 
   await page.reload();
   await expect(page.locator('.mission-strip')).toHaveClass(/is-collapsed/);
-  await page.getByRole('button', { name: 'Zielbereich vergrößern' }).tap();
+  const chamberProgress = page.getByRole('button', { name: 'Aktuelles Ziel öffnen' });
+  await expect(page.locator('.phase-dots')).toHaveCount(0);
+  await expect(chamberProgress.locator('[data-ui="chamber-objective-percent"]')).toHaveText(
+    await page.locator('[data-ui="objective-percent"]').textContent() ?? '',
+  );
+  expect(await chamberProgress.locator('.chamber-progress-track i').evaluate(
+    (element) => getComputedStyle(element).backgroundImage,
+  )).toContain('gradient');
+  await chamberProgress.tap();
   await expect(page.locator('.mission-copy')).toBeVisible();
   await context.close();
 });
 
-test('header is removed and settings sits beside the objective expand control', async ({ page }) => {
+test('header is removed and settings occupies the round lower-right chamber control', async ({ page }) => {
   await gotoGame(page);
   await expect(page.locator('header')).toHaveCount(0);
   await expect(page.locator('.mission-strip')).toHaveCSS('border-bottom-width', '0px');
 
-  const collapseButton = page.getByRole('button', { name: 'Zielbereich verkleinern' });
   const settingsButton = page.getByRole('button', { name: 'Einstellungen öffnen' });
-  const [collapseBox, settingsBox] = await Promise.all([collapseButton.boundingBox(), settingsButton.boundingBox()]);
-  expect(collapseBox).not.toBeNull();
+  const chamberBox = (await page.locator('.star-chamber').boundingBox())!;
+  const settingsBox = await settingsButton.boundingBox();
   expect(settingsBox).not.toBeNull();
-  expect(settingsBox!.x).toBeGreaterThan(collapseBox!.x + collapseBox!.width);
-  expect(settingsBox!.y).toBe(collapseBox!.y);
+  expect(chamberBox.x + chamberBox.width - (settingsBox!.x + settingsBox!.width)).toBe(14);
+  expect(chamberBox.y + chamberBox.height - (settingsBox!.y + settingsBox!.height)).toBe(14);
+  await expect(settingsButton).toHaveCSS('border-radius', '50%');
 
   await settingsButton.click();
   await expect(page.getByRole('dialog', { name: 'Einstellungen' })).toBeVisible();
@@ -873,6 +879,8 @@ test('perks tab shows every permanent perk in the upgrade card style', async ({ 
 
   await page.getByRole('tab', { name: 'Perks' }).click();
   await expect(page.getByRole('tab', { name: 'Perks' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('status', { name: 'Verfügbarer Sternenstaub' })).toContainText('4');
+  await expect(page.getByRole('status', { name: 'Verfügbarer Sternenstaub' })).toContainText('✦');
 
   const cards = page.locator('[data-perk-card]');
   await expect(cards).toHaveCount(3);
@@ -893,6 +901,30 @@ test('perks tab shows every permanent perk in the upgrade card style', async ({ 
   await expect(page.locator('[data-perk-card="permanentGravity"]')).toContainText('Gravitatives Gedächtnis');
   await expect(page.locator('[data-perk-card="fusionMemory"]')).toContainText('Fusionsgedächtnis');
   await expect(cards.first().getByText('Neue Stufen können am Zyklusende gekauft werden.')).toBeVisible();
+});
+
+test('upgrade, automation and perk tabs show their current purchase resource once', async ({ page }) => {
+  await seedLegacyGame(page, {
+    energy: 123,
+    stardust: 4,
+    perks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
+  });
+  await gotoGame(page);
+  const sideContent = page.locator('[data-ui="deck-content"]');
+
+  await page.getByRole('tab', { name: 'Upgrades' }).click();
+  await expect(sideContent.getByRole('status', { name: 'Verfügbare Energie' })).toHaveCount(1);
+  await expect(sideContent.getByRole('status', { name: 'Verfügbare Energie' })).toContainText('123');
+  await expect(sideContent.getByRole('status', { name: 'Verfügbare Energie' })).toContainText('MeV');
+
+  await page.getByRole('tab', { name: 'Automationen' }).click();
+  await expect(sideContent.getByRole('status', { name: 'Verfügbare Energie' })).toHaveCount(1);
+  await expect(sideContent.getByRole('status', { name: 'Verfügbare Energie' })).toContainText('123');
+
+  await page.getByRole('tab', { name: 'Perks' }).click();
+  await expect(sideContent.getByRole('status', { name: 'Verfügbarer Sternenstaub' })).toHaveCount(1);
+  await expect(sideContent.getByRole('status', { name: 'Verfügbarer Sternenstaub' })).toContainText('4');
+  await expect(sideContent.getByRole('status', { name: 'Verfügbarer Sternenstaub' })).toContainText('✦');
 });
 
 test('tabs count unseen opportunities, flash on unlock and clear when opened', async ({ page }) => {
@@ -1547,12 +1579,12 @@ test('multiple perk levels can be staged and deselected before prestige', async 
   await expect(cloudPerk).toContainText('+2 gewählt');
   await expect(summary.locator('.cloud-slider input[type="range"]')).toHaveValue('2');
   await expect(summary.locator('.cloud-slider-summary')).toContainText('Stellare Urwolke');
-  await expect(page.locator('[data-ui="chamber-stardust"]')).toHaveText('0');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').stardust)).toBe(0);
 
   await cloudPerk.getByRole('button', { name: 'Wolkenmasse abwählen' }).click();
   await expect(cloudPerk).toContainText('+1 gewählt');
   await expect(summary.locator('.cloud-slider input[type="range"]')).toHaveAttribute('max', '1');
-  await expect(page.locator('[data-ui="chamber-stardust"]')).toHaveText('5');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').stardust)).toBe(5);
 
   await summary.getByRole('button', { name: 'Neuen Zyklus starten' }).click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').run)).toBe(2);

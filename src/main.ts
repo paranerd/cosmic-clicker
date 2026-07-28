@@ -19,7 +19,7 @@ import {
   isWarningsOpen,
   setWarningsOpen,
 } from './ui/menus';
-import { toggleMissionCollapsed } from './ui/mission';
+import { setMissionCollapsed, toggleMissionCollapsed } from './ui/mission';
 import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement, dismissCycleEndNotice, showToast } from './ui/notifications';
 import { isKnowledgeOpen, isSettingsOpen, makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setKnowledgeOpen, setSettingsOpen, setStatsOpen } from './ui/overlay';
 import { app, getActivePanel, getState, loaded, setActivePanel, setState, type Panel } from './ui/store';
@@ -98,6 +98,7 @@ app.addEventListener('click', (event) => {
   if (action === 'toggle-tutorial') { setSettingsOpen(false); setTutorialEnabled(getState().tutorial.completed); return; }
   if (action === 'dismiss-achievement') { dismissAchievement(); return; }
   if (action === 'toggle-mission') { toggleMissionCollapsed(); if (event.detail > 0) button.blur(); return; }
+  if (action === 'open-mission') { setMissionCollapsed(false); if (event.detail > 0) button.blur(); return; }
   if (action === 'reset-run') { performReset('run'); return; }
   if (action === 'reset-full') { if (isFullResetArmed()) performReset('full'); else armFullReset(); return; }
   if (action === 'open-settings') { setSettingsOpen(true); return; }

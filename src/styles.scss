@@ -56,21 +56,19 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .progress-track, .mini-track { position: relative; height: 3px; background: rgba(255,255,255,.07); overflow: hidden; }
 .progress-track i, .mini-track i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color.adjust($cyan, $lightness: -20%), $cyan); box-shadow: 0 0 12px rgba($cyan, .5); transition: width .3s ease; }
 .mission-actions { position: absolute; right: 0; top: 10px; display: flex; gap: 6px; }
-.mission-collapse, .mission-settings { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid $line; background: rgba(8,13,22,.92); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
+.mission-collapse { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid $line; background: rgba(8,13,22,.92); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .mission-collapse svg { width: 14px; height: 14px; display: block; transform: rotate(180deg); transform-origin: center; transition: transform .2s ease; }
-.mission-settings svg { width: 14px; height: 14px; display: block; }
 .mission-strip.is-collapsed .mission-collapse svg { transform: none; }
-.mission-collapse:focus-visible, .mission-settings:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
+.mission-collapse:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 @media (hover: hover) and (pointer: fine) {
-  .mission-collapse:hover, .mission-settings:hover { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
+  .mission-collapse:hover { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 }
-.mission-strip:not(.is-collapsed) { padding-right: 68px; }
+.mission-strip:not(.is-collapsed) { padding-right: 34px; }
 .mission-strip.is-collapsed { min-height: 44px; grid-template-columns: minmax(0,1fr) auto; gap: 12px; padding: 8px 0; }
 .mission-strip.is-collapsed .mission-copy { position: absolute; visibility: hidden; opacity: 0; transform: translateY(-10px); pointer-events: none; transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s .34s; }
 .mission-strip.is-collapsed .mission-progress { min-width: 0; grid-column: 1; grid-row: 1; padding: 0; }
 .mission-strip.is-collapsed .mission-actions { position: relative; right: auto; top: auto; grid-column: 2; grid-row: 1; gap: 6px; }
-.mission-strip.is-collapsed .mission-collapse, .mission-strip.is-collapsed .mission-settings { width: 22px; height: 22px; }
-.mission-strip.mission-settings-access .settings-button { z-index: 46; pointer-events: auto; }
+.mission-strip.is-collapsed .mission-collapse { width: 22px; height: 22px; }
 
 .stellar-lab { min-height: 600px; display: grid; grid-template-columns: minmax(280px, 345px) minmax(400px, 1fr) var(--action-panel-width); border-bottom: 1px solid $line; }
 .data-panel { padding: 30px; background: linear-gradient(180deg, rgba(12,18,29,.5), rgba(8,13,22,.35)); }
@@ -138,12 +136,11 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 [data-matter][hidden], [data-cloud-matter][hidden] { display: none; }
 
 .star-chamber { position: relative; overflow: hidden; min-height: 600px; display: grid; place-items: center; isolation: isolate; background: radial-gradient(circle at center, rgba(83, 70, 51, calc(.08 + var(--temp-scale) * .09)), transparent 48%); }
-.chamber-resources { width: min(560px, calc(100% - 32px)); min-height: 72px; position: absolute; z-index: 4; top: 20px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.chamber-resources { width: min(500px, calc(100% - 32px)); min-height: 72px; position: absolute; z-index: 4; top: 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .chamber-resource { min-width: 0; padding: 7px 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .chamber-resource span { color: $muted; font-size: 7px; letter-spacing: .1em; text-transform: uppercase; }
 .chamber-resource b { width: 100%; margin-top: 5px; overflow: hidden; color: #f5ede2; font-family: ui-monospace, monospace; font-size: clamp(20px, 2.6vw, 32px); font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -.06em; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
 .chamber-resource small { margin-top: 4px; color: #536176; font-size: 8px; line-height: 1; }
-.chamber-resource:last-child b { color: $amber; }
 .stage-label { position: absolute; z-index: 4; top: 108px; text-align: center; }
 .stage-label span { display: block; color: $amber; font-family: Georgia, serif; font-size: 22px; }
 .stage-label b { display: block; margin-top: 5px; color: $muted; font-weight: 500; text-transform: uppercase; font-size: 7px; letter-spacing: .22em; }
@@ -179,13 +176,17 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .stage-blackHole .star-core { opacity: 0; }
 .star-core { width: 28%; height: 28%; left: 36%; top: 36%; background: rgba(255,248,196,.8); filter: blur(12px); mix-blend-mode: screen; opacity: calc(.15 + var(--temp-scale) * .8); }
 .star-noise { inset: 5%; opacity: .26; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); animation: rotate 28s linear infinite; }
-.click-callout { position: absolute; bottom: 66px; z-index: 5; padding: 0; border: 0; background: transparent; text-align: center; pointer-events: none; }
+.click-callout { position: absolute; bottom: 70px; z-index: 5; padding: 0; border: 0; background: transparent; text-align: center; pointer-events: none; }
 .click-callout:not(:disabled) { pointer-events: auto; cursor: pointer; }
 .click-callout:not(:disabled):hover span, .click-callout:not(:disabled):focus-visible span { color: #ffd193; text-shadow: 0 0 12px rgba($orange,.5); }
 .click-callout:focus-visible { outline: 1px solid rgba($amber,.55); outline-offset: 7px; }
-// Punkt 4: Warnsymbol unten rechts in der Star Chamber; das Popover listet
-// alle aktiven Warnungen (z. B. Sternwind, Hüllenwind) samt Verlustrate.
-.warning-corner { position: absolute; right: 14px; bottom: 14px; z-index: 30; }
+// Settings sitzt dauerhaft unten rechts; aktive Warnungen erscheinen direkt
+// links daneben, damit beide Funktionen einen festen, runden Platz behalten.
+.chamber-settings { width: 34px; height: 34px; padding: 0; position: absolute; right: 14px; bottom: 14px; z-index: 30; display: grid; place-items: center; border: 1px solid $line; border-radius: 50%; background: rgba(8,13,22,.84); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
+.chamber-settings svg { width: 15px; height: 15px; display: block; }
+.chamber-settings:hover, .chamber-settings:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
+.chamber-settings.tutorial-settings-access { z-index: 46; pointer-events: auto; }
+.warning-corner { position: absolute; right: 56px; bottom: 14px; z-index: 30; }
 .warning-toggle { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba($amber,.45); border-radius: 50%; background: rgba($amber,.09); color: $amber; cursor: pointer; transition: .2s; animation: warning-pulse 2.6s ease-in-out infinite; }
 .warning-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .warning-toggle:hover { background: rgba($amber,.16); border-color: rgba($amber,.7); }
@@ -201,9 +202,12 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .warning-entry p { grid-column: 1 / -1; margin: 0; color: $muted; font-size: 8px; line-height: 1.5; }
 .click-callout span { display: block; color: $amber; font-family: ui-monospace, monospace; font-size: 13px; }
 .click-callout small { display: block; margin-top: 5px; color: $muted; font-size: 8px; letter-spacing: .14em; text-transform: uppercase; }
-.phase-dots { position: absolute; bottom: 30px; display: flex; gap: 10px; }
-.phase-dots i { width: 20px; height: 2px; background: rgba(255,255,255,.1); }
-.phase-dots i.active { background: $amber; box-shadow: 0 0 8px rgba($amber,.5); }
+.chamber-objective-progress { width: min(220px, calc(100% - 150px)); min-width: 120px; padding: 7px 0 0; position: absolute; z-index: 5; bottom: 20px; display: flex; flex-direction: column; align-items: stretch; border: 0; background: transparent; color: $amber; cursor: pointer; touch-action: manipulation; }
+.chamber-progress-track { height: 3px; position: relative; overflow: hidden; background: rgba($amber,.12); }
+.chamber-progress-track i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color.adjust($orange, $lightness: -8%), $amber); box-shadow: 0 0 10px rgba($amber,.45); transition: width .3s ease; }
+.chamber-objective-progress b { margin-top: 6px; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 500; line-height: 1; text-align: center; }
+.chamber-objective-progress:hover .chamber-progress-track, .chamber-objective-progress:focus-visible .chamber-progress-track { background: rgba($amber,.2); }
+.chamber-objective-progress:focus-visible { outline: 1px solid rgba($amber,.55); outline-offset: 4px; }
 
 .cloud-gauge { display: flex; gap: 17px; align-items: center; padding-bottom: 25px; border-bottom: 1px solid $line; }
 .gauge-ring { width: 84px; height: 84px; flex: 0 0 auto; padding: 4px; border-radius: 50%; background: conic-gradient($cyan var(--remaining), rgba(255,255,255,.06) 0); transform: rotate(-90deg); }
@@ -295,6 +299,11 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .primary-action small:empty, .secondary-action small:empty { display: none; }
 .secondary-action { border-color: rgba(#9e8fe5,.4); color: #c5bced; background: rgba(#9e8fe5,.06); }
 .primary-action:disabled, .secondary-action:disabled { border-color: $line; background: rgba(255,255,255,.025); color: #596678; }
+.panel-resource-balance { min-height: 28px; margin: 0 2px 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: $muted; }
+.panel-resource-balance > span { font-size: 7px; letter-spacing: .11em; text-transform: uppercase; }
+.panel-resource-balance > strong { display: flex; align-items: baseline; gap: 5px; color: $amber; font-family: ui-monospace,monospace; font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.panel-resource-balance b { font-size: 16px; font-weight: 400; }
+.panel-resource-balance small { color: #8d7557; font-size: 8px; }
 .upgrade-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
 .automation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .single-upgrade { grid-template-columns: minmax(360px, calc(50% - 6px)); }
@@ -736,8 +745,8 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .science-note { display: none; }
   .chamber-resources { top: 12px; }
   .stage-label { top: 76px; }
-  .click-callout { bottom: 47px; }
-  .phase-dots { bottom: 20px; }
+  .click-callout { bottom: 53px; }
+  .chamber-objective-progress { bottom: 13px; }
   .sidepanel-heading { padding: 14px 16px 9px; }
   .side-content { padding: 10px 12px; }
   .action-sidepanel .action-card, .action-sidepanel .upgrade-card { padding: 10px 11px; }
@@ -816,8 +825,8 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .chamber-resource { padding-right: 3px; padding-left: 3px; }
   .chamber-resource span { font-size: 6px; letter-spacing: .06em; }
   .chamber-resource b { font-size: 20px; }
-  .click-callout { bottom: 52px; }
-  .phase-dots { bottom: 24px; }
+  .click-callout { bottom: 62px; }
+  .chamber-objective-progress { width: min(180px, calc(100% - 128px)); bottom: 18px; }
   .summary-modal { padding: 32px 20px; }
   .summary-modal h2 { font-size: 28px; }
   .summary-heading { grid-template-columns: 1fr; text-align: center; }

@@ -44,7 +44,7 @@ import {
   upgradeValueAtLevel,
 } from '../game/engine';
 import type { CloudTier, ReactionId, Stage, StellarOutcome } from '../game/types';
-import { disabled, formatCompact, formatDuration, formatMatter, formatNumber, formatTemperature, icons, levelPips } from './format';
+import { disabled, formatCompact, formatDuration, formatEnergy, formatMatter, formatNumber, formatTemperature, icons, levelPips } from './format';
 import { getState, type Panel } from './store';
 
 // Erklär-Button der Wissensdatenbank. Er steht direkt neben dem Begriff, den
@@ -544,17 +544,26 @@ export const upgradeOrderSignature = (): string => orderedUpgradeCards()
   .map(({ view }) => `${view.id}:${view.priority}:${view.level}:${view.expired}:${view.exhausted}`)
   .join('|');
 
+function panelResourceBalance(resource: 'energy' | 'stardust'): string {
+  const state = getState();
+  const isStardust = resource === 'stardust';
+  return `<div class="panel-resource-balance" role="status" aria-label="${isStardust ? 'Verfügbarer Sternenstaub' : 'Verfügbare Energie'}">
+    <span>${isStardust ? 'Verfügbarer Sternenstaub' : 'Verfügbare Energie'}</span>
+    <strong><b data-panel-resource="${resource}">${isStardust ? formatNumber(state.stardust) : formatEnergy(state.energy)}</b><small>${isStardust ? '✦' : 'MeV'}</small></strong>
+  </div>`;
+}
+
 export function panelMarkup(panel: Panel): string {
   if (panel === 'reactions') return renderReactionPanel();
   if (panel === 'upgrades') {
     const cards = orderedUpgradeCards();
-    return `<div class="upgrade-grid ${cards.length === 1 ? 'single-upgrade' : ''}">${cards.map((card) => card.markup).join('')}</div>`;
+    return `${panelResourceBalance('energy')}<div class="upgrade-grid ${cards.length === 1 ? 'single-upgrade' : ''}">${cards.map((card) => card.markup).join('')}</div>`;
   }
   if (panel === 'perks') {
-    return `<div class="upgrade-grid perk-grid">${PRESTIGE_PERK_ORDER.map(perkCard).join('')}</div>`;
+    return `${panelResourceBalance('stardust')}<div class="upgrade-grid perk-grid">${PRESTIGE_PERK_ORDER.map(perkCard).join('')}</div>`;
   }
   const automations = AUTOMATION_ORDER.filter(automationVisible);
-  return `<div class="upgrade-grid automation-grid ${automations.length === 1 ? 'single-upgrade' : ''}">${automations.map(automationCard).join('')}</div>`;
+  return `${panelResourceBalance('energy')}<div class="upgrade-grid automation-grid ${automations.length === 1 ? 'single-upgrade' : ''}">${automations.map(automationCard).join('')}</div>`;
 }
 
 export function statsEntries(): [string, string, string][] {
