@@ -835,11 +835,10 @@ Maximale Inhaltsbreite: 1.460 px.
 
 Der Hauptbereich besteht aus:
 
-1. Ziel- und Fortschrittsleiste
-2. linkem Datenpanel
-3. zentraler Star Chamber
-4. rechtem Kontrollzentrum
-5. Chronik-Dock
+1. linkem Datenpanel
+2. zentraler Star Chamber
+3. rechtem Kontrollzentrum
+4. Chronik-Dock
 
 Referenzbreiten:
 
@@ -852,15 +851,13 @@ Referenzbreiten:
 
 ### Verantwortlichkeiten
 
-- **Zielleiste:** aktuelles Ziel und Fortschritt
 - **Linkes Panel:** Temperatur, Masse, Druck, Energie, Rate und
   Zusammensetzungen
-- **Star Chamber:** Hauptaktion, Entwicklungsstadium, Warnungen und
-  Aktionsfeedback
+- **Star Chamber:** Hauptaktion, Entwicklungsstadium, Warnungen,
+  Aktionsfeedback und Fortschrittsbalken
 - **Kontrollzentrum:** Reaktionen, Upgrades und Automationen
 - **Chronik-Dock:** Entwicklungsweg und jüngste Logeinträge; die geöffnete
   Chronik zeigt zusätzlich die aktuelle Laufzeit
-- **Header:** Marke, Zyklus, Sternenstaub, Sound, Export und Reset
 
 ### Kartenprinzipien
 
@@ -917,11 +914,12 @@ Wertänderungen aktualisieren vorhandene Karten gezielt. Sie werden nicht bei
 jedem Tick neu aufgebaut, damit Hover, Fokus und laufende Interaktion nicht
 flackern oder verloren gehen.
 
-### Missionsleiste
+### Zielanzeige
 
-Die Missionsleiste ist einklappbar. Im kompakten Zustand bleibt der
-Fortschrittsbalken sichtbar; der ausführliche Zieltext verschwindet. Die
-Entscheidung wird separat im Browser gespeichert.
+Der Fortschrittsbalken unter dem Stern ist die einzige dauerhaft sichtbare
+Zielanzeige. Ein Klick öffnet das aktuelle Ziel mit Titel und Beschreibung in
+einem Modal. Oberhalb des Cockpits gibt es keine zusätzliche Ziel- oder
+Fortschrittsleiste.
 
 ### Wissensdatenbank
 
@@ -1265,8 +1263,7 @@ Die Temperaturskala springt durch fachlich relevante Obergrenzen:
 | `cloud-composition` | Zusammensetzung | sofort | Weiter |
 | `first-accretion` | erste Materie | sofort | Stern anklicken |
 | `core-composition` | Ziel der Materie | sofort | Weiter |
-| `next-objective` | nächstes Ziel | sofort | Weiter |
-| `objective-progress` | Fortschrittsbalken | sofort | Verstanden; Pause |
+| `objective-progress` | Fortschrittsbalken und Ziel-Popup | sofort | Balken anklicken; Pause |
 | `accretion-energy` | Energiegewinn | ab 1 Energie | Weiter |
 | `first-upgrade` | Gravitative Verdichtung | wenn bezahlbar | kaufen |
 | `first-automation` | Akkretionsstrom | wenn bezahlbar | kaufen |

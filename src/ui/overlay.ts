@@ -1,5 +1,5 @@
 import { KNOWLEDGE, OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS, prestigePerkDescription, type KnowledgeId } from '../content';
-import { cloudDefinition, cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost, starMass } from '../game/engine';
+import { cloudDefinition, cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost, objectiveFor, starMass } from '../game/engine';
 import { setDebugOpen, syncDebug } from './debug';
 import { disabled, formatDuration, formatMatter, formatSolarMasses, icons } from './format';
 import { clearPrestigeConfirmation, closeResetMenu } from './menus';
@@ -11,6 +11,7 @@ import { invalidateTutorial } from './tutorial';
 let chronicleOpen = false;
 let statsOpen = false;
 let settingsOpen = false;
+let objectiveOpen = false;
 let knowledgeEntry: KnowledgeId | null = null;
 let overlaySignature = '';
 let summaryAttentionRun = 0;
@@ -19,17 +20,24 @@ export const invalidateOverlay = (): void => { overlaySignature = ''; };
 export const resetSummaryAttention = (): void => { summaryAttentionRun = 0; };
 export const isKnowledgeOpen = (): boolean => knowledgeEntry !== null;
 export const isSettingsOpen = (): boolean => settingsOpen;
+export const isObjectiveOpen = (): boolean => objectiveOpen;
 
 export function setChronicleOpen(open: boolean): void {
   chronicleOpen = open;
-  if (open) statsOpen = false;
+  if (open) {
+    statsOpen = false;
+    objectiveOpen = false;
+  }
   invalidateOverlay();
   syncOverlay();
 }
 
 export function setStatsOpen(open: boolean): void {
   statsOpen = open;
-  if (open) chronicleOpen = false;
+  if (open) {
+    chronicleOpen = false;
+    objectiveOpen = false;
+  }
   invalidateOverlay();
   syncOverlay();
 }
@@ -40,6 +48,19 @@ export function setSettingsOpen(open: boolean): void {
   if (open) {
     chronicleOpen = false;
     statsOpen = false;
+    objectiveOpen = false;
+    knowledgeEntry = null;
+  }
+  invalidateOverlay();
+  syncOverlay();
+}
+
+export function setObjectiveOpen(open: boolean): void {
+  objectiveOpen = open;
+  if (open) {
+    chronicleOpen = false;
+    statsOpen = false;
+    settingsOpen = false;
     knowledgeEntry = null;
   }
   invalidateOverlay();
@@ -54,6 +75,7 @@ export function setSettingsOpen(open: boolean): void {
 // zu zerstören.
 export function setKnowledgeOpen(id: KnowledgeId | null): void {
   knowledgeEntry = id;
+  if (id) objectiveOpen = false;
   invalidateOverlay();
   syncOverlay();
 }
@@ -73,11 +95,24 @@ export function syncOverlay(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="overlay-root"]');
   if (!root) return;
   const introNeedsDecision = !state.tutorial.introSeen;
-  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !settingsOpen && !introNeedsDecision && !knowledgeEntry) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
+  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !settingsOpen && !objectiveOpen && !introNeedsDecision && !knowledgeEntry) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
   if (introNeedsDecision) {
     if (overlaySignature === 'intro') return;
     overlaySignature = 'intro';
     root.innerHTML = `<div class="modal-backdrop intro-backdrop"><section class="intro-modal" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-description"><div class="intro-brand"><span>COSMIC</span><b>CLICKER</b></div><small>DEIN KOSMISCHES EXPERIMENT</small><span class="intro-star">${icons.spark}</span><h2 id="intro-title">Entdecke das Schicksal der Sterne.</h2><p id="intro-description">Beginne mit einer kleinen Wolke aus kaltem Wasserstoff. Sammle Materie, forme einen Protostern und beobachte, welchen Entwicklungsweg die Physik ermöglicht.</p><div class="intro-pillars"><div><b>01</b><span>Materie sammeln</span><small>Forme aus der Urwolke einen Protostern.</small></div><div><b>02</b><span>Sternentwicklung verfolgen</span><small>Masse und Temperatur bestimmen den möglichen Lebensweg.</small></div><div><b>03</b><span>Kosmos erweitern</span><small>Nutze Sternenstaub für größere Wolken.</small></div></div><div class="intro-actions"><button class="primary-action" data-action="start-intro-tutorial" aria-label="Tutorial starten"><span>Tutorial starten</span><small>Kurze geführte Tour</small></button><button class="intro-secondary" data-action="skip-intro-tutorial">Ohne Tutorial starten</button></div></section></div>`;
+    return;
+  }
+  if (objectiveOpen && !state.summaryOpen) {
+    const objective = objectiveFor(state);
+    const objectiveSignature = `objective:${objective.id}`;
+    if (objectiveSignature === overlaySignature) return;
+    overlaySignature = objectiveSignature;
+    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="objective" role="presentation">
+      <section class="objective-modal" role="dialog" aria-modal="true" aria-label="Aktuelles Ziel">
+        <div class="chronicle-modal-heading"><div><small>${objective.eyebrow}</small><h2>${objective.title}</h2></div><button data-action="close-objective" aria-label="Ziel schließen">×</button></div>
+        <div class="objective-modal-body"><p>${objective.detail}</p></div>
+      </section>
+    </div>`;
     return;
   }
   // Der Wissenseintrag steht vor allen anderen Overlays (nur das Intro geht
@@ -216,6 +251,7 @@ export function makeSummaryExclusive(): void {
   chronicleOpen = false;
   statsOpen = false;
   settingsOpen = false;
+  objectiveOpen = false;
   knowledgeEntry = null;
   setDebugOpen(false);
   overlaySignature = '';

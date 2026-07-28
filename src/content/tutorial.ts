@@ -77,20 +77,12 @@ export const TUTORIAL_STEPS = [
     trigger: next,
   },
   {
-    id: 'next-objective',
-    title: 'Dein nächstes Ziel',
-    text: 'Sammle nun weiter Materie, bis ihre Verdichtung eine volle Energieeinheit erzeugt hat. Hier siehst du dein aktuelles Ziel.',
-    selector: '[data-tutorial="objective"]',
-    availability: immediate,
-    trigger: next,
-  },
-  {
     id: 'objective-progress',
-    title: 'Fortschritt im Blick',
-    text: 'Der orangefarbene Balken unter deinem Stern zeigt dir, wie nah du deinem aktuellen Ziel bist. Mit einem Klick darauf kannst du die Zielbeschreibung jederzeit öffnen.',
+    title: 'Dein nächstes Ziel',
+    text: 'Der Fortschrittsbalken unter deinem Stern zeigt dir, wie nah du deinem aktuellen Ziel bist. Klicke darauf, um die Zielbeschreibung zu öffnen.',
     selector: '[data-tutorial="objective-progress"]',
     availability: immediate,
-    trigger: { type: 'next', label: 'Verstanden' },
+    trigger: { type: 'action', action: 'open-objective', hint: 'Klicke auf den markierten Fortschrittsbalken.' },
     completesInitialTour: true,
   },
   {
@@ -146,5 +138,6 @@ export const LEGACY_TUTORIAL_STEP_IDS = [
 // Stabile Zuordnung für Spielstände, die den inzwischen präziser benannten
 // Schritt noch als `first-objective` gespeichert haben.
 export const LEGACY_TUTORIAL_STEP_ID_ALIASES: Readonly<Record<string, string>> = {
-  'first-objective': 'next-objective',
+  'first-objective': 'objective-progress',
+  'next-objective': 'objective-progress',
 };

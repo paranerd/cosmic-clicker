@@ -19,9 +19,8 @@ import {
   isWarningsOpen,
   setWarningsOpen,
 } from './ui/menus';
-import { setMissionCollapsed, toggleMissionCollapsed } from './ui/mission';
 import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement, dismissCycleEndNotice, showToast } from './ui/notifications';
-import { isKnowledgeOpen, isSettingsOpen, makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setKnowledgeOpen, setSettingsOpen, setStatsOpen } from './ui/overlay';
+import { isKnowledgeOpen, isObjectiveOpen, isSettingsOpen, makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setKnowledgeOpen, setObjectiveOpen, setSettingsOpen, setStatsOpen } from './ui/overlay';
 import { app, getActivePanel, getState, loaded, setActivePanel, setState, type Panel } from './ui/store';
 import { renderShell, switchPanel, updateUI } from './ui/sync';
 import {
@@ -86,6 +85,7 @@ app.addEventListener('click', (event) => {
   if (target.dataset.overlayDismiss === 'stats') { setStatsOpen(false); return; }
   if (target.dataset.overlayDismiss === 'settings') { setSettingsOpen(false); return; }
   if (target.dataset.overlayDismiss === 'knowledge') { setKnowledgeOpen(null); return; }
+  if (target.dataset.overlayDismiss === 'objective') { setObjectiveOpen(false); return; }
   const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); advanceTutorial('panel'); return; }
   const button = target.closest<HTMLButtonElement>('[data-action]'); if (!button || button.disabled) return;
   const action = button.dataset.action; if (!action) return;
@@ -97,8 +97,8 @@ app.addEventListener('click', (event) => {
   if (action === 'confirm-end-tutorial') { confirmTutorialEnd(); return; }
   if (action === 'toggle-tutorial') { setSettingsOpen(false); setTutorialEnabled(getState().tutorial.completed); return; }
   if (action === 'dismiss-achievement') { dismissAchievement(); return; }
-  if (action === 'toggle-mission') { toggleMissionCollapsed(); if (event.detail > 0) button.blur(); return; }
-  if (action === 'open-mission') { setMissionCollapsed(false); if (event.detail > 0) button.blur(); return; }
+  if (action === 'open-objective') { setObjectiveOpen(true); advanceTutorial(action); if (event.detail > 0) button.blur(); return; }
+  if (action === 'close-objective') { setObjectiveOpen(false); return; }
   if (action === 'reset-run') { performReset('run'); return; }
   if (action === 'reset-full') { if (isFullResetArmed()) performReset('full'); else armFullReset(); return; }
   if (action === 'open-settings') { setSettingsOpen(true); return; }
@@ -165,13 +165,15 @@ app.addEventListener('keydown', (event) => {
   advanceTutorial('open-chronicle');
 });
 
-// Escape schließt einen offenen Wissenseintrag oder die Einstellungen. Der Listener hängt bewusst am
+// Escape schließt einen offenen Wissenseintrag, die Zielanzeige oder die
+// Einstellungen. Der Listener hängt bewusst am
 // window und nicht an `app`: Nach einem Klick auf den Modal-Hintergrund liegt
 // der Fokus auf dem <body> und damit außerhalb von `app`.
 window.addEventListener('keydown', (event) => {
-  if (event.key !== 'Escape' || (!isKnowledgeOpen() && !isSettingsOpen())) return;
+  if (event.key !== 'Escape' || (!isKnowledgeOpen() && !isObjectiveOpen() && !isSettingsOpen())) return;
   event.preventDefault();
   if (isKnowledgeOpen()) setKnowledgeOpen(null);
+  else if (isObjectiveOpen()) setObjectiveOpen(false);
   else setSettingsOpen(false);
 });
 

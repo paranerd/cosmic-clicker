@@ -426,7 +426,6 @@ describe('data-driven stellar engine v0.4', () => {
       tutorialIds.indexOf('first-upgrade') + 1,
     )).toEqual([
       'core-composition',
-      'next-objective',
       'objective-progress',
       'accretion-energy',
       'first-upgrade',

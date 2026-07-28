@@ -46,26 +46,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .icon-button svg { width: 17px; }
 
 main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(100% - 48px)); margin: 0 auto; }
-.mission-strip { min-height: 88px; position: relative; display: grid; grid-template-columns: 1fr; align-items: center; overflow: hidden; }
-.mission-copy { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; visibility: visible; opacity: 1; transform: translateY(0); transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s; }
-.mission-copy span, .card-kicker { color: $cyan; font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
-.mission-copy h2 { margin: 4px 0 0; font-family: Georgia, serif; font-size: 18px; font-weight: 400; letter-spacing: .02em; }
-.mission-copy p { margin: 4px 0 0; color: $muted; font-size: 11px; }
+.card-kicker { color: $cyan; font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
 .mini-track { position: relative; height: 3px; background: rgba(255,255,255,.07); overflow: hidden; }
 .mini-track i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color.adjust($cyan, $lightness: -20%), $cyan); box-shadow: 0 0 12px rgba($cyan, .5); transition: width .3s ease; }
-.mission-actions { position: absolute; right: 0; top: 10px; display: flex; gap: 6px; }
-.mission-collapse { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid $line; background: rgba(8,13,22,.92); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
-.mission-collapse svg { width: 14px; height: 14px; display: block; transform: rotate(180deg); transform-origin: center; transition: transform .2s ease; }
-.mission-strip.is-collapsed .mission-collapse svg { transform: none; }
-.mission-collapse:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
-@media (hover: hover) and (pointer: fine) {
-  .mission-collapse:hover { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
-}
-.mission-strip:not(.is-collapsed) { padding-right: 34px; }
-.mission-strip.is-collapsed { min-height: 44px; grid-template-columns: minmax(0,1fr) auto; gap: 12px; padding: 8px 0; }
-.mission-strip.is-collapsed .mission-copy { position: absolute; visibility: hidden; opacity: 0; transform: translateY(-10px); pointer-events: none; transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s .34s; }
-.mission-strip.is-collapsed .mission-actions { position: relative; right: auto; top: auto; grid-column: 2; grid-row: 1; gap: 6px; }
-.mission-strip.is-collapsed .mission-collapse { width: 22px; height: 22px; }
 
 .stellar-lab { min-height: 600px; display: grid; grid-template-columns: minmax(280px, 345px) minmax(400px, 1fr) var(--action-panel-width); border-bottom: 1px solid $line; }
 .data-panel { padding: 30px; background: linear-gradient(180deg, rgba(12,18,29,.5), rgba(8,13,22,.35)); }
@@ -272,8 +255,7 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .action-card.is-ready { border-color: rgba($amber,.28); background: linear-gradient(90deg, rgba($amber,.04), transparent 50%); }
 // Kicker (Reaktionskette-Label) hat bei Automations-/Upgradekarten keine
 // Entsprechung und bleibt daher eine reaktionsspezifische Zusatzzeile über
-// der Titel-Zeile, statt die geteilte .card-kicker-Basisregel zu ändern (die
-// auch die Missionsleiste oben nutzt).
+// der Titel-Zeile, statt die geteilte .card-kicker-Basisregel zu ändern.
 .action-card .card-kicker { display: block; margin-bottom: 6px; }
 // Das Reaktionssymbol verwendet direkt die .element-Farbklasse seines
 // Haupterzeugnisses. So sind Symbol, Rahmen und Hintergrund identisch mit der
@@ -471,6 +453,10 @@ footer button { border: 0; background: none; color: #627086; font-size: 8px; tex
 footer button:hover { color: $cyan; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(2,5,9,.82); backdrop-filter: blur(12px); }
+.objective-modal { width: min(560px,100%); border: 1px solid rgba($amber,.36); background: radial-gradient(circle at 100% 0, rgba($amber,.08), transparent 42%), #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.objective-modal .chronicle-modal-heading small { color: $amber; }
+.objective-modal-body { padding: 22px 28px 26px; }
+.objective-modal-body p { margin: 0; color: #94a2b5; font-size: 10px; line-height: 1.75; }
 .settings-modal { width: min(680px,100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
 .settings-body { padding: 0 28px 8px; }
 .settings-section { display: grid; grid-template-columns: minmax(170px,.75fr) minmax(270px,1.25fr); gap: 28px; align-items: center; padding: 22px 0; border-bottom: 1px solid $line; }
@@ -721,9 +707,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 
 @media (min-width: 1101px) and (min-height: 800px) {
   html, body, #app { height: 100%; overflow: hidden; }
-  main { --action-panel-width: clamp(330px,28vw,360px); --mission-row: 64px; height: 100vh; display: grid; grid-template-rows: var(--mission-row) minmax(420px, 1fr) 116px; }
-  main.mission-is-collapsed { --mission-row: 44px; }
-  .mission-strip { min-height: 0; }
+  main { --action-panel-width: clamp(330px,28vw,360px); height: 100vh; display: grid; grid-template-rows: minmax(420px, 1fr) 116px; }
   .stellar-lab { grid-template-columns: minmax(300px, 325px) minmax(390px, 1fr) var(--action-panel-width); }
   .stellar-lab, .star-chamber { min-height: 0; }
   .data-panel { padding: 14px 18px; overflow: hidden; }
@@ -770,10 +754,6 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 
 @media (max-width: 780px) {
   main, footer { width: min(100% - 24px, 620px); }
-  .mission-strip { grid-template-columns: 1fr; padding: 18px 0; }
-  .mission-copy { display: block; }
-  .mission-copy h2 { margin-top: 4px; }
-  .mission-copy p { margin-top: 5px; }
   .stellar-lab { grid-template-columns: 1fr; }
   .left-panel { grid-row: 3; border-right: 0; border-top: 1px solid $line; border-bottom: 1px solid $line; }
   .star-chamber { min-height: 520px; grid-row: 1; }
@@ -841,6 +821,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .run-stat-grid { grid-template-columns: 1fr; }
   .stats-modal-body { padding: 18px 16px 22px; }
   .knowledge-body { padding: 18px 16px 22px; }
+  .objective-modal-body { padding: 18px 16px 22px; }
   .settings-body { padding: 0 16px 6px; }
   .settings-section { grid-template-columns: 1fr; gap: 14px; padding: 18px 0; }
   .settings-switch { justify-self: start; }

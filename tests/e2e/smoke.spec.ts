@@ -127,11 +127,16 @@ test('the first objective collects one ME and congratulates the player', async (
   });
   await page.goto('/');
 
-  await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Sammle 1 ME Materie ein');
+  await expect(page.locator('.mission-strip')).toHaveCount(0);
   await expect(page.locator('[data-ui="chamber-objective-percent"]')).toHaveText('0%');
+  await page.getByRole('button', { name: 'Aktuelles Ziel öffnen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Aktuelles Ziel' })).toContainText('Sammle 1 ME Materie ein');
+  await page.getByRole('button', { name: 'Ziel schließen' }).click();
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
 
-  await expect(page.locator('[data-ui="objective-title"]')).toHaveText('Erzeuge 1 MeV Energie');
+  await page.getByRole('button', { name: 'Aktuelles Ziel öffnen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Aktuelles Ziel' })).toContainText('Erzeuge 1 MeV Energie');
+  await page.getByRole('button', { name: 'Ziel schließen' }).click();
   await expect(page.locator('[data-ui="energy"]')).toHaveText('0');
   await expect(page.locator('.energy-metric small')).toHaveText('MeV');
   await expect(page.locator('[data-ui="chamber-objective-percent"]')).toHaveText('1,8%');
@@ -262,14 +267,8 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.locator('[data-ui="core-total"]')).toHaveCount(0);
   await expect(page.locator('[data-ui="elapsed"]')).toHaveCount(0);
 
-  const objectivePositions = await page.locator('.mission-copy').evaluate((element) => {
-    const eyebrow = element.querySelector('[data-ui="objective-eyebrow"]')!.getBoundingClientRect();
-    const title = element.querySelector('[data-ui="objective-title"]')!.getBoundingClientRect();
-    const detail = element.querySelector('[data-ui="objective-detail"]')!.getBoundingClientRect();
-    return { eyebrow: eyebrow.top, title: title.top, detail: detail.top };
-  });
-  expect(objectivePositions.eyebrow).toBeLessThan(objectivePositions.title);
-  expect(objectivePositions.title).toBeLessThan(objectivePositions.detail);
+  await expect(page.locator('.mission-strip')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Zielbereich/ })).toHaveCount(0);
 
   const dimensions = await page.evaluate(() => ({
     documentHeight: document.body.scrollHeight,
@@ -366,67 +365,39 @@ test('chronicle shows runtime timestamps and only entries from the current cycle
   expect(scrolling.logScrollTop).toBeGreaterThan(0);
 });
 
-test('mission strip collapses without duplicating the chamber progress', async ({ browser, baseURL }) => {
+test('the chamber progress is the only persistent objective display and opens a modal', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 700 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
   await gotoGame(page);
-  const strip = page.locator('.mission-strip');
-  const collapseButton = page.getByRole('button', { name: 'Zielbereich verkleinern' });
-  const restingColors = await collapseButton.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { background: style.backgroundColor, border: style.borderColor, color: style.color };
-  });
-  expect(await collapseButton.evaluate((element) => {
-    const button = element.getBoundingClientRect();
-    const icon = element.querySelector('svg')!.getBoundingClientRect();
-    return { x: icon.x + icon.width / 2 - (button.x + button.width / 2), y: icon.y + icon.height / 2 - (button.y + button.height / 2) };
-  })).toEqual({ x: 0, y: 0 });
-  const expandedStripBox = (await strip.boundingBox())!;
-  const expandedButtonBox = (await collapseButton.boundingBox())!;
-  expect(expandedButtonBox.y - expandedStripBox.y).toBe(10);
-  expect(expandedStripBox.x + expandedStripBox.width - (expandedButtonBox.x + expandedButtonBox.width)).toBe(0);
-  await collapseButton.tap();
-
-  await expect(strip).toHaveClass(/is-collapsed/);
-  expect(await strip.evaluate((element) => element.getAnimations({ subtree: true }).some((animation) => animation.playState === 'running'))).toBe(true);
-  await strip.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished.catch(() => undefined))));
-  await expect(strip.locator('.mission-progress')).toHaveCount(0);
-  await expect(strip.locator('[data-ui="objective-percent"]')).toHaveCount(0);
-  await expect(strip.locator('.progress-track')).toHaveCount(0);
-  await expect(strip.locator('.mission-copy')).toBeHidden();
-  await expect(strip.locator('.elapsed')).toHaveCount(0);
-  const stripBox = (await strip.boundingBox())!;
-  const expandButton = page.getByRole('button', { name: 'Zielbereich vergrößern' });
-  const collapseButtonBox = (await expandButton.boundingBox())!;
-  expect(stripBox.height).toBeLessThanOrEqual(48);
-  expect(collapseButtonBox.height).toBeLessThan(stripBox.height);
-  expect(await expandButton.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { background: style.backgroundColor, border: style.borderColor, color: style.color };
-  })).toEqual(restingColors);
-  expect(await expandButton.evaluate((element) => {
-    const button = element.getBoundingClientRect();
-    const icon = element.querySelector('svg')!.getBoundingClientRect();
-    return { x: icon.x + icon.width / 2 - (button.x + button.width / 2), y: icon.y + icon.height / 2 - (button.y + button.height / 2) };
-  })).toEqual({ x: 0, y: 0 });
-
-  await page.reload();
-  await expect(page.locator('.mission-strip')).toHaveClass(/is-collapsed/);
   const chamberProgress = page.getByRole('button', { name: 'Aktuelles Ziel öffnen' });
+  await expect(page.locator('.mission-strip')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Zielbereich/ })).toHaveCount(0);
   await expect(page.locator('.phase-dots')).toHaveCount(0);
   await expect(chamberProgress.locator('[data-ui="chamber-objective-percent"]')).toHaveText(/%$/);
   expect(await chamberProgress.locator('.chamber-progress-track i').evaluate(
     (element) => getComputedStyle(element).backgroundImage,
   )).toContain('gradient');
   await chamberProgress.tap();
-  await expect(page.locator('.mission-copy')).toBeVisible();
+  const objective = page.getByRole('dialog', { name: 'Aktuelles Ziel' });
+  await expect(objective).toBeVisible();
+  await expect(objective).toContainText('Erstes Ziel');
+  await expect(objective).toContainText('Sammle 1 ME Materie ein');
+  await expect(objective).toContainText('Ziehe die erste Materie aus der Urwolke');
+  await page.getByRole('button', { name: 'Ziel schließen' }).click();
+  await expect(objective).toHaveCount(0);
+  await chamberProgress.tap();
+  await page.keyboard.press('Escape');
+  await expect(objective).toHaveCount(0);
+  await chamberProgress.tap();
+  await page.locator('[data-overlay-dismiss="objective"]').click({ position: { x: 5, y: 5 } });
+  await expect(objective).toHaveCount(0);
   await context.close();
 });
 
 test('header is removed and settings occupies the round lower-right chamber control', async ({ page }) => {
   await gotoGame(page);
   await expect(page.locator('header')).toHaveCount(0);
-  await expect(page.locator('.mission-strip')).toHaveCSS('border-bottom-width', '0px');
+  await expect(page.locator('.mission-strip')).toHaveCount(0);
 
   const settingsButton = page.getByRole('button', { name: 'Einstellungen öffnen' });
   const chamberBox = (await page.locator('.star-chamber').boundingBox())!;
@@ -540,17 +511,15 @@ test('new players can complete and resume the interactive tutorial', async ({ pa
   await expect(tutorial).toContainText('Materie für den Sternenkern');
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Dein nächstes Ziel');
-  const objectiveTarget = page.locator('[data-tutorial="objective"]');
+  await expect(tutorial).toContainText('Fortschrittsbalken unter deinem Stern');
+  const objectiveTarget = page.locator('[data-tutorial="objective-progress"]');
   await expect(objectiveTarget).toHaveClass(/tutorial-focus/);
-  await expect(page.locator('.mission-strip')).toHaveCSS('overflow', 'hidden');
   await expectTutorialFrameInsideViewport(page);
-  await tutorial.getByRole('button', { name: 'Weiter' }).click();
-  await expect(tutorial).toContainText('Fortschritt im Blick');
-  await expect(tutorial).toContainText('orangefarbene Balken unter deinem Stern');
-  await expect(page.locator('.mission-strip [data-tutorial="objective-progress"]')).toHaveCount(0);
-  await expect(page.locator('.chamber-objective-progress[data-tutorial="objective-progress"]')).toHaveClass(/tutorial-focus/);
-  await tutorial.getByRole('button', { name: 'Verstanden' }).click();
+  await expect(tutorial).toContainText('Klicke auf den markierten Fortschrittsbalken');
+  await objectiveTarget.click();
   await expect(tutorial).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Aktuelles Ziel' })).toContainText('Erzeuge 1 MeV Energie');
+  await page.getByRole('button', { name: 'Ziel schließen' }).click();
   await expect(page.getByRole('dialog', { name: 'Protostern bilden' })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Reaktionen' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Ein neuer Kosmos beginnt.', { exact: true })).toBeVisible();
@@ -1403,7 +1372,7 @@ test('an affordable next automation level uses an expansion toast', async ({ pag
   await expect(page.getByText('Neue Automation verfügbar.', { exact: true })).toHaveCount(0);
 });
 
-test('progress and chronicle utility buttons share the same translucent hover treatment', async ({ page }) => {
+test('modal utility buttons share the same translucent hover treatment', async ({ page }) => {
   await gotoGame(page);
   const hoverStyle = async (locator: Locator) => {
     await locator.hover();
@@ -1416,7 +1385,9 @@ test('progress and chronicle utility buttons share the same translucent hover tr
   };
 
   const settingsStyle = await hoverStyle(page.getByRole('button', { name: 'Einstellungen öffnen' }));
-  expect(await hoverStyle(page.getByRole('button', { name: 'Zielbereich verkleinern' }))).toEqual(settingsStyle);
+  await page.getByRole('button', { name: 'Aktuelles Ziel öffnen' }).click();
+  expect(await hoverStyle(page.getByRole('button', { name: 'Ziel schließen' }))).toEqual(settingsStyle);
+  await page.getByRole('button', { name: 'Ziel schließen' }).click();
 
   await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   expect(await hoverStyle(page.getByRole('button', { name: 'Chronik schließen' }))).toEqual(settingsStyle);
