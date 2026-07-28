@@ -42,7 +42,7 @@ async function expectTutorialFrameInsideViewport(page: Page): Promise<Locator> {
     const style = getComputedStyle(element);
     const padding = Number.parseFloat(style.getPropertyValue('--tutorial-frame-padding'));
     const isRound = element.matches('.star-button');
-    const frameStyle = isRound ? getComputedStyle(element, '::after') : style;
+    const frameStyle = getComputedStyle(element, '::after');
     return {
       left: rect.left - padding - 1,
       top: rect.top - padding - 1,
@@ -50,7 +50,12 @@ async function expectTutorialFrameInsideViewport(page: Page): Promise<Locator> {
       bottom: rect.bottom + padding + 1,
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
-      borderStyle: isRound ? frameStyle.borderTopStyle : frameStyle.outlineStyle,
+      borderColor: frameStyle.borderTopColor,
+      borderStyle: frameStyle.borderTopStyle,
+      borderWidth: frameStyle.borderTopWidth,
+      boxShadow: frameStyle.boxShadow,
+      targetFilter: style.filter,
+      targetOutline: style.outlineStyle,
       isRound,
     };
   });
@@ -58,7 +63,12 @@ async function expectTutorialFrameInsideViewport(page: Page): Promise<Locator> {
   expect(geometry.top).toBeGreaterThanOrEqual(5.5);
   expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth - 5.5);
   expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight - 5.5);
+  expect(geometry.borderColor).toBe('rgba(120, 215, 223, 0.72)');
   expect(geometry.borderStyle).toBe('solid');
+  expect(geometry.borderWidth).toBe('1px');
+  expect(geometry.boxShadow).toContain(geometry.isRound ? '45px' : '32px');
+  expect(geometry.targetFilter).toBe('none');
+  expect(geometry.targetOutline).toBe('none');
   return target;
 }
 
