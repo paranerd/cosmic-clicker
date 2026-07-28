@@ -154,7 +154,11 @@ function positionTutorialFocus(target: Element): void {
     rect.top - viewportGap - frameBorderWidth,
     window.innerHeight - viewportGap - rect.bottom - frameBorderWidth,
   );
-  const framePadding = Math.max(0, Math.min(maxFramePadding, availableFrameSpace));
+  // A negative padding draws the element-bound frame inside targets which
+  // already touch or slightly cross a viewport edge. Keeping the same value
+  // on all sides preserves the frame's shape and, unlike a fixed overlay,
+  // still makes it move synchronously with the target while scrolling.
+  const framePadding = Math.min(maxFramePadding, availableFrameSpace);
   if (target instanceof HTMLElement) {
     target.style.setProperty('--tutorial-frame-padding', `${framePadding}px`);
   }
