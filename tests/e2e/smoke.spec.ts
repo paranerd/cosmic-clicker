@@ -66,6 +66,17 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   await expect(page.getByRole('heading', { name: 'Stellarer Kern' })).toBeVisible();
   await expect(page.getByText('Urwolke', { exact: true }).first()).toBeVisible();
   await expect(page.locator('[data-ui="temperature"]')).toHaveText('10 K');
+  const chamberResources = page.getByRole('region', { name: 'Ressourcen' });
+  await expect(chamberResources).toBeVisible();
+  await expect(chamberResources.locator('.chamber-resource')).toHaveCount(4);
+  await expect(chamberResources.locator('[data-ui="chamber-temperature"]')).toHaveText('10 K');
+  await expect(chamberResources.locator('[data-ui="chamber-energy"]')).toHaveText('0 MeV');
+  await expect(chamberResources.locator('[data-ui="chamber-mass"]')).toHaveText('0 ME');
+  await expect(chamberResources.locator('[data-ui="chamber-stardust"]')).toHaveText('0 ✦');
+  const resourceWidthsBefore = await chamberResources.locator('.chamber-resource').evaluateAll(
+    (resources) => resources.map((resource) => resource.getBoundingClientRect().width),
+  );
+  expect(new Set(resourceWidthsBefore.map((width) => Math.round(width))).size).toBe(1);
   const star = page.getByRole('button', { name: 'Materie einsammeln' });
   const starBox = await star.boundingBox();
   const chamberBox = await page.locator('.star-chamber').boundingBox();
@@ -93,6 +104,11 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   expect(gainStyle.top).toBeLessThan((starBox!.y + starBox!.height / 2) - chamberBox!.y);
   expect(gainStyle.textShadow).not.toBe('none');
   await expect(page.locator('[data-ui="click-yield"]')).toHaveText('+1 ME');
+  await expect(chamberResources.locator('[data-ui="chamber-mass"]')).toHaveText('1 ME');
+  const resourceWidthsAfter = await chamberResources.locator('.chamber-resource').evaluateAll(
+    (resources) => resources.map((resource) => resource.getBoundingClientRect().width),
+  );
+  expect(resourceWidthsAfter).toEqual(resourceWidthsBefore);
   await expect(page.getByText('1', { exact: true }).first()).toBeVisible();
   await expect(page.locator('[data-matter="hydrogen"] strong')).toContainText('ME');
   await expect(page.locator('[data-matter="hydrogen"] strong')).not.toContainText('%');

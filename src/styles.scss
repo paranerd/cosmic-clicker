@@ -160,7 +160,13 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 [data-matter][hidden], [data-cloud-matter][hidden] { display: none; }
 
 .star-chamber { position: relative; overflow: hidden; min-height: 600px; display: grid; place-items: center; isolation: isolate; background: radial-gradient(circle at center, rgba(83, 70, 51, calc(.08 + var(--temp-scale) * .09)), transparent 48%); }
-.stage-label { position: absolute; z-index: 4; top: 34px; text-align: center; }
+.chamber-resources { width: min(560px, calc(100% - 32px)); min-height: 48px; position: absolute; z-index: 4; top: 20px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid $line; border-bottom: 1px solid $line; background: rgba(8,13,22,.36); }
+.chamber-resource { min-width: 0; padding: 8px 5px 7px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.chamber-resource + .chamber-resource { border-left: 1px solid $line; }
+.chamber-resource span { color: $muted; font-size: 7px; letter-spacing: .1em; text-transform: uppercase; }
+.chamber-resource b { width: 100%; margin-top: 4px; overflow: hidden; color: #dce5eb; font-family: ui-monospace, monospace; font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.chamber-resource:last-child b { color: $amber; }
+.stage-label { position: absolute; z-index: 4; top: 88px; text-align: center; }
 .stage-label span { display: block; color: $amber; font-family: Georgia, serif; font-size: 22px; }
 .stage-label b { display: block; margin-top: 5px; color: $muted; font-weight: 500; text-transform: uppercase; font-size: 7px; letter-spacing: .22em; }
 .star-button { --size: calc(140px + var(--star-scale) * 100px); width: var(--size); height: var(--size); padding: 0; border: 0; background: transparent; border-radius: 50%; position: relative; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; transition: transform .15s ease, filter .3s; z-index: 3; }
@@ -750,7 +756,8 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .reservoir-list > div { padding: 5px 0; }
   .rate-card { margin-top: 10px; padding: 9px; }
   .science-note { display: none; }
-  .stage-label { top: 20px; }
+  .chamber-resources { top: 12px; }
+  .stage-label { top: 76px; }
   .click-callout { bottom: 47px; }
   .phase-dots { bottom: 20px; }
   .sidepanel-heading { padding: 14px 16px 9px; }
@@ -835,6 +842,10 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .header-actions { gap: 5px; }
   .icon-button { width: 36px; }
   .stellar-lab, .star-chamber { min-height: 480px; }
+  .chamber-resources { width: calc(100% - 16px); }
+  .chamber-resource { padding-right: 3px; padding-left: 3px; }
+  .chamber-resource span { font-size: 6px; letter-spacing: .06em; }
+  .chamber-resource b { font-size: 9px; }
   .click-callout { bottom: 52px; }
   .phase-dots { bottom: 24px; }
   .summary-modal { padding: 32px 20px; }
