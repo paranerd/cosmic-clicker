@@ -264,7 +264,7 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .sidepanel-tools button { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid $line; background: transparent; color: $muted; cursor: pointer; transition: .18s ease; }
 .sidepanel-tools button:hover { color: $text; border-color: rgba($cyan,.45); background: rgba($cyan,.07); }
 .sidepanel-tools svg { width: 14px; height: 14px; }
-.side-tabs { height: 44px; display: grid; grid-template-columns: repeat(3,1fr); padding: 0 14px; border-top: 1px solid $line; border-bottom: 1px solid $line; }
+.side-tabs { height: 44px; display: grid; grid-template-columns: repeat(4,1fr); padding: 0 14px; border-top: 1px solid $line; border-bottom: 1px solid $line; }
 .side-tabs button { min-width: 0; position: relative; display: flex; gap: 4px; align-items: center; justify-content: center; border: 0; border-bottom: 2px solid transparent; background: transparent; color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; transition: color .18s ease, border-color .18s ease, background-color .18s ease; }
 .side-tabs button.active { color: $text; border-bottom-color: $cyan; }
 .side-tabs button:hover:not(.active) { color: rgba($text,.78); border-bottom-color: rgba($cyan,.3); background: rgba($cyan,.035); }
@@ -336,6 +336,8 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .upgrade-heading h3 { margin: 0; font-family: Georgia,serif; font-size: 17px; font-weight: 400; }
 .upgrade-card p, .action-card p { min-height: 42px; margin: 10px 0 0; color: $muted; font-size: 9px; line-height: 1.5; }
 .upgrade-card p strong { display: block; margin-top: 4px; color: #91cdd1; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 400; }
+.perk-overview-card .upgrade-heading { padding-right: 0; }
+.perk-overview-card .tile-cost { text-align: left; color: $muted; }
 .level-row { display: flex; gap: 5px; margin: 15px 0; }
 .level-pip { height: 3px; flex: 1; background: rgba(255,255,255,.08); }
 .level-pip.is-filled { background: $cyan; box-shadow: 0 0 6px rgba($cyan,.5); }

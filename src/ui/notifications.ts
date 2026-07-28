@@ -146,14 +146,14 @@ export function syncNotifications(): void {
   const unseenBeforeOpening = (Object.keys(opportunities) as Panel[]).reduce<Record<Panel, string[]>>((result, panel) => {
     result[panel] = opportunities[panel].filter((key) => !state.seenOpportunities.includes(key));
     return result;
-  }, { reactions: [], upgrades: [], automation: [] });
+  }, { reactions: [], upgrades: [], automation: [], perks: [] });
   const newlyUnlocked = notificationsInitialized
     ? (Object.keys(opportunities) as Panel[]).filter((panel) => unseenBeforeOpening[panel].some((key) => !previous.has(key)))
     : [];
   const newlyAvailable = (Object.keys(opportunities) as Panel[]).reduce<Record<Panel, string[]>>((result, panel) => {
     result[panel] = unseenBeforeOpening[panel].filter((key) => !previous.has(key));
     return result;
-  }, { reactions: [], upgrades: [], automation: [] });
+  }, { reactions: [], upgrades: [], automation: [], perks: [] });
 
   markOpportunitiesSeen(activePanel, opportunities);
   (Object.keys(opportunities) as Panel[]).forEach((panel) => {
@@ -171,7 +171,7 @@ export function syncNotifications(): void {
     newlyUnlocked.forEach(flashUnlockedTab);
     playSound('unlock', state.soundEnabled, state.volume);
     const automationIsNew = newlyAvailable.automation.some((key) => key.endsWith(':0'));
-    const messages: Record<Panel, string> = { reactions: 'Neue Reaktion verfügbar.', upgrades: 'Neues Upgrade verfügbar.', automation: automationIsNew ? 'Neue Automation verfügbar.' : 'Automation kann ausgebaut werden.' };
+    const messages: Record<Panel, string> = { reactions: 'Neue Reaktion verfügbar.', upgrades: 'Neues Upgrade verfügbar.', automation: automationIsNew ? 'Neue Automation verfügbar.' : 'Automation kann ausgebaut werden.', perks: 'Neuer Perk verfügbar.' };
     showToast(newlyUnlocked.length === 1 ? messages[newlyUnlocked[0]] : 'Neue Sternsysteme verfügbar.');
   }
   lastOpportunitySignature = (Object.keys(opportunities) as Panel[]).flatMap((panel) => opportunities[panel]).join('|');

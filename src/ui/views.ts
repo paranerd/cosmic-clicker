@@ -7,6 +7,9 @@ import {
   cloudPathName,
   KNOWLEDGE,
   OUTCOME_LABELS,
+  PRESTIGE_PERK_ORDER,
+  PRESTIGE_PERKS,
+  prestigePerkValue,
   REACTIONS,
   REACTION_ORDER,
   RESOURCES,
@@ -119,7 +122,8 @@ export function currentOpportunities(): Record<Panel, string[]> {
   const reactions: string[] = [];
   const upgrades: string[] = [];
   const automation: string[] = [];
-  if (state.completed) return { reactions, upgrades, automation };
+  const perks: string[] = [];
+  if (state.completed) return { reactions, upgrades, automation, perks };
   REACTION_ORDER.forEach((id) => {
     if (reactionAvailable(state, id)) reactions.push(`reaction:${id}`);
   });
@@ -135,7 +139,7 @@ export function currentOpportunities(): Record<Panel, string[]> {
     const price = automationCost(kind, level);
     if (automationVisible(kind) && level < definition.maxLevel && automationMastery(kind) >= definition.mastery.threshold && state.energy >= price && !automationSupplyExhausted(state, kind)) automation.push(`${kind}:${level}`);
   });
-  return { reactions, upgrades, automation };
+  return { reactions, upgrades, automation, perks };
 }
 
 export interface ReactionView {
@@ -419,6 +423,23 @@ function automationCard(kind: AutomationKind): string {
     </article>`;
 }
 
+function perkCard(perk: (typeof PRESTIGE_PERK_ORDER)[number]): string {
+  const state = getState();
+  const definition = PRESTIGE_PERKS[perk];
+  const level = state.perks[perk];
+  const isMax = level >= definition.maxLevel;
+  const currentValue = `×${formatNumber(prestigePerkValue(perk, level), 2)}`;
+  const nextValue = isMax ? 'Voll ausgebaut' : `×${formatNumber(prestigePerkValue(perk, level + 1), 2)}`;
+  return `
+    <article class="upgrade-card perk-overview-card" data-perk-card="${perk}">
+      <div class="upgrade-heading"><span class="upgrade-icon">${definition.icon}</span><h3>${definition.title}</h3></div>
+      <div class="tile-rate"><div><span>Aktuell</span><b>${currentValue}</b></div><div><span>Nächste Stufe:</span> <b>${nextValue}</b></div></div>
+      <p>${definition.description}<strong>Stufe ${level} von ${definition.maxLevel}</strong></p>
+      <div class="level-row">${levelPips(level, definition.maxLevel)}</div>
+      <div class="tile-cost">Neue Stufen können am Zyklusende gekauft werden.</div>
+    </article>`;
+}
+
 // Punkt 3: Die Stellare Entwicklung zeigt nur noch den tatsächlich
 // durchlaufenen Weg BIS JETZT plus genau einen offenen „?“-Knoten — keine
 // Zukunftsprognose mehr, denn der Ausgang hängt vom Verhalten des Spielers ab
@@ -514,6 +535,9 @@ export function panelMarkup(panel: Panel): string {
   if (panel === 'upgrades') {
     const cards = orderedUpgradeCards();
     return `<div class="upgrade-grid ${cards.length === 1 ? 'single-upgrade' : ''}">${cards.map((card) => card.markup).join('')}</div>`;
+  }
+  if (panel === 'perks') {
+    return `<div class="upgrade-grid perk-grid">${PRESTIGE_PERK_ORDER.map(perkCard).join('')}</div>`;
   }
   const automations = AUTOMATION_ORDER.filter(automationVisible);
   return `<div class="upgrade-grid automation-grid ${automations.length === 1 ? 'single-upgrade' : ''}">${automations.map(automationCard).join('')}</div>`;

@@ -212,8 +212,8 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByRole('tab', { name: 'Reaktionen' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Upgrades' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Automationen' })).toBeVisible();
-  await expect(page.getByRole('tab')).toHaveCount(3);
-  await expect(page.getByRole('tab', { name: /Vermächtnis/ })).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: 'Perks' })).toBeVisible();
+  await expect(page.getByRole('tab')).toHaveCount(4);
   await expect(page.locator('.action-sidepanel')).toContainText('Kontrollzentrum');
   await expect(page.getByText('Automatische Akkretion', { exact: true })).toHaveCount(0);
   const cloudPanel = page.locator('[data-ui="cloud-panel"]');
@@ -858,6 +858,30 @@ test('round statistics are integrated into the chronicle and production exposes 
   await page.waitForTimeout(1_200);
   expect(await originalCloseButton?.evaluate((element) => element.isConnected)).toBe(true);
   expect(await page.evaluate(() => typeof (window as unknown as Record<string, unknown>).cosmicDebug)).toBe('undefined');
+});
+
+test('perks tab shows every permanent perk in the upgrade card style', async ({ page }) => {
+  await seedLegacyGame(page, {
+    perks: { largerCloud: 2, permanentGravity: 1, fusionMemory: 3 },
+  });
+  await gotoGame(page);
+
+  await page.getByRole('tab', { name: 'Perks' }).click();
+  await expect(page.getByRole('tab', { name: 'Perks' })).toHaveAttribute('aria-selected', 'true');
+
+  const cards = page.locator('[data-perk-card]');
+  await expect(cards).toHaveCount(3);
+  await expect(cards).toHaveClass([/upgrade-card/, /upgrade-card/, /upgrade-card/]);
+
+  const cloudPerk = page.locator('[data-perk-card="largerCloud"]');
+  await expect(cloudPerk).toContainText('Wolkenmasse');
+  await expect(cloudPerk).toContainText('Stufe 2 von 24');
+  await expect(cloudPerk.locator('.tile-rate')).toContainText('×4');
+  await expect(cloudPerk.locator('.tile-rate')).toContainText('×8');
+
+  await expect(page.locator('[data-perk-card="permanentGravity"]')).toContainText('Gravitatives Gedächtnis');
+  await expect(page.locator('[data-perk-card="fusionMemory"]')).toContainText('Fusionsgedächtnis');
+  await expect(cards.first().getByText('Neue Stufen können am Zyklusende gekauft werden.')).toBeVisible();
 });
 
 test('tabs count unseen opportunities, flash on unlock and clear when opened', async ({ page }) => {

@@ -5,6 +5,8 @@ export type PrestigePerkId = keyof PerkState;
 
 interface PrestigePerkDefinition {
   title: string;
+  icon: string;
+  description: string;
   maxLevel: number;
   cost: LevelFormula;
   value: LevelFormula;
@@ -73,6 +75,8 @@ export const OUTCOMES: Record<StellarOutcome, {
 export const PRESTIGE_PERKS = {
   largerCloud: {
     title: 'Wolkenmasse',
+    icon: 'M',
+    description: 'Vergrößert die maximal wählbare Urwolke dauerhaft.',
     effectLabel: 'maximale Wolkenmasse',
     comparison: 'relative',
     hideEffectAtMaximum: false,
@@ -94,6 +98,8 @@ export const PRESTIGE_PERKS = {
   },
   permanentGravity: {
     title: 'Gravitatives Gedächtnis',
+    icon: 'G',
+    description: 'Erhöht die Akkretionsrate dauerhaft in jedem Zyklus.',
     effectLabel: 'Akkretionsrate',
     comparison: 'relative',
     hideEffectAtMaximum: true,
@@ -116,6 +122,8 @@ export const PRESTIGE_PERKS = {
   },
   fusionMemory: {
     title: 'Fusionsgedächtnis',
+    icon: 'F',
+    description: 'Erhöht die Ausbeute aller Fusionsreaktionen dauerhaft.',
     effectLabel: 'Fusion',
     comparison: 'base',
     hideEffectAtMaximum: false,
@@ -134,6 +142,12 @@ export const PRESTIGE_PERKS = {
     },
   },
 } as const satisfies Record<PrestigePerkId, PrestigePerkDefinition>;
+
+export const PRESTIGE_PERK_ORDER = [
+  'largerCloud',
+  'permanentGravity',
+  'fusionMemory',
+] as const satisfies readonly PrestigePerkId[];
 
 export const prestigePerkValue = (perk: PrestigePerkId, level: number): number => {
   const definition = PRESTIGE_PERKS[perk];

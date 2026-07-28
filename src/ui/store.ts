@@ -1,7 +1,7 @@
 import { loadGame } from '../game/storage';
 import type { GameState } from '../game/types';
 
-export type Panel = 'reactions' | 'upgrades' | 'automation';
+export type Panel = 'reactions' | 'upgrades' | 'automation' | 'perks';
 
 export const app = document.querySelector<HTMLDivElement>('#app')!;
 if (!app) throw new Error('App root missing');
