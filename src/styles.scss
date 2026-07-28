@@ -41,38 +41,12 @@ button:disabled { cursor: not-allowed; }
 
 svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 
-.topbar { height: 72px; padding: 0 max(24px, calc((100vw - 1460px) / 2)); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1px solid $line; background: rgba(5, 9, 16, .73); backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 20; }
-.topbar.tutorial-settings-access { z-index: 46; pointer-events: none; }
-.topbar.tutorial-settings-access::after { content: ''; position: absolute; z-index: 1; inset: 0; background: rgba(2,5,9,.82); pointer-events: none; }
-.topbar.tutorial-settings-access .settings-button { position: relative; z-index: 2; pointer-events: auto; }
-.brand { display: flex; align-items: center; gap: 12px; color: $text; text-decoration: none; width: max-content; }
-.brand-mark { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid rgba($cyan, .35); color: $cyan; transform: rotate(45deg); }
-.brand-mark svg { width: 19px; transform: rotate(-45deg); }
-.brand > span:last-child { display: flex; gap: 5px; letter-spacing: .15em; font-size: 14px; }
-.brand b { font-weight: 750; }
-.brand em { color: $cyan; font-style: normal; font-weight: 350; }
-.run-status { display: flex; align-items: center; font-size: 9px; letter-spacing: .18em; color: $muted; }
-.run-status b { color: #aab6c5; font-weight: 600; }
-.header-actions { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
-.resource-chip { height: 42px; display: flex; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid $line; background: rgba(255,255,255,.025); transition: color .2s ease, border-color .2s ease, background .2s ease; }
-.resource-chip { color: $text; cursor: pointer; }
-.resource-chip > span { color: $amber; font-size: 16px; }
-.resource-chip b { font-size: 13px; line-height: 1; }
-.resource-menu { position: relative; }
-.perk-popover { width: 250px; padding: 14px; position: absolute; z-index: 40; right: 0; top: 48px; visibility: hidden; opacity: 0; transform: translateY(-5px); border: 1px solid $line; background: rgba(8,13,22,.98); box-shadow: 0 18px 45px rgba(0,0,0,.45); transition: .18s ease; }
-.resource-menu.is-open .perk-popover { visibility: visible; opacity: 1; transform: translateY(0); }
-.perk-popover > span { color: $cyan; font-size: 7px; letter-spacing: .14em; text-transform: uppercase; }
-.perk-popover > div { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; }
-.perk-popover b { font-family: inherit; font-size: 9px; font-weight: 500; }
-.perk-popover small { color: $muted; font-size: 8px; }
-.perk-popover i { color: $amber; font-style: normal; }
-.perk-popover p { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid $line; color: $muted; font-size: 8px; }
 .icon-button { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid $line; background: transparent; color: $muted; cursor: pointer; transition: .2s ease; }
-.icon-button:hover, .resource-chip:hover, .chronicle-modal-heading button:hover { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
+.icon-button:hover, .chronicle-modal-heading button:hover { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 .icon-button svg { width: 17px; }
 
 main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(100% - 48px)); margin: 0 auto; }
-.mission-strip { min-height: 88px; position: relative; display: grid; grid-template-columns: 1fr minmax(260px, 430px); gap: 32px; align-items: center; overflow: hidden; border-bottom: 1px solid $line; }
+.mission-strip { min-height: 88px; position: relative; display: grid; grid-template-columns: 1fr minmax(260px, 430px); gap: 32px; align-items: center; overflow: hidden; }
 .mission-copy { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; visibility: visible; opacity: 1; transform: translateY(0); transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s; }
 .mission-copy span, .card-kicker { color: $cyan; font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
 .mission-copy h2 { margin: 4px 0 0; font-family: Georgia, serif; font-size: 18px; font-weight: 400; letter-spacing: .02em; }
@@ -81,18 +55,22 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .progress-label b { color: $cyan; font-weight: 600; }
 .progress-track, .mini-track { position: relative; height: 3px; background: rgba(255,255,255,.07); overflow: hidden; }
 .progress-track i, .mini-track i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color.adjust($cyan, $lightness: -20%), $cyan); box-shadow: 0 0 12px rgba($cyan, .5); transition: width .3s ease; }
-.mission-collapse { width: 28px; height: 28px; position: absolute; z-index: 2; right: 0; top: 10px; display: grid; place-items: center; padding: 0; border: 1px solid $line; background: rgba(8,13,22,.92); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
+.mission-actions { position: absolute; right: 0; top: 10px; display: flex; gap: 6px; }
+.mission-collapse, .mission-settings { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid $line; background: rgba(8,13,22,.92); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .mission-collapse svg { width: 14px; height: 14px; display: block; transform: rotate(180deg); transform-origin: center; transition: transform .2s ease; }
+.mission-settings svg { width: 14px; height: 14px; display: block; }
 .mission-strip.is-collapsed .mission-collapse svg { transform: none; }
-.mission-collapse:focus-visible { color: $cyan; border-color: rgba($cyan,.45); background: rgba($cyan,.07); }
+.mission-collapse:focus-visible, .mission-settings:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 @media (hover: hover) and (pointer: fine) {
-  .mission-collapse:hover { color: $cyan; border-color: rgba($cyan,.45); background: rgba($cyan,.07); }
+  .mission-collapse:hover, .mission-settings:hover { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 }
-.mission-strip:not(.is-collapsed) { padding-right: 38px; }
-.mission-strip.is-collapsed { min-height: 44px; grid-template-columns: minmax(0,1fr) 22px; gap: 12px; padding: 8px 0; }
+.mission-strip:not(.is-collapsed) { padding-right: 68px; }
+.mission-strip.is-collapsed { min-height: 44px; grid-template-columns: minmax(0,1fr) auto; gap: 12px; padding: 8px 0; }
 .mission-strip.is-collapsed .mission-copy { position: absolute; visibility: hidden; opacity: 0; transform: translateY(-10px); pointer-events: none; transition: opacity .22s ease, transform .34s cubic-bezier(.2,.75,.25,1), visibility 0s .34s; }
 .mission-strip.is-collapsed .mission-progress { min-width: 0; grid-column: 1; grid-row: 1; padding: 0; }
-.mission-strip.is-collapsed .mission-collapse { width: 22px; height: 22px; position: relative; right: auto; top: auto; grid-column: 2; grid-row: 1; transform: none; }
+.mission-strip.is-collapsed .mission-actions { position: relative; right: auto; top: auto; grid-column: 2; grid-row: 1; gap: 6px; }
+.mission-strip.is-collapsed .mission-collapse, .mission-strip.is-collapsed .mission-settings { width: 22px; height: 22px; }
+.mission-strip.mission-settings-access .settings-button { z-index: 46; pointer-events: auto; }
 
 .stellar-lab { min-height: 600px; display: grid; grid-template-columns: minmax(280px, 345px) minmax(400px, 1fr) var(--action-panel-width); border-bottom: 1px solid $line; }
 .data-panel { padding: 30px; background: linear-gradient(180deg, rgba(12,18,29,.5), rgba(8,13,22,.35)); }
@@ -336,7 +314,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .upgrade-heading h3 { margin: 0; font-family: Georgia,serif; font-size: 17px; font-weight: 400; }
 .upgrade-card p, .action-card p { min-height: 42px; margin: 10px 0 0; color: $muted; font-size: 9px; line-height: 1.5; }
 .upgrade-card p strong { display: block; margin-top: 4px; color: #91cdd1; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 400; }
-.perk-overview-card .upgrade-heading { padding-right: 0; }
 .perk-overview-card .tile-cost { text-align: left; color: $muted; }
 .level-row { display: flex; gap: 5px; margin: 15px 0; }
 .level-pip { height: 3px; flex: 1; background: rgba(255,255,255,.08); }
@@ -735,8 +712,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 
 @media (min-width: 1101px) and (min-height: 800px) {
   html, body, #app { height: 100%; overflow: hidden; }
-  .topbar { height: 64px; flex: 0 0 64px; }
-  main { --action-panel-width: clamp(330px,28vw,360px); --mission-row: 64px; height: calc(100vh - 64px); display: grid; grid-template-rows: var(--mission-row) minmax(420px, 1fr) 116px; }
+  main { --action-panel-width: clamp(330px,28vw,360px); --mission-row: 64px; height: 100vh; display: grid; grid-template-rows: var(--mission-row) minmax(420px, 1fr) 116px; }
   main.mission-is-collapsed { --mission-row: 44px; }
   .mission-strip { min-height: 0; }
   .stellar-lab { grid-template-columns: minmax(300px, 325px) minmax(390px, 1fr) var(--action-panel-width); }
@@ -784,11 +760,6 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 }
 
 @media (max-width: 780px) {
-  .topbar { grid-template-columns: 1fr auto; padding: 0 16px; }
-  .run-status { display: none; }
-  .brand > span:last-child { font-size: 11px; }
-  .resource-chip { padding: 0 8px; }
-  .header-actions { position: relative; }
   main, footer { width: min(100% - 24px, 620px); }
   .mission-strip { grid-template-columns: 1fr; gap: 20px; padding: 18px 0; }
   .mission-progress { grid-column: 1 / -1; grid-row: 2; }
@@ -840,9 +811,6 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 }
 
 @media (max-width: 430px) {
-  .brand-mark { width: 32px; height: 32px; }
-  .header-actions { gap: 5px; }
-  .icon-button { width: 36px; }
   .stellar-lab, .star-chamber { min-height: 480px; }
   .chamber-resources { width: calc(100% - 16px); }
   .chamber-resource { padding-right: 3px; padding-left: 3px; }

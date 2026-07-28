@@ -198,8 +198,8 @@ export function syncTutorial(): void {
   const state = getState();
   const root = app.querySelector<HTMLElement>('[data-ui="tutorial-root"]');
   if (!root) return;
-  const topbar = app.querySelector<HTMLElement>('.topbar');
-  topbar?.classList.remove('tutorial-settings-access');
+  const missionStrip = app.querySelector<HTMLElement>('.mission-strip');
+  missionStrip?.classList.remove('mission-settings-access');
   app.querySelectorAll('.tutorial-focus').forEach((element) => element.classList.remove('tutorial-focus'));
   if (state.completed || state.summaryOpen || !state.tutorial.introSeen || state.tutorial.completed) {
     if (root.innerHTML) root.innerHTML = '';
@@ -216,7 +216,7 @@ export function syncTutorial(): void {
     return;
   }
 
-  topbar?.classList.add('tutorial-settings-access');
+  missionStrip?.classList.add('mission-settings-access');
   prepareTutorialTarget(step);
   const target = tutorialTarget(step);
   target?.classList.add('tutorial-focus');

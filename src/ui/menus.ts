@@ -4,13 +4,11 @@ import { app, getState } from './store';
 
 let fullResetArmed = false;
 let resetTimer = 0;
-let perksOpen = false;
 let warningsOpen = false;
 let prestigeConfirmationArmed = false;
 let prestigeConfirmationTimer = 0;
 
 export const isFullResetArmed = (): boolean => fullResetArmed;
-export const isPerksOpen = (): boolean => perksOpen;
 export const isWarningsOpen = (): boolean => warningsOpen;
 export const isPrestigeConfirmationArmed = (): boolean => prestigeConfirmationArmed;
 
@@ -25,12 +23,6 @@ export function armFullReset(): void {
   const button = app.querySelector<HTMLElement>('[data-action="reset-full"]'); button?.classList.add('is-armed');
   const label = app.querySelector<HTMLElement>('[data-full-reset-label]'); if (label) label.textContent = 'Wirklich alles löschen?';
   resetTimer = window.setTimeout(closeResetMenu, 5_000);
-}
-
-export function setPerksOpen(open: boolean): void {
-  perksOpen = open;
-  app.querySelector('.resource-menu')?.classList.toggle('is-open', open);
-  app.querySelector('[data-action="toggle-perks"]')?.setAttribute('aria-expanded', String(open));
 }
 
 // Punkt 4: Popover mit allen aktiven Warnungen am Warnsymbol der Star Chamber.

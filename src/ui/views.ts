@@ -37,6 +37,7 @@ import {
   reactionManualAmount,
   reactionManualAmountAtLevel,
   reactionUpgradeCost,
+  prestigePerkCost,
   starMass,
   upgradeSupplyExhausted,
   upgradeCost,
@@ -428,10 +429,23 @@ function perkCard(perk: (typeof PRESTIGE_PERK_ORDER)[number]): string {
   const definition = PRESTIGE_PERKS[perk];
   const level = state.perks[perk];
   const isMax = level >= definition.maxLevel;
+  const cost = prestigePerkCost(perk, level);
+  const fillPercent = isMax ? 0 : state.stardust / cost * 100;
   const currentValue = `×${formatNumber(prestigePerkValue(perk, level), 2)}`;
   const nextValue = isMax ? 'Voll ausgebaut' : `×${formatNumber(prestigePerkValue(perk, level + 1), 2)}`;
   return `
     <article class="upgrade-card perk-overview-card" data-perk-card="${perk}">
+      ${tileActionButton({
+        action: 'preview-perk-upgrade',
+        dataset: { perk },
+        complete: isMax,
+        unlocked: true,
+        showLock: level === 0,
+        affordable: false,
+        fillPercent,
+        costText: isMax ? '' : `${cost} ✦`,
+        ariaLabel: isMax ? `${definition.title} voll ausgebaut` : `${definition.title} für ${cost} Sternenstaub – am Zyklusende verfügbar`,
+      })}
       <div class="upgrade-heading"><span class="upgrade-icon">${definition.icon}</span><h3>${definition.title}</h3></div>
       <div class="tile-rate"><div><span>Aktuell</span><b>${currentValue}</b></div><div><span>Nächste Stufe:</span> <b>${nextValue}</b></div></div>
       <p>${definition.description}<strong>Stufe ${level} von ${definition.maxLevel}</strong></p>

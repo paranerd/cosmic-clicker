@@ -170,7 +170,7 @@ export const upgradeCost = (id: UpgradeId, level: number): number => {
   const definition: UpgradeDefinition = UPGRADES[id];
   return Math.round(levelValue(level, definition.cost));
 };
-const prestigePerkCost = (perk: keyof PerkState, level: number): number =>
+export const prestigePerkCost = (perk: keyof PerkState, level: number): number =>
   Math.round(levelValue(level, PRESTIGE_PERKS[perk].cost));
 export const cloudTierCost = (level: number): number => prestigePerkCost('largerCloud', level);
 export const gravityPerkCost = (level: number): number => prestigePerkCost('permanentGravity', level);

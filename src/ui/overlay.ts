@@ -2,7 +2,7 @@ import { KNOWLEDGE, OUTCOMES, OUTCOME_LABELS, PRESTIGE_PERKS, prestigePerkDescri
 import { cloudDefinition, cloudTierCost, effectivePerks, fusionPerkCost, gravityPerkCost, starMass } from '../game/engine';
 import { setDebugOpen, syncDebug } from './debug';
 import { disabled, formatDuration, formatMatter, formatSolarMasses, icons } from './format';
-import { clearPrestigeConfirmation, closeResetMenu, setPerksOpen } from './menus';
+import { clearPrestigeConfirmation, closeResetMenu } from './menus';
 import { clearAchievements, clearToasts } from './notifications';
 import { app, getState } from './store';
 import { historyMarkup, logMarkup, statsEntries, statsGridMarkup, timelineMarkup } from './views';
@@ -41,7 +41,6 @@ export function setSettingsOpen(open: boolean): void {
     chronicleOpen = false;
     statsOpen = false;
     knowledgeEntry = null;
-    setPerksOpen(false);
   }
   invalidateOverlay();
   syncOverlay();
@@ -225,6 +224,5 @@ export function makeSummaryExclusive(): void {
   clearToasts();
   clearPrestigeConfirmation();
   closeResetMenu();
-  setPerksOpen(false);
   syncDebug();
 }

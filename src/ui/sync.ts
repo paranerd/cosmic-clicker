@@ -4,6 +4,7 @@ import {
   DISPLAY_MATTER_KEYS,
   INITIAL_TEMPERATURE,
   MATTER_KEYS,
+  PRESTIGE_PERK_ORDER,
   PRESTIGE_PERKS,
   REACTION_ORDER,
   RESOURCES,
@@ -19,6 +20,7 @@ import {
   cloudMass,
   objectiveFor,
   pressureProgress,
+  prestigePerkCost,
   starMass,
 } from '../game/engine';
 import { syncDebug } from './debug';
@@ -71,14 +73,8 @@ export function renderShell(): void {
   const state = getState();
   app.innerHTML = `
     <div class="cosmos" aria-hidden="true"><div class="stars stars-a"></div><div class="stars stars-b"></div><div class="nebula-glow"></div></div>
-    <header class="topbar">
-      <a class="brand" href="#" aria-label="Cosmic Clicker Startseite"><span class="brand-mark">${icons.spark}</span><span><b>COSMIC</b><em>CLICKER</em></span></a>
-      <div class="run-status"><b data-ui="run">ZYKLUS 01</b></div>
-      <div class="header-actions"><div class="resource-menu"><button class="resource-chip" data-action="toggle-perks" aria-label="Sternenstaub und aktive Vermächtnis-Perks anzeigen" aria-expanded="false"><span>✦</span><b data-ui="stardust">0</b></button><div class="perk-popover"><span>Aktive Perks</span><div><b>${PRESTIGE_PERKS.largerCloud.title}</b><small>Stufe <i data-ui="cloud-perk-level">0</i></small></div><div><b>${PRESTIGE_PERKS.permanentGravity.title}</b><small>Stufe <i data-ui="gravity-perk-level">0</i></small></div><div><b>${PRESTIGE_PERKS.fusionMemory.title}</b><small>Stufe <i data-ui="fusion-perk-level">0</i></small></div><p>Neue Stufen können am Zyklusende gekauft werden.</p></div></div><button class="icon-button settings-button" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button></div>
-    </header>
-
     <main class="${isMissionCollapsed() ? 'mission-is-collapsed' : ''}">
-      <section class="mission-strip ${isMissionCollapsed() ? 'is-collapsed' : ''}" data-ui="mission-strip"><div class="mission-copy" data-tutorial="objective"><span data-ui="objective-eyebrow"></span><h2 data-ui="objective-title"></h2><p data-ui="objective-detail"></p></div><div class="mission-progress" data-tutorial="objective-progress"><div class="progress-label"><span>Fortschritt</span><b data-ui="objective-percent"></b></div><div class="progress-track"><i data-ui="objective-bar"></i></div></div><button class="mission-collapse" data-action="toggle-mission" aria-expanded="${String(!isMissionCollapsed())}" aria-label="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}" title="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}">${icons.chevron}</button></section>
+      <section class="mission-strip ${isMissionCollapsed() ? 'is-collapsed' : ''}" data-ui="mission-strip"><div class="mission-copy" data-tutorial="objective"><span data-ui="objective-eyebrow"></span><h2 data-ui="objective-title"></h2><p data-ui="objective-detail"></p></div><div class="mission-progress" data-tutorial="objective-progress"><div class="progress-label"><span>Fortschritt</span><b data-ui="objective-percent"></b></div><div class="progress-track"><i data-ui="objective-bar"></i></div></div><div class="mission-actions"><button class="mission-collapse" data-action="toggle-mission" aria-expanded="${String(!isMissionCollapsed())}" aria-label="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}" title="${isMissionCollapsed() ? 'Zielbereich vergrößern' : 'Zielbereich verkleinern'}">${icons.chevron}</button><button class="icon-button settings-button mission-settings" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button></div></section>
 
       <section class="stellar-lab">
         <aside class="left-panel" data-tutorial="left-panel">
@@ -262,6 +258,18 @@ function syncActivePanel(): void {
       if (cost && cost.textContent !== view.lockedLabel) cost.textContent = view.lockedLabel;
     });
   }
+  if (activePanel === 'perks') {
+    PRESTIGE_PERK_ORDER.forEach((perk) => {
+      const level = state.perks[perk];
+      const definition = PRESTIGE_PERKS[perk];
+      const isMax = level >= definition.maxLevel;
+      const cost = prestigePerkCost(perk, level);
+      const fillPercent = isMax ? 0 : state.stardust / cost * 100;
+      const button = app.querySelector<HTMLButtonElement>(`[data-perk-card="${perk}"] .tile-action-button`);
+      const ariaLabel = isMax ? `${definition.title} voll ausgebaut` : `${definition.title} für ${cost} Sternenstaub – am Zyklusende verfügbar`;
+      syncTileButton(button, isMax, true, level === 0, false, fillPercent, isMax ? '' : `${cost} ✦`, ariaLabel);
+    });
+  }
 }
 
 function syncChronicleDock(): void {
@@ -289,11 +297,6 @@ export function updateUI(forcePanel = false): void {
   const cloudPanel = uiElement('cloud-panel');
   if (cloudPanel) cloudPanel.hidden = remaining <= .001;
 
-  setText('run', `ZYKLUS ${state.run.toString().padStart(2, '0')}`);
-  setText('stardust', formatNumber(state.stardust));
-  setText('cloud-perk-level', String(state.perks.largerCloud));
-  setText('gravity-perk-level', String(state.perks.permanentGravity));
-  setText('fusion-perk-level', String(state.perks.fusionMemory));
   setText('objective-eyebrow', objective.eyebrow);
   setText('objective-title', objective.title);
   setText('objective-detail', objective.detail);

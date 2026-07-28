@@ -15,10 +15,8 @@ import {
   hasAffordableSummaryPerk,
   hasPendingPerks,
   isFullResetArmed,
-  isPerksOpen,
   isPrestigeConfirmationArmed,
   isWarningsOpen,
-  setPerksOpen,
   setWarningsOpen,
 } from './ui/menus';
 import { toggleMissionCollapsed } from './ui/mission';
@@ -81,8 +79,6 @@ function performReset(mode: ResetMode): void {
 app.addEventListener('click', (event) => {
   const target = event.target as HTMLElement;
   const debugButton = target.closest<HTMLButtonElement>('[data-debug]'); if (debugButton?.dataset.debug) { runDebugAction(debugButton.dataset.debug); return; }
-  const insidePerkMenu = target.closest('.resource-menu');
-  if (isPerksOpen() && !insidePerkMenu) setPerksOpen(false);
   const insideWarningCorner = target.closest('.warning-corner');
   if (isWarningsOpen() && !insideWarningCorner) setWarningsOpen(false);
   if (target.closest('.chronicle-dock')) { setChronicleOpen(true); advanceTutorial('open-chronicle'); return; }
@@ -104,7 +100,6 @@ app.addEventListener('click', (event) => {
   if (action === 'toggle-mission') { toggleMissionCollapsed(); if (event.detail > 0) button.blur(); return; }
   if (action === 'reset-run') { performReset('run'); return; }
   if (action === 'reset-full') { if (isFullResetArmed()) performReset('full'); else armFullReset(); return; }
-  if (action === 'toggle-perks') { setPerksOpen(!isPerksOpen()); return; }
   if (action === 'open-settings') { setSettingsOpen(true); return; }
   if (action === 'close-settings') { setSettingsOpen(false); return; }
   if (action === 'toggle-warnings') { setWarningsOpen(!isWarningsOpen()); return; }
