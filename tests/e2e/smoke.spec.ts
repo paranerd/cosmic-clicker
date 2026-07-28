@@ -69,10 +69,13 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   const chamberResources = page.getByRole('region', { name: 'Ressourcen' });
   await expect(chamberResources).toBeVisible();
   await expect(chamberResources.locator('.chamber-resource')).toHaveCount(4);
-  await expect(chamberResources.locator('[data-ui="chamber-temperature"]')).toHaveText('10 K');
-  await expect(chamberResources.locator('[data-ui="chamber-energy"]')).toHaveText('0 MeV');
-  await expect(chamberResources.locator('[data-ui="chamber-mass"]')).toHaveText('0 ME');
-  await expect(chamberResources.locator('[data-ui="chamber-stardust"]')).toHaveText('0 ✦');
+  await expect(chamberResources.locator('[data-ui="chamber-temperature"]')).toHaveText('10');
+  await expect(chamberResources.locator('[data-ui="chamber-energy"]')).toHaveText('0');
+  await expect(chamberResources.locator('[data-ui="chamber-mass"]')).toHaveText('0');
+  await expect(chamberResources.locator('[data-ui="chamber-stardust"]')).toHaveText('0');
+  await expect(chamberResources.locator('.chamber-resource small')).toHaveText(['K', 'MeV', 'ME', '✦']);
+  await expect(chamberResources).toHaveCSS('border-top-width', '0px');
+  await expect(chamberResources).toHaveCSS('border-bottom-width', '0px');
   const resourceWidthsBefore = await chamberResources.locator('.chamber-resource').evaluateAll(
     (resources) => resources.map((resource) => resource.getBoundingClientRect().width),
   );
@@ -104,7 +107,7 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   expect(gainStyle.top).toBeLessThan((starBox!.y + starBox!.height / 2) - chamberBox!.y);
   expect(gainStyle.textShadow).not.toBe('none');
   await expect(page.locator('[data-ui="click-yield"]')).toHaveText('+1 ME');
-  await expect(chamberResources.locator('[data-ui="chamber-mass"]')).toHaveText('1 ME');
+  await expect(chamberResources.locator('[data-ui="chamber-mass"]')).toHaveText('1');
   const resourceWidthsAfter = await chamberResources.locator('.chamber-resource').evaluateAll(
     (resources) => resources.map((resource) => resource.getBoundingClientRect().width),
   );

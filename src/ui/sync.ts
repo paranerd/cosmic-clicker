@@ -79,10 +79,10 @@ export function renderShell(): void {
 
         <section class="star-chamber">
           <div class="chamber-resources" role="region" aria-label="Ressourcen">
-            <div class="chamber-resource"><span>Temperatur</span><b data-ui="chamber-temperature"></b></div>
-            <div class="chamber-resource"><span>Energie</span><b data-ui="chamber-energy"></b></div>
-            <div class="chamber-resource"><span>Masse</span><b data-ui="chamber-mass"></b></div>
-            <div class="chamber-resource"><span>Sternenstaub</span><b data-ui="chamber-stardust"></b></div>
+            <div class="chamber-resource"><span>Temperatur</span><b data-ui="chamber-temperature"></b><small>K</small></div>
+            <div class="chamber-resource"><span>Energie</span><b data-ui="chamber-energy"></b><small>MeV</small></div>
+            <div class="chamber-resource"><span>Masse</span><b data-ui="chamber-mass"></b><small>ME</small></div>
+            <div class="chamber-resource"><span>Sternenstaub</span><b data-ui="chamber-stardust"></b><small>✦</small></div>
           </div>
           <div class="stage-label"><span data-ui="stage"></span><b data-ui="stage-detail"></b></div>
           <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">${index % 5 !== 4 ? 'H' : 'He'}</i>`).join('')}</div>
@@ -284,14 +284,14 @@ export function updateUI(forcePanel = false): void {
   setWidth('objective-bar', objective.progress);
   syncObjectiveAchievement(objective);
   setText('temperature', formatTemperature(state.temperature));
-  setText('chamber-temperature', formatTemperature(state.temperature));
+  setText('chamber-temperature', formatTemperature(state.temperature).replace(/ K$/, ''));
   setText('temperature-max', scale.label); uiElement('temperature-bar')?.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
   setText('mass', formatMatter(mass));
-  setText('chamber-mass', `${formatMatter(mass)} ME`);
+  setText('chamber-mass', formatMatter(mass));
   setText('pressure', formatNumber(pressureProgress(state), 1));
   setText('energy', formatEnergy(state.energy));
-  setText('chamber-energy', `${formatEnergy(state.energy)} MeV`);
-  setText('chamber-stardust', `${formatNumber(state.stardust)} ✦`);
+  setText('chamber-energy', formatEnergy(state.energy));
+  setText('chamber-stardust', formatNumber(state.stardust));
   setText('accretion-rate', formatMatter(accretionPerSecond(state)));
   DISPLAY_MATTER_KEYS.forEach((key) => {
     setText(`${key}-value`, `${formatMatter(state.star[key])} ME`);
