@@ -831,6 +831,42 @@ test('settings export and import saves and tutorial state', async ({ page }) => 
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toHaveCount(0);
 });
 
+test('popup headers stay visible while only their body scrolls', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 500 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await gotoGame(page);
+
+  const settings = await openSettings(page);
+  const heading = settings.locator('.chronicle-modal-heading');
+  const closeButton = settings.getByRole('button', { name: 'Einstellungen schließen' });
+  const body = settings.locator('.settings-body');
+  const headingBefore = await heading.boundingBox();
+  const closeBefore = await closeButton.boundingBox();
+  const scrolling = await body.evaluate((element) => {
+    const modal = element.closest<HTMLElement>('.settings-modal')!;
+    element.scrollTop = element.scrollHeight;
+    return {
+      bodyOverflowY: getComputedStyle(element).overflowY,
+      bodyCanScroll: element.scrollHeight > element.clientHeight,
+      bodyScrollTop: element.scrollTop,
+      modalOverflowY: getComputedStyle(modal).overflowY,
+      modalScrollTop: modal.scrollTop,
+    };
+  });
+
+  expect(scrolling).toMatchObject({
+    bodyOverflowY: 'auto',
+    bodyCanScroll: true,
+    modalOverflowY: 'hidden',
+    modalScrollTop: 0,
+  });
+  expect(scrolling.bodyScrollTop).toBeGreaterThan(0);
+  expect(await heading.boundingBox()).toEqual(headingBefore);
+  expect(await closeButton.boundingBox()).toEqual(closeBefore);
+
+  await context.close();
+});
+
 test('round statistics are integrated into the chronicle and production exposes no debug function', async ({ page }) => {
   await gotoGame(page);
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();

@@ -453,12 +453,13 @@ footer button { border: 0; background: none; color: #627086; font-size: 8px; tex
 footer button:hover { color: $cyan; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(2,5,9,.82); backdrop-filter: blur(12px); }
+.objective-modal, .settings-modal, .stats-modal, .chronicle-modal, .knowledge-modal { max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); display: flex; flex-direction: column; overflow: hidden; }
 .objective-modal { width: min(560px,100%); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
 .objective-modal .chronicle-modal-heading small { color: $cyan; }
-.objective-modal-body { padding: 22px 28px 26px; }
+.objective-modal-body { min-height: 0; padding: 22px 28px 26px; overflow-y: auto; overscroll-behavior: contain; }
 .objective-modal-body p { margin: 0; color: #94a2b5; font-size: 10px; line-height: 1.75; }
-.settings-modal { width: min(680px,100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
-.settings-body { padding: 0 28px 8px; }
+.settings-modal { width: min(680px,100%); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.settings-body { min-height: 0; padding: 0 28px 8px; overflow-y: auto; overscroll-behavior: contain; }
 .settings-section { display: grid; grid-template-columns: minmax(170px,.75fr) minmax(270px,1.25fr); gap: 28px; align-items: center; padding: 22px 0; border-bottom: 1px solid $line; }
 .settings-section:last-child { border-bottom: 0; }
 .settings-section-copy > span { color: $cyan; font-size: 7px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
@@ -560,16 +561,16 @@ footer button:hover { color: $cyan; }
 .run-stat-grid span { color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .06em; }
 .run-stat-grid b { margin-top: 5px; color: #d9e4e5; font-family: ui-monospace,monospace; font-size: 11px; font-weight: 400; }
 .run-stat-grid.compact > div { padding: 9px 11px; background: rgba(8,13,22,.92); }
-.stats-modal { width: min(820px,100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
-.stats-modal-body { padding: 24px 28px 28px; }
+.stats-modal { width: min(820px,100%); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.stats-modal-body { min-height: 0; padding: 24px 28px 28px; overflow-y: auto; overscroll-behavior: contain; }
 .round-history { margin-top: 24px; }
 .round-history article { padding: 11px 0; display: grid; grid-template-columns: 100px 110px 1fr; gap: 14px; align-items: center; border-bottom: 1px solid $line; }
 .round-history article span { color: $cyan; font-size: 7px; letter-spacing: .12em; }
 .round-history article b { font-family: ui-monospace,monospace; font-size: 10px; font-weight: 400; }
 .round-history article small, .empty-history { color: $muted; font-size: 8px; }
 .empty-history { margin: 12px 0 0; }
-.chronicle-modal { width: min(1050px, 100%); max-height: calc(100vh - 40px); overflow: hidden; border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
-.chronicle-modal-heading { padding: 22px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid $line; }
+.chronicle-modal { width: min(1050px, 100%); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.chronicle-modal-heading { flex: 0 0 auto; padding: 22px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid $line; }
 .chronicle-modal-heading small { color: $cyan; font-size: 7px; letter-spacing: .18em; }
 .chronicle-modal-heading h2 { margin: 5px 0 0; font-family: Georgia,serif; font-size: 24px; font-weight: 400; }
 .chronicle-modal-heading button { width: 34px; height: 34px; border: 1px solid $line; background: transparent; color: $muted; font-size: 19px; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
@@ -584,8 +585,8 @@ footer button:hover { color: $cyan; }
 // Wissensdatenbank-Modal: übernimmt Rahmen, Fläche, Schatten und die
 // Kopfzeile (.chronicle-modal-heading) von Chronik und Statistik, ist aber
 // schmaler, weil es reinen Fließtext zeigt.
-.knowledge-modal { width: min(560px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
-.knowledge-body { padding: 22px 28px 26px; }
+.knowledge-modal { width: min(560px, 100%); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.knowledge-body { min-height: 0; padding: 22px 28px 26px; overflow-y: auto; overscroll-behavior: contain; }
 .knowledge-body p { margin: 0 0 14px; color: #94a2b5; font-size: 10px; line-height: 1.75; }
 .knowledge-ingame { margin-top: 20px; padding: 15px 17px; border: 1px solid $line; background: rgba(8,13,22,.92); }
 .knowledge-ingame .section-label { margin-bottom: 9px; }
@@ -745,8 +746,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .upgrade-grid { grid-template-columns: 1fr; }
   .upgrade-layout, .legacy-layout, .chronicle-layout { grid-template-columns: 1fr; }
   .chronicle-layout { margin: -26px -30px -30px; }
-  .chronicle-modal { overflow-y: auto; }
-  .chronicle-modal .chronicle-layout { height: auto; min-height: 0; overflow: visible; }
+  .chronicle-modal .chronicle-layout { height: auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .chronicle-modal .timeline-card { overflow: visible; }
   .chronicle-modal .log-card { height: min(420px, calc(100vh - 100px)); min-height: 260px; }
   .upgrade-card p { min-height: 0; }
