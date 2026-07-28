@@ -670,11 +670,10 @@ footer button:hover { color: $cyan; }
 .tutorial-danger { border-color: rgba($orange,.5); background: rgba($orange,.1); color: #efb49c; }
 .tutorial-danger:hover,.tutorial-danger:focus-visible { border-color: rgba($orange,.75); background: rgba($orange,.18); }
 .tutorial-secondary { color: $muted; }
-.tutorial-focus { position: relative; z-index: 43; }
-.chamber-objective-progress.tutorial-focus { z-index: 4; }
-.tutorial-focus-frame { position: fixed; z-index: 44; border: 1px solid rgba($cyan,.72); box-shadow: 0 0 32px rgba($cyan,.2); pointer-events: none; }
-.tutorial-focus-frame.is-round { border-radius: 50%; box-shadow: 0 0 45px rgba($cyan,.25); }
-.star-button.tutorial-focus { z-index: 43; }
+.tutorial-focus { outline: 1px solid rgba($cyan,.72); outline-offset: var(--tutorial-frame-padding, 12px); filter: drop-shadow(0 0 16px rgba($cyan,.2)); }
+.chamber-objective-progress.tutorial-focus { position: absolute; z-index: 4; }
+.star-button.tutorial-focus { z-index: 43; outline: 0; filter: none; }
+.star-button.tutorial-focus::after { content: ""; position: absolute; z-index: 20; inset: calc(-1 * var(--tutorial-frame-padding, 12px)); border: 1px solid rgba($cyan,.72); border-radius: 50%; box-shadow: 0 0 45px rgba($cyan,.25); pointer-events: none; }
 .star-button.tutorial-focus .star-corona { visibility: hidden; }
 .debug-panel { width: 320px; position: fixed; z-index: 90; right: 18px; top: 82px; padding: 15px; border: 1px solid rgba(#cf73ff,.5); background: rgba(12,8,19,.97); box-shadow: 0 20px 60px rgba(0,0,0,.55); }
 .debug-panel > div:first-child { display: flex; justify-content: space-between; color: #d29af0; font-size: 8px; letter-spacing: .14em; }
@@ -714,6 +713,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .stellar-lab { grid-template-columns: minmax(300px, 325px) minmax(390px, 1fr) var(--action-panel-width); }
   .stellar-lab, .star-chamber { min-height: 0; }
   .data-panel { padding: 14px 18px; overflow: hidden; }
+  .data-panel:has(.tutorial-focus) { overflow: visible; }
   .panel-heading { margin-bottom: 9px; }
   .primary-reading { margin-bottom: 7px; }
   .primary-reading > b { margin: 3px 0 7px; font-size: clamp(22px, 2vw, 29px); }

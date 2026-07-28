@@ -155,6 +155,9 @@ function positionTutorialFocus(target: Element): void {
     window.innerHeight - viewportGap - rect.bottom - frameBorderWidth,
   );
   const framePadding = Math.max(0, Math.min(maxFramePadding, availableFrameSpace));
+  if (target instanceof HTMLElement) {
+    target.style.setProperty('--tutorial-frame-padding', `${framePadding}px`);
+  }
   const roundDimmer = app.querySelector<HTMLElement>('[data-tutorial-round-dimmer]');
   if (roundDimmer) {
     roundDimmer.style.setProperty('--tutorial-focus-x', `${rect.left + rect.width / 2}px`);
@@ -165,15 +168,6 @@ function positionTutorialFocus(target: Element): void {
   const frameTop = Math.max(viewportGap, rect.top - framePadding);
   const frameRight = Math.min(window.innerWidth - viewportGap, rect.right + framePadding);
   const frameBottom = Math.min(window.innerHeight - viewportGap, rect.bottom + framePadding);
-  const focusFrame = app.querySelector<HTMLElement>('[data-tutorial-focus-frame]');
-  if (focusFrame) {
-    Object.assign(focusFrame.style, {
-      left: `${frameLeft}px`,
-      top: `${frameTop}px`,
-      width: `${Math.max(0, frameRight - frameLeft)}px`,
-      height: `${Math.max(0, frameBottom - frameTop)}px`,
-    });
-  }
   const blockerStyles: Record<string, Partial<CSSStyleDeclaration>> = {
     top: { left: '0px', top: '0px', width: `${window.innerWidth}px`, height: `${frameTop}px` },
     bottom: { left: '0px', top: `${frameBottom}px`, width: `${window.innerWidth}px`, height: `${Math.max(0, window.innerHeight - frameBottom)}px` },
@@ -201,7 +195,10 @@ export function syncTutorial(): void {
   app.classList.remove('tutorial-active');
   const settingsButton = app.querySelector<HTMLElement>('[data-action="open-settings"]');
   settingsButton?.classList.remove('tutorial-settings-access');
-  app.querySelectorAll('.tutorial-focus').forEach((element) => element.classList.remove('tutorial-focus'));
+  app.querySelectorAll<HTMLElement>('.tutorial-focus').forEach((element) => {
+    element.classList.remove('tutorial-focus');
+    element.style.removeProperty('--tutorial-frame-padding');
+  });
   if (state.completed || state.summaryOpen || !state.tutorial.introSeen || state.tutorial.completed) {
     if (root.innerHTML) root.innerHTML = '';
     tutorialSignature = state.completed ? 'hidden-by-cycle-end' : state.summaryOpen ? 'hidden-by-summary' : state.tutorial.introSeen ? 'completed' : 'waiting-for-intro';
@@ -235,9 +232,8 @@ export function syncTutorial(): void {
     const roundFocus = target?.matches('.star-button') ?? false;
     const blockerClass = `tutorial-blocker${roundFocus ? ' tutorial-blocker-round' : ''}`;
     const roundDimmer = roundFocus ? '<div class="tutorial-round-dimmer" data-tutorial-round-dimmer aria-hidden="true"></div>' : '';
-    const focusFrame = `<div class="tutorial-focus-frame${roundFocus ? ' is-round' : ''}" data-tutorial-focus-frame aria-hidden="true"></div>`;
     const focusLayer = target
-      ? `${roundDimmer}${focusFrame}<div class="${blockerClass}" data-tutorial-blocker="top" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="right" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="bottom" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="left" aria-hidden="true"></div>`
+      ? `${roundDimmer}<div class="${blockerClass}" data-tutorial-blocker="top" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="right" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="bottom" aria-hidden="true"></div><div class="${blockerClass}" data-tutorial-blocker="left" aria-hidden="true"></div>`
       : '<div class="tutorial-blocker tutorial-blocker-full" aria-hidden="true"></div>';
     root.innerHTML = `${focusLayer}<aside class="tutorial-card" aria-label="Tutorial"><div class="tutorial-meta"><span>TUTORIAL · ${stepIndex + 1}/${TUTORIAL_STEPS.length}</span><button data-action="request-end-tutorial">Tutorial beenden</button></div><h2>${step.title}</h2><p>${step.text}</p>${interaction}</aside>`;
   }

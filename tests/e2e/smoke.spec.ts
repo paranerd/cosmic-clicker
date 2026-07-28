@@ -33,27 +33,33 @@ async function openSettings(page: Page): Promise<Locator> {
 }
 
 async function expectTutorialFrameInsideViewport(page: Page): Promise<Locator> {
-  const frame = page.locator('[data-tutorial-focus-frame]');
-  await expect(frame).toBeVisible();
-  await expect(frame).toHaveCSS('position', 'fixed');
-  const geometry = await frame.evaluate((element) => {
+  await expect(page.locator('[data-tutorial-focus-frame]')).toHaveCount(0);
+  const target = page.locator('main .tutorial-focus');
+  await expect(target).toHaveCount(1);
+  await expect(target).toBeVisible();
+  const geometry = await target.evaluate((element) => {
     const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    const padding = Number.parseFloat(style.getPropertyValue('--tutorial-frame-padding'));
+    const isRound = element.matches('.star-button');
+    const frameStyle = isRound ? getComputedStyle(element, '::after') : style;
     return {
-      left: rect.left,
-      top: rect.top,
-      right: rect.right,
-      bottom: rect.bottom,
+      left: rect.left - padding - 1,
+      top: rect.top - padding - 1,
+      right: rect.right + padding + 1,
+      bottom: rect.bottom + padding + 1,
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
-      parent: (element.parentElement as HTMLElement | null)?.dataset.ui,
+      borderStyle: isRound ? frameStyle.borderTopStyle : frameStyle.outlineStyle,
+      isRound,
     };
   });
   expect(geometry.left).toBeGreaterThanOrEqual(5.5);
   expect(geometry.top).toBeGreaterThanOrEqual(5.5);
   expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth - 5.5);
   expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight - 5.5);
-  expect(geometry.parent).toBe('tutorial-root');
-  return frame;
+  expect(geometry.borderStyle).toBe('solid');
+  return target;
 }
 
 test('player can accrete matter and see the stellar data update', async ({ page }) => {
@@ -513,18 +519,46 @@ test('new players can complete and resume the interactive tutorial', async ({ pa
   await expect(tutorial).toContainText('Der kosmische Baustoff');
   const cloudComposition = page.locator('[data-tutorial="cloud-composition"]');
   await expect(cloudComposition).toHaveClass(/tutorial-focus/);
-  await expect(page.locator('.cloud-panel')).toHaveCSS('overflow-y', 'hidden');
+  await expect(page.locator('.cloud-panel')).toHaveCSS('overflow-y', 'visible');
   await expectTutorialFrameInsideViewport(page);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Dein erster Akkretionsimpuls');
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
   await expect(tutorial).toContainText('Materie für den Sternenkern');
+  const objectiveTarget = page.locator('[data-tutorial="objective-progress"]');
+  const objectiveLayoutBeforeHighlight = await objectiveTarget.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const chamberRect = element.closest('.star-chamber')!.getBoundingClientRect();
+    return {
+      position: getComputedStyle(element).position,
+      left: rect.left - chamberRect.left,
+      bottom: chamberRect.bottom - rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    };
+  });
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Dein nächstes Ziel');
   await expect(tutorial).toContainText('Fortschrittsbalken unter deinem Stern');
-  const objectiveTarget = page.locator('[data-tutorial="objective-progress"]');
   await expect(objectiveTarget).toHaveClass(/tutorial-focus/);
   await expectTutorialFrameInsideViewport(page);
+  const objectiveLayoutDuringHighlight = await objectiveTarget.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const chamberRect = element.closest('.star-chamber')!.getBoundingClientRect();
+    return {
+      position: getComputedStyle(element).position,
+      left: rect.left - chamberRect.left,
+      bottom: chamberRect.bottom - rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    };
+  });
+  expect(objectiveLayoutBeforeHighlight.position).toBe('absolute');
+  expect(objectiveLayoutDuringHighlight.position).toBe('absolute');
+  expect(objectiveLayoutDuringHighlight.left).toBeCloseTo(objectiveLayoutBeforeHighlight.left, 1);
+  expect(objectiveLayoutDuringHighlight.bottom).toBeCloseTo(objectiveLayoutBeforeHighlight.bottom, 1);
+  expect(objectiveLayoutDuringHighlight.width).toBeCloseTo(objectiveLayoutBeforeHighlight.width, 1);
+  expect(objectiveLayoutDuringHighlight.height).toBeCloseTo(objectiveLayoutBeforeHighlight.height, 1);
   const tutorialLayering = await page.evaluate(() => ({
     progress: Number(getComputedStyle(document.querySelector<HTMLElement>('.chamber-objective-progress')!).zIndex),
     callout: Number(getComputedStyle(document.querySelector<HTMLElement>('.click-callout')!).zIndex),
@@ -658,7 +692,7 @@ test('tutorial blocks the dimmed page while keeping its highlighted action click
   await expect(page.locator('.tutorial-highlight-shield')).toHaveCount(0);
   const starFrame = await expectTutorialFrameInsideViewport(page);
   const starFocus = await starFrame.evaluate((element) => {
-    const focusRing = getComputedStyle(element);
+    const focusRing = getComputedStyle(element, '::after');
     return {
       borderRadius: focusRing.borderRadius,
       borderColor: focusRing.borderTopColor,
@@ -735,16 +769,19 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   })).toBe(true);
   await expectTutorialFrameInsideViewport(page);
 
-  // Der Scroll-Listener muss die Blocker noch im selben Scroll-Event
-  // aktualisieren. Eine Positionierung erst im nächsten
-  // requestAnimationFrame würde als sichtbares Nachziehen auffallen.
+  // Der sichtbare Rahmen ist direkt am Ziel verankert. Dadurch bewegt er
+  // sich auch beim compositor-gesteuerten mobilen Scrollen zusammen mit dem
+  // Element; nur die unsichtbaren Ausschnittsgrenzen werden per JS angepasst.
   const trackedBoxes = await page.evaluate(() => {
-    return new Promise<{ frameTop: number; blockerBottom: number }>((resolve) => {
+    return new Promise<{ targetTop: number; frameTop: number; blockerBottom: number }>((resolve) => {
       window.addEventListener('scroll', () => {
-        const focusFrame = document.querySelector<HTMLElement>('[data-tutorial-focus-frame]')!.getBoundingClientRect();
+        const target = document.querySelector<HTMLElement>('.tutorial-focus')!;
+        const targetRect = target.getBoundingClientRect();
+        const padding = Number.parseFloat(getComputedStyle(target).getPropertyValue('--tutorial-frame-padding'));
         const blocker = document.querySelector<HTMLElement>('[data-tutorial-blocker="top"]')!.getBoundingClientRect();
         resolve({
-          frameTop: focusFrame.top,
+          targetTop: targetRect.top,
+          frameTop: targetRect.top - padding - 1,
           blockerBottom: blocker.bottom,
         });
       }, { once: true, capture: true });
@@ -752,6 +789,7 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
     });
   });
   expect(Math.abs(trackedBoxes.blockerBottom - trackedBoxes.frameTop)).toBeLessThanOrEqual(1);
+  expect(trackedBoxes.frameTop).toBeLessThan(trackedBoxes.targetTop);
 
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect.poll(() => page.locator('.left-panel').evaluate((element) => {
