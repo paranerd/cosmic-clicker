@@ -1521,10 +1521,10 @@ test('cycle summary can be reopened and confirms skipping affordable perks', asy
   const remindedPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenmasse' });
   await expect(remindedPerk).toHaveClass(/perk-attention/);
   expect(await remindedPerk.evaluate((element) => element.getAnimations().some((animation) => animation.playState === 'running'))).toBe(true);
-  await expect(page.locator('[data-ui="run"]')).toHaveText('ZYKLUS 01');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').run)).toBe(1);
   await summary.getByRole('button', { name: 'Ohne Upgrades starten' }).click();
   await expect(summary).toHaveCount(0);
-  await expect(page.locator('[data-ui="run"]')).toHaveText('ZYKLUS 02');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').run)).toBe(2);
 });
 
 test('multiple perk levels can be staged and deselected before prestige', async ({ page }) => {
@@ -1547,15 +1547,15 @@ test('multiple perk levels can be staged and deselected before prestige', async 
   await expect(cloudPerk).toContainText('+2 gewählt');
   await expect(summary.locator('.cloud-slider input[type="range"]')).toHaveValue('2');
   await expect(summary.locator('.cloud-slider-summary')).toContainText('Stellare Urwolke');
-  await expect(page.locator('[data-ui="stardust"]')).toHaveText('0');
+  await expect(page.locator('[data-ui="chamber-stardust"]')).toHaveText('0');
 
   await cloudPerk.getByRole('button', { name: 'Wolkenmasse abwählen' }).click();
   await expect(cloudPerk).toContainText('+1 gewählt');
   await expect(summary.locator('.cloud-slider input[type="range"]')).toHaveAttribute('max', '1');
-  await expect(page.locator('[data-ui="stardust"]')).toHaveText('5');
+  await expect(page.locator('[data-ui="chamber-stardust"]')).toHaveText('5');
 
   await summary.getByRole('button', { name: 'Neuen Zyklus starten' }).click();
-  await expect(page.locator('[data-ui="run"]')).toHaveText('ZYKLUS 02');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').run)).toBe(2);
   await expect(page.locator('[data-ui="cloud-name"]')).toHaveText('Stellare Urwolke');
 });
 
