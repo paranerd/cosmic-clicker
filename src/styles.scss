@@ -165,7 +165,7 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .chamber-tool { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid $line; border-radius: 50%; background: rgba(8,13,22,.84); color: $muted; cursor: pointer; touch-action: manipulation; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .chamber-tool svg { width: 15px; height: 15px; display: block; }
 .chamber-tool:hover, .chamber-tool:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
-.core-sheet-close, .panel-sheet-close { display: none; }
+.core-sheet-close, .panel-sheet-close, .panel-sheet-heading { display: none; }
 // Dock am unteren Rand der Sternkammer — nur im mobilen Layout sichtbar.
 // Die Höhe steckt in einer Variablen, weil die übrigen Bedienelemente der
 // Kammer sich an ihr ausrichten.
@@ -819,10 +819,17 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   // Stacking-Context, aus dem der Tutorial-Fokusrahmen nicht mehr über den
   // Dimmer käme. Deckender Grund, weil die Panel-Farbe auf dem Desktop
   // halbtransparent auf dem Seitenhintergrund liegt.
-  .action-sidepanel { display: none; position: fixed; z-index: 36; inset: 0; border: 0; background: linear-gradient(180deg, rgba(12,18,29,.62), rgba(8,13,22,.42)), $bg; }
+  // Zwei Reihen statt drei, weil die Tabs entfallen — sonst bekäme die
+  // Kartenliste eine automatische Höhe und liefe über, statt selbst zu scrollen.
+  .action-sidepanel { display: none; position: fixed; z-index: 36; inset: 0; grid-template-rows: auto minmax(0,1fr); border: 0; background: linear-gradient(180deg, rgba(12,18,29,.62), rgba(8,13,22,.42)), $bg; }
   .action-sidepanel.is-open { display: grid; }
   .action-sidepanel:has(.tutorial-focus) { z-index: 43; }
-  .sidepanel-heading { padding: 16px 18px 10px; }
+  // Vier eigenständige Popups: Die gemeinsame Spaltenüberschrift und die Tabs
+  // entfallen, jedes Popup trägt den Namen seines Bereichs.
+  .sidepanel-heading, .side-tabs { display: none; }
+  .panel-sheet-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 18px 14px; border-bottom: 1px solid $line; }
+  .panel-sheet-heading small { display: block; color: $muted; font-size: 7px; letter-spacing: .15em; text-transform: uppercase; }
+  .panel-sheet-heading h2 { margin: 3px 0 0; font-family: Georgia,serif; font-size: 21px; font-weight: 400; }
   .panel-sheet-close { display: grid; }
   // Kerndaten liegen als Blende über der Kammer. Bewusst ohne Transform oder
   // Opacity: beides erzeugt einen Stacking-Context, aus dem der Tutorial-

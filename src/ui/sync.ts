@@ -44,14 +44,15 @@ import {
   upgradeOrderSignature,
 } from './views';
 
-// Dieselben vier Bereiche erscheinen zweimal: als Tabs im Seitenpanel und —
-// im mobilen Layout — als Dock am unteren Rand der Sternkammer. Im Dock steht
-// nur das Zeichen, der Name wandert ins aria-label.
-const PANEL_TABS: [Panel, string, string][] = [
-  ['reactions', 'Reaktionen', icons.fusion],
-  ['upgrades', 'Upgrades', icons.buildUp],
-  ['automation', 'Automationen', icons.automation],
-  ['perks', 'Perks', icons.crown],
+// Dieselben vier Bereiche erscheinen zweimal: auf dem Desktop als Tabs einer
+// gemeinsamen Spalte, mobil als vier eigenständige Popups, die das Dock am
+// unteren Rand der Sternkammer aufruft. Im Dock steht nur das Zeichen, der
+// Name wandert ins aria-label und in die Überschrift des jeweiligen Popups.
+const PANELS: { id: Panel; label: string; icon: string; eyebrow: string }[] = [
+  { id: 'reactions', label: 'Reaktionen', icon: icons.fusion, eyebrow: 'Fusionskette' },
+  { id: 'upgrades', label: 'Upgrades', icon: icons.buildUp, eyebrow: 'Ausbaustufen' },
+  { id: 'automation', label: 'Automationen', icon: icons.automation, eyebrow: 'Dauerbetrieb' },
+  { id: 'perks', label: 'Perks', icon: icons.crown, eyebrow: 'Vermächtnis' },
 ];
 
 let lastStage = getState().stage;
@@ -124,12 +125,13 @@ export function renderShell(): void {
             </section>
           </div>
           <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
-          <nav class="chamber-dock" aria-label="Kontrollbereiche">${PANEL_TABS.map(([panel, label, icon]) => `<button class="dock-button" data-panel="${panel}" data-dock-panel="${panel}" aria-label="${label} öffnen" aria-haspopup="dialog">${icon}<b class="dock-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</nav>
+          <nav class="chamber-dock" aria-label="Kontrollbereiche">${PANELS.map((panel) => `<button class="dock-button" data-panel="${panel.id}" data-dock-panel="${panel.id}" aria-label="${panel.label} öffnen" aria-haspopup="dialog">${panel.icon}<b class="dock-count" data-tab-count="${panel.id}" hidden></b></button>`).join('')}</nav>
         </section>
 
         <aside class="action-sidepanel">
-          <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div><button class="panel-sheet-close" data-action="close-panel-sheet" aria-label="Bereich schließen">${icons.chevron}</button></div>
-          <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${PANEL_TABS.map(([panel, label]) => `<button data-panel="${panel}" role="tab"><span>${label}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</div>
+          <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div></div>
+          <div class="panel-sheet-heading"><div><small data-ui="panel-sheet-eyebrow"></small><h2 data-ui="panel-sheet-title"></h2></div><button class="panel-sheet-close" data-action="close-panel-sheet" aria-label="Bereich schließen">${icons.chevron}</button></div>
+          <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${PANELS.map((panel) => `<button data-panel="${panel.id}" role="tab"><span>${panel.label}</span><b class="tab-count" data-tab-count="${panel.id}" hidden></b></button>`).join('')}</div>
           <div class="side-content" data-ui="deck-content"></div>
         </aside>
       </section>
@@ -409,6 +411,13 @@ export function switchPanel(panel: Panel, markSeen = true): void {
   // aria-selected gehört nur an die echten Tabs; die Dock-Knöpfe sind
   // Auslöser für ein Popup, keine Tabs.
   app.querySelectorAll<HTMLButtonElement>('[data-panel]').forEach((button) => { const active = button.dataset.panel === panel; button.classList.toggle('active', active); if (button.getAttribute('role') === 'tab') button.setAttribute('aria-selected', String(active)); });
+  // Mobil ist jeder Bereich ein eigenes Popup und trägt deshalb seinen
+  // eigenen Namen statt der gemeinsamen Spaltenüberschrift.
+  const definition = PANELS.find((entry) => entry.id === panel);
+  const sheetEyebrow = app.querySelector<HTMLElement>('[data-ui="panel-sheet-eyebrow"]');
+  const sheetTitle = app.querySelector<HTMLElement>('[data-ui="panel-sheet-title"]');
+  if (definition && sheetEyebrow) sheetEyebrow.textContent = definition.eyebrow;
+  if (definition && sheetTitle) sheetTitle.textContent = definition.label;
   const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(panel);
   // Der nächste UI-Tick darf das soeben gerenderte Panel nicht direkt erneut
   // ersetzen. Andernfalls zeigen die gespeicherten Signaturen noch auf den

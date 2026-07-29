@@ -1586,35 +1586,55 @@ for (const device of [{ name: 'iPhone 14', width: 390, height: 844 }, { name: 'i
   });
 }
 
-test('mobile dock opens each area as a popup over the chamber', async ({ page }) => {
+test('every dock button opens its own popup with its own heading', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await gotoGame(page);
+  await seedLegacyGame(page, {
+    version: 7, run: 2, stage: 'helium', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 40_000, helium: 12_000, deuterium: 0 },
+    star: { hydrogen: 20_000, helium: 15_000, deuterium: 0 },
+    temperature: 120_000_000, energy: 50_000, stardust: 12,
+    unlockedReactions: ['hydrogen', 'helium'],
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
 
   const sheet = page.locator('.action-sidepanel');
+  const heading = page.locator('[data-ui="panel-sheet-title"]');
+  const eyebrow = page.locator('[data-ui="panel-sheet-eyebrow"]');
   await expect(sheet).toBeHidden();
 
-  // Ein Dock-Knopf öffnet das Popup und wählt gleich den passenden Bereich.
-  await page.locator('[data-dock-panel="upgrades"]').click();
-  await expect(sheet).toBeVisible();
-  await expect(page.locator('.side-tabs [data-panel="upgrades"]')).toHaveClass(/active/);
+  // Jeder Bereich ist ein eigenes Popup mit eigener Überschrift; die
+  // gemeinsame Spaltenüberschrift und die Tabs erscheinen mobil nicht.
+  const areas = [
+    { panel: 'reactions', title: 'Reaktionen', eyebrow: 'Fusionskette' },
+    { panel: 'upgrades', title: 'Upgrades', eyebrow: 'Ausbaustufen' },
+    { panel: 'automation', title: 'Automationen', eyebrow: 'Dauerbetrieb' },
+    { panel: 'perks', title: 'Perks', eyebrow: 'Vermächtnis' },
+  ];
 
-  // Im Popup lässt sich der Bereich wechseln, ohne es zu schließen.
-  await page.locator('.side-tabs [data-panel="automation"]').click();
-  await expect(sheet).toBeVisible();
-  await expect(page.locator('.side-tabs [data-panel="automation"]')).toHaveClass(/active/);
+  for (const area of areas) {
+    await page.locator(`[data-dock-panel="${area.panel}"]`).click();
+    await expect(sheet).toBeVisible();
+    await expect(heading).toHaveText(area.title);
+    await expect(eyebrow).toHaveText(area.eyebrow);
+    await expect(sheet.locator('.side-tabs')).toBeHidden();
+    await expect(sheet.locator('.sidepanel-heading')).toBeHidden();
+    // useInnerText, weil textContent auch die ausgeblendete Spaltenüberschrift läse.
+    await expect(sheet).not.toContainText('Sternsysteme', { useInnerText: true });
 
-  // Das Popup deckt den Bildschirm vollständig ab.
-  const sheetBox = await page.evaluate(() => {
-    const box = document.querySelector('.action-sidepanel')!.getBoundingClientRect();
-    return { top: box.top, left: box.left, width: box.width, height: box.height, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
-  });
-  expect(sheetBox.top).toBe(0);
-  expect(sheetBox.left).toBe(0);
-  expect(sheetBox.width).toBe(sheetBox.viewportWidth);
-  expect(sheetBox.height).toBe(sheetBox.viewportHeight);
+    // Das Popup deckt den Bildschirm vollständig ab.
+    const box = await sheet.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, left: rect.left, width: rect.width, height: rect.height, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
+    });
+    expect(box.top).toBe(0);
+    expect(box.left).toBe(0);
+    expect(box.width).toBe(box.viewportWidth);
+    expect(box.height).toBe(box.viewportHeight);
 
-  await page.locator('.panel-sheet-close').click();
-  await expect(sheet).toBeHidden();
+    await page.locator('.panel-sheet-close').click();
+    await expect(sheet).toBeHidden();
+  }
 });
 
 test('mobile dock buttons are round icons with a counter badge', async ({ page }) => {
