@@ -9,6 +9,11 @@
     <link rel="icon" href="%BASE_URL%favicon-32x32.png" type="image/png" sizes="32x32" />
     <link rel="icon" href="%BASE_URL%favicon.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" sizes="180x180" />
+    <!-- iOS wertet das Manifest erst ab 17 aus; ältere Versionen brauchen
+         diese Angaben, um vom Home-Bildschirm ohne Safari-Leisten zu starten. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Cosmic Clicker" />
     <title>Cosmic Clicker — Stellar Forge</title>
   </head>
   <body>

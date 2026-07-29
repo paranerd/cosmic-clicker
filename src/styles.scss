@@ -601,6 +601,10 @@ footer button:hover { color: $cyan; }
 .toast { width: max-content; max-width: 100%; position: absolute; left: 50%; top: 0; padding: 14px 18px; transform: translate(-50%,var(--toast-offset,0)); opacity: 1; text-align: center; border: 1px solid rgba($cyan,.3); background: #0c1420; color: #b9dfe2; font-size: 10px; box-shadow: 0 15px 40px rgba(0,0,0,.35); transition: transform .32s cubic-bezier(.2,.75,.25,1), opacity .28s ease; }
 .toast.is-entering { transform: translate(-50%,calc(var(--toast-offset,0px) - 26px)); opacity: 0; }
 .toast.is-leaving { transform: translate(-50%,calc(var(--toast-offset,0px) - 12px)); opacity: 0; }
+// Der Stapel ist klickdurchlässig; nur ein Toast mit Aktion fängt Zeiger ab.
+.toast.has-action { display: flex; align-items: center; gap: 14px; pointer-events: auto; }
+.toast-action { padding: 6px 12px; border: 1px solid rgba($cyan,.45); background: rgba($cyan,.1); color: $text; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; cursor: pointer; transition: .2s ease; }
+.toast-action:hover { border-color: rgba($cyan,.7); background: rgba($cyan,.2); }
 .achievement-banner { width: min(440px,calc(100vw - 32px)); position: fixed; z-index: 76; left: 50%; bottom: 24px; padding: 18px 52px 18px 20px; opacity: 0; transform: translate(-50%,calc(100% + 48px)); border: 1px solid rgba($cyan,.42); background: radial-gradient(circle at 100% 0, rgba($cyan,.1), transparent 45%), rgba(8,14,23,.98); box-shadow: 0 20px 55px rgba(0,0,0,.48); transition: opacity .42s ease, transform .72s cubic-bezier(.16,.8,.24,1); }
 .achievement-banner.is-visible { opacity: 1; transform: translate(-50%,0); }
 .achievement-banner.is-leaving { transition-duration: .24s,.32s; }

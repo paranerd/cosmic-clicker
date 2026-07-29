@@ -4,6 +4,7 @@ import { LIMITS, UPGRADE_ORDER, UPGRADES, type KnowledgeId } from './content';
 import { calculateTemperature, createInitialState, reactionAutomationPerSecond, reduceGame, tick } from './game/engine';
 import { clearSave, normalizeGameState, saveGame } from './game/storage';
 import type { GameAction, ReactionId } from './game/types';
+import { registerServiceWorker } from './pwa';
 import { isDebugOpen, runDebugAction, setDebugOpen, syncDebug } from './ui/debug';
 import { playActionFeedback } from './ui/feedback';
 import { formatDuration } from './ui/format';
@@ -256,6 +257,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('scroll', syncTutorialFocusPosition, { passive: true, capture: true });
 window.addEventListener('resize', syncTutorialFocusPosition, { passive: true });
 renderShell(); if (offlineToast) showToast(offlineToast); frameRequest = requestAnimationFrame(frame);
+registerServiceWorker();
 if (import.meta.env.DEV) {
   type CheatApi = { stardust: (amount: number) => number; energy: (amount: number) => number };
   const adjustResource = (resource: 'stardust' | 'energy', amount: number): number => {

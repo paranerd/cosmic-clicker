@@ -5,7 +5,8 @@ import { saveGame } from '../game/storage';
 import { app, getActivePanel, getState, type Panel } from './store';
 import { currentOpportunities } from './views';
 
-interface ToastMessage { id: number; text: string; leaving: boolean }
+export interface ToastAction { label: string; run: () => void }
+interface ToastMessage { id: number; text: string; leaving: boolean; action?: ToastAction }
 export type Objective = ReturnType<typeof objectiveFor>;
 interface AchievementMessage { completedObjective: string; next: Objective }
 
@@ -71,10 +72,11 @@ export function clearCycleEndNotice(): void {
   if (root) root.innerHTML = '';
 }
 
-export function showToast(message: string): void {
-  const toastMessage: ToastMessage = { id: ++toastSequence, text: message, leaving: false };
+export function showToast(message: string, action?: ToastAction): void {
+  const toastMessage: ToastMessage = { id: ++toastSequence, text: message, leaving: false, action };
   toastMessages = [toastMessage, ...toastMessages]; syncToast();
-  toastTimers.set(toastMessage.id, window.setTimeout(() => dismissToast(toastMessage.id), 3_200));
+  // Ein Toast mit Aktion wartet auf eine Entscheidung, statt sie wegzuwischen.
+  if (!action) toastTimers.set(toastMessage.id, window.setTimeout(() => dismissToast(toastMessage.id), 3_200));
 }
 
 function dismissToast(id: number): void {
@@ -104,7 +106,15 @@ export function syncToast(): void {
   toastMessages.forEach((message) => {
     let element = stack!.querySelector<HTMLElement>(`[data-toast-id="${message.id}"]`);
     if (!element) {
-      element = document.createElement('div'); element.className = 'toast is-entering'; element.dataset.toastId = String(message.id); element.setAttribute('role', 'status'); element.setAttribute('aria-atomic', 'true'); element.textContent = message.text; stack!.append(element); entering.push(element);
+      element = document.createElement('div'); element.className = 'toast is-entering'; element.dataset.toastId = String(message.id); element.setAttribute('role', 'status'); element.setAttribute('aria-atomic', 'true');
+      if (message.action) {
+        element.classList.add('has-action');
+        const text = document.createElement('span'); text.textContent = message.text;
+        const button = document.createElement('button'); button.type = 'button'; button.className = 'toast-action'; button.textContent = message.action.label;
+        button.addEventListener('click', () => { const { run } = message.action!; dismissToast(message.id); run(); });
+        element.append(text, button);
+      } else element.textContent = message.text;
+      stack!.append(element); entering.push(element);
     }
     element.classList.toggle('is-leaving', message.leaving);
   });
