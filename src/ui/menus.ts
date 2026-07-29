@@ -31,7 +31,6 @@ export function setCoreDataOpen(open: boolean): void {
 // steht die Spalte fest, mobil öffnet das Dock sie als Popup über der Kammer.
 export function setPanelSheetOpen(open: boolean): void {
   panelSheetOpen = open;
-  app.classList.toggle('panel-sheet-open', open);
   app.querySelector('.action-sidepanel')?.classList.toggle('is-open', open);
 }
 export const isPrestigeConfirmationArmed = (): boolean => prestigeConfirmationArmed;

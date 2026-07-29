@@ -165,19 +165,23 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .chamber-tool { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid $line; border-radius: 50%; background: rgba(8,13,22,.84); color: $muted; cursor: pointer; touch-action: manipulation; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .chamber-tool svg { width: 15px; height: 15px; display: block; }
 .chamber-tool:hover, .chamber-tool:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
-.core-sheet-close, .panel-sheet-close, .panel-sheet-backdrop { display: none; }
+.core-sheet-close, .panel-sheet-close { display: none; }
 // Dock am unteren Rand der Sternkammer — nur im mobilen Layout sichtbar.
 // Die Höhe steckt in einer Variablen, weil die übrigen Bedienelemente der
 // Kammer sich an ihr ausrichten.
 .star-chamber { --dock-height: 0px; }
-.chamber-dock { display: none; height: var(--dock-height); position: absolute; z-index: 30; right: 0; bottom: 0; left: 0; grid-template-columns: repeat(4, 1fr); padding-bottom: env(safe-area-inset-bottom, 0px); border-top: 1px solid $line; background: rgba(8,13,22,.92); backdrop-filter: blur(10px); }
-// Das Dock ist mobil die einzige Navigation — etwas größer und heller als die
-// Tabs im Seitenpanel, die auf dem Desktop nur eine von mehreren Flächen sind.
-.dock-button { min-width: 0; position: relative; display: flex; gap: 5px; align-items: center; justify-content: center; padding: 0 2px; border: 0; background: transparent; color: rgba($text,.72); font-size: 8px; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; touch-action: manipulation; transition: color .18s ease, background-color .18s ease; }
-.dock-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dock-button:active { color: $text; background: rgba($cyan,.06); }
-.dock-button.has-notice { color: rgba($text,.85); }
+// Die runden Knöpfe schweben über der Kammer; der Verlauf reserviert nur den
+// Platz und hält sie vom Sternhintergrund ablesbar.
+.chamber-dock { display: none; height: var(--dock-height); position: absolute; z-index: 30; right: 0; bottom: 0; left: 0; align-items: center; justify-content: center; gap: 14px; padding-bottom: env(safe-area-inset-bottom, 0px); background: linear-gradient(to top, rgba(6,9,16,.92), rgba(6,9,16,0)); }
+.dock-button { width: 46px; height: 46px; flex: 0 0 auto; padding: 0; position: relative; display: grid; place-items: center; border: 1px solid $line; border-radius: 50%; background: rgba(8,13,22,.86); color: rgba($text,.8); cursor: pointer; touch-action: manipulation; transition: color .18s ease, border-color .18s ease, background .18s ease; }
+.dock-button svg { width: 20px; height: 20px; display: block; }
+.dock-button:hover, .dock-button:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.09); }
+.dock-button:active { transform: scale(.94); }
+.dock-button.has-notice { border-color: rgba($amber,.45); }
 .dock-button.unlock-flash { animation: tabUnlockFlash 1.25s ease-out; }
+// Der Indikator sitzt als kleiner Kreis oben rechts auf dem Knopf.
+.dock-count { min-width: 17px; height: 17px; padding: 0 4px; position: absolute; top: -3px; right: -3px; display: grid; place-items: center; border: 1px solid rgba($amber,.55); border-radius: 999px; color: #1b1006; background: rgba($amber,.95); font-family: ui-monospace,monospace; font-size: 8px; font-weight: 700; line-height: 1; box-shadow: 0 0 10px rgba($amber,.28); }
+.dock-count[hidden] { display: none; }
 .panel-sheet-close { width: 34px; height: 34px; padding: 0; place-items: center; border: 1px solid $line; border-radius: 50%; background: transparent; color: $muted; cursor: pointer; }
 .panel-sheet-close svg { width: 17px; height: 17px; }
 // Die Fußzeile entfällt im mobilen Vollbild-Layout; ihr Text steht dann hier.
@@ -792,7 +796,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   // Das Polster hält die Mitte frei, damit der Stern nicht unter das Dock
   // gerät: absolut positionierte Kinder ignorieren Padding, der in-flow
   // zentrierte Stern nicht.
-  .star-chamber { --dock-height: 58px; min-height: 0; grid-row: 1; padding-bottom: var(--dock-height); }
+  .star-chamber { --dock-height: 72px; min-height: 0; grid-row: 1; padding-bottom: var(--dock-height); }
   .side-content { padding: 16px 20px; overscroll-behavior: contain; }
   .chamber-tools { display: flex; }
   // Zeitstrahl und Logbuch sind schon auf dem Desktop nur eine Vorschau des
@@ -802,7 +806,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 
   // Das Dock sitzt unter dem Zielbalken am Rand der Kammer. Die übrigen
   // Bedienelemente rücken um seine Höhe nach oben.
-  .chamber-dock { display: grid; }
+  .chamber-dock { display: flex; }
   .chamber-objective-progress { bottom: calc(20px + var(--dock-height)); }
   .click-callout { bottom: calc(70px + var(--dock-height)); }
   .cloud-corner { bottom: calc(14px + var(--dock-height)); }
@@ -810,15 +814,12 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .chamber-settings { bottom: calc(14px + var(--dock-height)); }
   .chamber-tools { bottom: calc(58px + var(--dock-height)); }
 
-  // Das Kontrollzentrum wird zum Popup über der Kammer. Wie bei den Kerndaten
-  // bewusst ohne Transform oder Opacity — beides erzeugt einen Stacking-
-  // Context, aus dem der Tutorial-Fokusrahmen nicht mehr über den Dimmer käme.
-  .panel-sheet-backdrop { display: none; position: fixed; z-index: 35; inset: 0; background: rgba(2,5,9,.6); }
-  .panel-sheet-open .panel-sheet-backdrop { display: block; }
-  // Deckender Grund: Die Panel-Farbe ist auf dem Desktop halbtransparent, weil
-  // sie dort auf dem Seitenhintergrund liegt. Als Popup über der Kammer würden
-  // Stern und Dock durchscheinen.
-  .action-sidepanel { display: none; position: fixed; z-index: 36; right: 0; bottom: 0; left: 0; max-height: 78dvh; border: 0; border-top: 1px solid rgba($cyan,.3); background: linear-gradient(180deg, rgba(12,18,29,.62), rgba(8,13,22,.42)), $bg; box-shadow: 0 -20px 60px rgba(0,0,0,.5); }
+  // Das Kontrollzentrum wird zum Vollbild-Popup über der Kammer. Wie bei den
+  // Kerndaten bewusst ohne Transform oder Opacity — beides erzeugt einen
+  // Stacking-Context, aus dem der Tutorial-Fokusrahmen nicht mehr über den
+  // Dimmer käme. Deckender Grund, weil die Panel-Farbe auf dem Desktop
+  // halbtransparent auf dem Seitenhintergrund liegt.
+  .action-sidepanel { display: none; position: fixed; z-index: 36; inset: 0; border: 0; background: linear-gradient(180deg, rgba(12,18,29,.62), rgba(8,13,22,.42)), $bg; }
   .action-sidepanel.is-open { display: grid; }
   .action-sidepanel:has(.tutorial-focus) { z-index: 43; }
   .sidepanel-heading { padding: 16px 18px 10px; }

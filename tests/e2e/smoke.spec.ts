@@ -1603,30 +1603,68 @@ test('mobile dock opens each area as a popup over the chamber', async ({ page })
   await expect(sheet).toBeVisible();
   await expect(page.locator('.side-tabs [data-panel="automation"]')).toHaveClass(/active/);
 
-  // Das Popup hängt am unteren Rand und lässt die Kammer oben stehen — die
-  // Statuszeile bleibt sichtbar, damit der Zustand des Sterns ablesbar ist.
-  // Bei langen Listen darf es bis über den Stern reichen.
-  const overlap = await page.evaluate(() => {
-    const sheetBox = document.querySelector('.action-sidepanel')!.getBoundingClientRect();
-    return {
-      sheetTop: sheetBox.top,
-      sheetBottom: sheetBox.bottom,
-      resourcesBottom: document.querySelector('.chamber-resources')!.getBoundingClientRect().bottom,
-      viewportHeight: window.innerHeight,
-    };
+  // Das Popup deckt den Bildschirm vollständig ab.
+  const sheetBox = await page.evaluate(() => {
+    const box = document.querySelector('.action-sidepanel')!.getBoundingClientRect();
+    return { top: box.top, left: box.left, width: box.width, height: box.height, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
   });
-  expect(overlap.sheetBottom).toBe(overlap.viewportHeight);
-  expect(overlap.sheetTop).toBeGreaterThan(overlap.resourcesBottom);
-  expect(overlap.sheetTop).toBeGreaterThanOrEqual(overlap.viewportHeight * 0.22);
+  expect(sheetBox.top).toBe(0);
+  expect(sheetBox.left).toBe(0);
+  expect(sheetBox.width).toBe(sheetBox.viewportWidth);
+  expect(sheetBox.height).toBe(sheetBox.viewportHeight);
 
   await page.locator('.panel-sheet-close').click();
   await expect(sheet).toBeHidden();
+});
 
-  // Auch ein Tipp neben das Popup schließt es.
-  await page.locator('[data-dock-panel="perks"]').click();
-  await expect(sheet).toBeVisible();
-  await page.locator('.panel-sheet-backdrop').click({ position: { x: 10, y: 10 } });
-  await expect(sheet).toBeHidden();
+test('mobile dock buttons are round icons with a counter badge', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedLegacyGame(page, {
+    stage: 'hydrogen', cloud: { hydrogen: 38_900, helium: 19_000, deuterium: 50 },
+    star: { hydrogen: 30_000, helium: 6_000, deuterium: 50 },
+    energy: 1_000, temperature: 11_400_000, manualFusions: 25,
+    stats: { hydrogenFused: 5_000 },
+  });
+  await gotoGame(page);
+
+  // Nur Zeichen, kein Text — der Name steckt im aria-label.
+  for (const [panel, label] of [['reactions', 'Reaktionen'], ['upgrades', 'Upgrades'], ['automation', 'Automationen'], ['perks', 'Perks']]) {
+    const button = page.locator(`[data-dock-panel="${panel}"]`);
+    await expect(button).toHaveAttribute('aria-label', `${label} öffnen`);
+    await expect(button.locator('svg')).toHaveCount(1);
+    // Außer dem Zähler steht kein Text auf dem Knopf.
+    const labelText = await button.evaluate((element) => {
+      const withoutBadge = element.cloneNode(true) as HTMLElement;
+      withoutBadge.querySelector('.dock-count')?.remove();
+      return withoutBadge.textContent?.trim() ?? '';
+    });
+    expect(labelText).toBe('');
+  }
+
+  const shape = await page.locator('[data-dock-panel="upgrades"]').evaluate((element) => {
+    const style = getComputedStyle(element);
+    const box = element.getBoundingClientRect();
+    return { width: box.width, height: box.height, radius: style.borderRadius };
+  });
+  expect(shape.width).toBe(shape.height);
+  expect(shape.radius).toBe('50%');
+
+  // Der Indikator sitzt als Kreis oben rechts auf dem Knopf.
+  const badge = page.locator('[data-dock-panel="upgrades"] .dock-count');
+  await expect(badge).toBeVisible();
+  await expect(badge).toHaveText('1');
+  const placement = await page.locator('[data-dock-panel="upgrades"]').evaluate((element) => {
+    const button = element.getBoundingClientRect();
+    const dot = element.querySelector('.dock-count')!.getBoundingClientRect();
+    return {
+      aboveMiddle: dot.top < button.top + button.height / 2,
+      rightOfMiddle: dot.left > button.left + button.width / 2,
+      round: getComputedStyle(element.querySelector('.dock-count')!).borderRadius,
+    };
+  });
+  expect(placement.aboveMiddle).toBe(true);
+  expect(placement.rightOfMiddle).toBe(true);
+  expect(placement.round).toBe('999px');
 });
 
 test('mobile core data opens as a sheet and the card list scrolls on its own', async ({ page }) => {

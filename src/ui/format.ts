@@ -9,6 +9,11 @@ export const icons = {
   // wandern dort aus dem Seitenfluss in die Sternkammer.
   core: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17 8.5 8.5 0 0 1 0-17Z" stroke-dasharray="3 3"/><path d="M12 1.5v2M12 20.5v2"/></svg>',
   chronicle: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18M3 12h18M3 17h18" stroke-linecap="round"/><circle cx="7.5" cy="7" r="1.6"/><circle cx="13" cy="12" r="1.6"/><circle cx="17.5" cy="17" r="1.6"/></svg>',
+  // Dock der Sternkammer. Upgrades teilen sich das Doppel-Caret mit dem
+  // Ausbaubutton auf den Karten, damit dieselbe Geste dasselbe Zeichen trägt.
+  fusion: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h6M5 9l3 3-3 3M22 12h-6M19 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.4"/></svg>',
+  automation: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-13.7-5.2L3.5 9M4 13a8 8 0 0 0 13.7 5.2L20.5 15" stroke-linecap="round"/><path d="M3.5 4.5v4.7h4.7M20.5 19.5v-4.7h-4.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  crown: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18.5h16M4 18.5 2.8 8.4l5.6 4L12 5l3.6 7.4 5.6-4-1.2 10.1" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   help: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.4 2.4 0 1 1 3.6 2.1c-.9.5-1.4 1-1.4 2.2M12 17h.01"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',

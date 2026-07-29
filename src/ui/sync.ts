@@ -45,8 +45,14 @@ import {
 } from './views';
 
 // Dieselben vier Bereiche erscheinen zweimal: als Tabs im Seitenpanel und —
-// im mobilen Layout — als Dock am unteren Rand der Sternkammer.
-const PANEL_TABS: [Panel, string][] = [['reactions', 'Reaktionen'], ['upgrades', 'Upgrades'], ['automation', 'Automationen'], ['perks', 'Perks']];
+// im mobilen Layout — als Dock am unteren Rand der Sternkammer. Im Dock steht
+// nur das Zeichen, der Name wandert ins aria-label.
+const PANEL_TABS: [Panel, string, string][] = [
+  ['reactions', 'Reaktionen', icons.fusion],
+  ['upgrades', 'Upgrades', icons.buildUp],
+  ['automation', 'Automationen', icons.automation],
+  ['perks', 'Perks', icons.crown],
+];
 
 let lastStage = getState().stage;
 let lastLogSignature = '';
@@ -118,10 +124,9 @@ export function renderShell(): void {
             </section>
           </div>
           <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
-          <nav class="chamber-dock" aria-label="Kontrollbereiche">${PANEL_TABS.map(([panel, label]) => `<button class="dock-button" data-panel="${panel}" data-dock-panel="${panel}" aria-haspopup="dialog"><span>${label}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</nav>
+          <nav class="chamber-dock" aria-label="Kontrollbereiche">${PANEL_TABS.map(([panel, label, icon]) => `<button class="dock-button" data-panel="${panel}" data-dock-panel="${panel}" aria-label="${label} öffnen" aria-haspopup="dialog">${icon}<b class="dock-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</nav>
         </section>
 
-        <div class="panel-sheet-backdrop" data-action="close-panel-sheet" aria-hidden="true"></div>
         <aside class="action-sidepanel">
           <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div><button class="panel-sheet-close" data-action="close-panel-sheet" aria-label="Bereich schließen">${icons.chevron}</button></div>
           <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${PANEL_TABS.map(([panel, label]) => `<button data-panel="${panel}" role="tab"><span>${label}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</div>
