@@ -42,7 +42,7 @@ button:disabled { cursor: not-allowed; }
 svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 
 .icon-button { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid $line; background: transparent; color: $muted; cursor: pointer; transition: .2s ease; }
-.icon-button:hover, .chronicle-modal-heading button:hover { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
+.icon-button:hover, .chronicle-modal-heading button:hover, .panel-modal-heading button:hover { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 .icon-button svg { width: 17px; }
 
 main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(100% - 48px)); margin: 0 auto; }
@@ -165,7 +165,10 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .chamber-tool { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid $line; border-radius: 50%; background: rgba(8,13,22,.84); color: $muted; cursor: pointer; touch-action: manipulation; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .chamber-tool svg { width: 15px; height: 15px; display: block; }
 .chamber-tool:hover, .chamber-tool:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
-.core-sheet-close, .panel-sheet-close, .panel-sheet-heading { display: none; }
+.core-sheet-close, .panel-modal-heading { display: none; }
+// Der Rahmen um das Kontrollzentrum ist auf dem Desktop kein eigener Kasten:
+// display:contents lässt das Panel direkter Rasterplatz des Labors bleiben.
+.panel-modal-backdrop { display: contents; }
 // Dock am unteren Rand der Sternkammer — nur im mobilen Layout sichtbar.
 // Die Höhe steckt in einer Variablen, weil die übrigen Bedienelemente der
 // Kammer sich an ihr ausrichten.
@@ -182,8 +185,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 // Der Indikator sitzt als kleiner Kreis oben rechts auf dem Knopf.
 .dock-count { min-width: 17px; height: 17px; padding: 0 4px; position: absolute; top: -3px; right: -3px; display: grid; place-items: center; border: 1px solid rgba($amber,.55); border-radius: 999px; color: #1b1006; background: rgba($amber,.95); font-family: ui-monospace,monospace; font-size: 8px; font-weight: 700; line-height: 1; box-shadow: 0 0 10px rgba($amber,.28); }
 .dock-count[hidden] { display: none; }
-.panel-sheet-close { width: 34px; height: 34px; padding: 0; place-items: center; border: 1px solid $line; border-radius: 50%; background: transparent; color: $muted; cursor: pointer; }
-.panel-sheet-close svg { width: 17px; height: 17px; }
 // Die Fußzeile entfällt im mobilen Vollbild-Layout; ihr Text steht dann hier.
 .settings-colophon { margin: 0; padding: 16px 0 4px; border-top: 1px solid $line; color: #4e5a6a; font-size: 8px; line-height: 1.7; letter-spacing: .1em; text-align: center; }
 .cloud-corner { position: absolute; left: 14px; bottom: 14px; z-index: 30; }
@@ -601,10 +602,15 @@ footer button:hover { color: $cyan; }
 .round-history article small, .empty-history { color: $muted; font-size: 8px; }
 .empty-history { margin: 12px 0 0; }
 .chronicle-modal { width: min(1050px, 100%); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
-.chronicle-modal-heading { flex: 0 0 auto; padding: 22px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid $line; }
-.chronicle-modal-heading small { color: $cyan; font-size: 7px; letter-spacing: .18em; }
-.chronicle-modal-heading h2 { margin: 5px 0 0; font-family: Georgia,serif; font-size: 24px; font-weight: 400; }
-.chronicle-modal-heading button { width: 34px; height: 34px; border: 1px solid $line; background: transparent; color: $muted; font-size: 19px; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
+// Die Kopfzeile der mobilen Bereichs-Popups teilt sich die Regeln mit den
+// übrigen Modalen, damit beide dasselbe Bild abgeben.
+// display bleibt hier bewusst außen vor: .panel-modal-heading ist auf dem
+// Desktop ausgeblendet und wird erst im mobilen Layout eingeschaltet.
+.chronicle-modal-heading, .panel-modal-heading { flex: 0 0 auto; padding: 22px 28px; align-items: center; justify-content: space-between; border-bottom: 1px solid $line; }
+.chronicle-modal-heading { display: flex; }
+.chronicle-modal-heading small, .panel-modal-heading small { color: $cyan; font-size: 7px; letter-spacing: .18em; }
+.chronicle-modal-heading h2, .panel-modal-heading h2 { margin: 5px 0 0; font-family: Georgia,serif; font-size: 24px; font-weight: 400; }
+.chronicle-modal-heading button, .panel-modal-heading button { width: 34px; height: 34px; border: 1px solid $line; background: transparent; color: $muted; font-size: 19px; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .chronicle-modal .chronicle-layout { height: min(650px, calc(100vh - 125px)); min-height: 360px; margin: 0; overflow: hidden; }
 .chronicle-modal .timeline-card, .chronicle-modal .log-card { min-height: 0; }
 .chronicle-modal .timeline-card { overflow-y: auto; }
@@ -814,23 +820,22 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .chamber-settings { bottom: calc(14px + var(--dock-height)); }
   .chamber-tools { bottom: calc(58px + var(--dock-height)); }
 
-  // Das Kontrollzentrum wird zum Vollbild-Popup über der Kammer. Wie bei den
-  // Kerndaten bewusst ohne Transform oder Opacity — beides erzeugt einen
-  // Stacking-Context, aus dem der Tutorial-Fokusrahmen nicht mehr über den
-  // Dimmer käme. Deckender Grund, weil die Panel-Farbe auf dem Desktop
-  // halbtransparent auf dem Seitenhintergrund liegt.
+  // Die Bereiche erscheinen als Modal im selben Bild wie Einstellungen und
+  // Chronik: abgedunkelter, weichgezeichneter Grund, gerahmter Kasten, Kopfzeile
+  // mit Schließen-Kreuz. Werte bewusst gleich denen von .modal-backdrop; nur der
+  // z-index liegt tiefer, damit die echten Modale und die Tutorial-Karte (45)
+  // weiterhin darüber liegen.
+  .panel-modal-backdrop { display: none; position: fixed; z-index: 36; inset: 0; place-items: center; padding: 20px; background: rgba(2,5,9,.82); backdrop-filter: blur(12px); }
+  .panel-modal-backdrop:has(.action-sidepanel.is-open) { display: grid; }
+  // Enthält das Modal das Tutorial-Ziel, muss es über den Dimmer (42).
+  .panel-modal-backdrop:has(.tutorial-focus) { z-index: 43; }
   // Zwei Reihen statt drei, weil die Tabs entfallen — sonst bekäme die
   // Kartenliste eine automatische Höhe und liefe über, statt selbst zu scrollen.
-  .action-sidepanel { display: none; position: fixed; z-index: 36; inset: 0; grid-template-rows: auto minmax(0,1fr); border: 0; background: linear-gradient(180deg, rgba(12,18,29,.62), rgba(8,13,22,.42)), $bg; }
-  .action-sidepanel.is-open { display: grid; }
-  .action-sidepanel:has(.tutorial-focus) { z-index: 43; }
+  .action-sidepanel { width: min(680px, 100%); max-height: calc(100dvh - 40px); grid-template-rows: auto minmax(0,1fr); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
   // Vier eigenständige Popups: Die gemeinsame Spaltenüberschrift und die Tabs
   // entfallen, jedes Popup trägt den Namen seines Bereichs.
   .sidepanel-heading, .side-tabs { display: none; }
-  .panel-sheet-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 18px 14px; border-bottom: 1px solid $line; }
-  .panel-sheet-heading small { display: block; color: $muted; font-size: 7px; letter-spacing: .15em; text-transform: uppercase; }
-  .panel-sheet-heading h2 { margin: 3px 0 0; font-family: Georgia,serif; font-size: 21px; font-weight: 400; }
-  .panel-sheet-close { display: grid; }
+  .panel-modal-heading { display: flex; padding: 20px 20px 16px; }
   // Kerndaten liegen als Blende über der Kammer. Bewusst ohne Transform oder
   // Opacity: beides erzeugt einen Stacking-Context, aus dem der Tutorial-
   // Fokusrahmen (z-index 43) nicht mehr über den Dimmer (42) käme.

@@ -93,6 +93,7 @@ app.addEventListener('click', (event) => {
   if (target.dataset.overlayDismiss === 'settings') { setSettingsOpen(false); return; }
   if (target.dataset.overlayDismiss === 'knowledge') { setKnowledgeOpen(null); return; }
   if (target.dataset.overlayDismiss === 'objective') { setObjectiveOpen(false); return; }
+  if (target.dataset.overlayDismiss === 'panel') { setPanelSheetOpen(false); return; }
   // Dock-Knöpfe wechseln nicht nur den Bereich, sie öffnen ihn auch: mobil ist
   // das Kontrollzentrum ein Popup, das aus der Sternkammer heraus aufgerufen wird.
   const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); if (panelButton.dataset.dockPanel) setPanelSheetOpen(true); advanceTutorial('panel'); return; }

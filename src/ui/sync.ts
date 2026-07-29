@@ -128,12 +128,14 @@ export function renderShell(): void {
           <nav class="chamber-dock" aria-label="Kontrollbereiche">${PANELS.map((panel) => `<button class="dock-button" data-panel="${panel.id}" data-dock-panel="${panel.id}" aria-label="${panel.label} öffnen" aria-haspopup="dialog">${panel.icon}<b class="dock-count" data-tab-count="${panel.id}" hidden></b></button>`).join('')}</nav>
         </section>
 
+        <div class="panel-modal-backdrop" data-overlay-dismiss="panel" role="presentation">
         <aside class="action-sidepanel">
           <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div></div>
-          <div class="panel-sheet-heading"><div><small data-ui="panel-sheet-eyebrow"></small><h2 data-ui="panel-sheet-title"></h2></div><button class="panel-sheet-close" data-action="close-panel-sheet" aria-label="Bereich schließen">${icons.chevron}</button></div>
+          <div class="panel-modal-heading"><div><small data-ui="panel-sheet-eyebrow"></small><h2 data-ui="panel-sheet-title"></h2></div><button data-action="close-panel-sheet" aria-label="Bereich schließen">×</button></div>
           <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${PANELS.map((panel) => `<button data-panel="${panel.id}" role="tab"><span>${panel.label}</span><b class="tab-count" data-tab-count="${panel.id}" hidden></b></button>`).join('')}</div>
           <div class="side-content" data-ui="deck-content"></div>
         </aside>
+        </div>
       </section>
 
       <section class="chronicle-dock" role="button" tabindex="0" aria-label="Chronik öffnen"><div class="dock-timeline"><div class="section-label"><span>Stellare Entwicklung</span><small>${cloudDefinition(state.cloudTier).shortName.toUpperCase()} · ≈ ${formatSolarMasses(cloudDefinition(state.cloudTier).solarMasses)}</small></div><div class="timeline" data-ui="dock-timeline">${timelineMarkup()}</div></div><div class="dock-log"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list" data-ui="dock-log">${logMarkup(2)}</div></div><span class="chronicle-expand" aria-hidden="true">↗</span></section>

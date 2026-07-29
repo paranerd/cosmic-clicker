@@ -1622,19 +1622,67 @@ test('every dock button opens its own popup with its own heading', async ({ page
     // useInnerText, weil textContent auch die ausgeblendete Spaltenüberschrift läse.
     await expect(sheet).not.toContainText('Sternsysteme', { useInnerText: true });
 
-    // Das Popup deckt den Bildschirm vollständig ab.
-    const box = await sheet.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      return { top: rect.top, left: rect.left, width: rect.width, height: rect.height, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
+    // Gleiches Bild wie Einstellungen und Chronik: abgedunkelter Grund, darauf
+    // ein zentrierter, gerahmter Kasten mit Schließen-Kreuz.
+    const shape = await page.evaluate(() => {
+      const backdropElement = document.querySelector('.panel-modal-backdrop')!;
+      const modalElement = document.querySelector('.action-sidepanel')!;
+      const backdropStyle = getComputedStyle(backdropElement);
+      const modalStyle = getComputedStyle(modalElement);
+      const settingsStyle = getComputedStyle(document.querySelector('.modal-backdrop') ?? backdropElement);
+      const backdrop = backdropElement.getBoundingClientRect();
+      const modal = modalElement.getBoundingClientRect();
+      return {
+        backdropCoversViewport: backdrop.width === window.innerWidth && backdrop.height === window.innerHeight,
+        backdropColor: backdropStyle.backgroundColor,
+        backdropBlur: backdropStyle.backdropFilter,
+        modalBackground: modalStyle.backgroundColor,
+        centered: Math.abs((modal.left + modal.width / 2) - window.innerWidth / 2) <= 1,
+        inset: modal.top > 0 && modal.bottom < window.innerHeight,
+        settingsColor: settingsStyle.backgroundColor,
+      };
     });
-    expect(box.top).toBe(0);
-    expect(box.left).toBe(0);
-    expect(box.width).toBe(box.viewportWidth);
-    expect(box.height).toBe(box.viewportHeight);
+    expect(shape.backdropCoversViewport).toBe(true);
+    expect(shape.backdropColor).toBe('rgba(2, 5, 9, 0.82)');
+    expect(shape.backdropBlur).toBe('blur(12px)');
+    expect(shape.modalBackground).toBe('rgb(10, 16, 26)');
+    expect(shape.centered).toBe(true);
+    expect(shape.inset).toBe(true);
 
-    await page.locator('.panel-sheet-close').click();
+    await page.locator('.panel-modal-heading button').click();
     await expect(sheet).toBeHidden();
   }
+
+  // Ein Tipp auf den abgedunkelten Grund schließt, ein Tipp im Kasten nicht.
+  await page.locator('[data-dock-panel="upgrades"]').click();
+  await expect(sheet).toBeVisible();
+  await page.locator('.panel-modal-heading h2').click();
+  await expect(sheet).toBeVisible();
+  await page.locator('.panel-modal-backdrop').click({ position: { x: 6, y: 6 } });
+  await expect(sheet).toBeHidden();
+});
+
+test('desktop keeps the column heading and tabs, without the mobile popup chrome', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoGame(page);
+
+  // Die Popup-Kopfzeile und das Dock gehören zum mobilen Layout; auf dem
+  // Desktop stünden sie als zweite Überschrift in der Spalte.
+  await expect(page.locator('.panel-modal-heading')).toBeHidden();
+  await expect(page.locator('.chamber-dock')).toBeHidden();
+  await expect(page.locator('.chamber-tools')).toBeHidden();
+  await expect(page.locator('.sidepanel-heading')).toBeVisible();
+  await expect(page.locator('.side-tabs')).toBeVisible();
+  await expect(page.locator('.left-panel')).toBeVisible();
+  await expect(page.locator('.chronicle-dock')).toBeVisible();
+
+  // Die Karten sitzen direkt unter den Tabs, ohne Lücke aus einer zweiten Kopfzeile.
+  const gap = await page.evaluate(() => {
+    const tabs = document.querySelector('.side-tabs')!.getBoundingClientRect();
+    const content = document.querySelector('.side-content')!.getBoundingClientRect();
+    return content.top - tabs.bottom;
+  });
+  expect(gap).toBeLessThanOrEqual(1);
 });
 
 test('mobile dock buttons are round icons with a counter badge', async ({ page }) => {
