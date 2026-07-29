@@ -813,10 +813,14 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   expect(trackedBoxes.frameTop).toBeGreaterThanOrEqual(5.5);
 
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
-  await expect.poll(() => page.locator('.left-panel').evaluate((element) => {
+  const cloudTarget = page.locator('[data-tutorial="matter-reservoir"]');
+  await expect(cloudTarget).toHaveClass(/tutorial-focus/);
+  await expect(cloudTarget).toBeVisible();
+  await expect.poll(() => cloudTarget.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     return rect.top < window.innerHeight && rect.bottom > 0;
   })).toBe(true);
+  await expectTutorialFrameInsideViewport(page);
 
   await tutorial.getByRole('button', { name: 'Tutorial beenden', exact: true }).click();
   await tutorial.locator('[data-action="confirm-end-tutorial"]').click();
@@ -1732,8 +1736,13 @@ test('the first brown dwarf reward unlocks the stellar cloud for cycle two', asy
   await summary.getByRole('button', { name: 'Neuen Zyklus starten' }).click();
 
   await expect(page.locator('[data-ui="cloud-name"]')).toHaveText('Stellare Urwolke');
-  await expect(page.locator('[data-cloud-matter="helium"]')).toBeVisible();
-  await expect(page.locator('[data-cloud-matter="deuterium"]')).toHaveCount(0);
+  const cloudPanel = page.locator('[data-ui="cloud-panel"]');
+  const cloudPopover = cloudPanel.locator('.cloud-popover');
+  await expect(cloudPopover).not.toBeVisible();
+  await cloudPanel.getByRole('button', { name: 'Informationen zur Urwolke anzeigen' }).click();
+  await expect(cloudPopover).toBeVisible();
+  await expect(cloudPopover.locator('[data-cloud-matter="helium"]')).toBeVisible();
+  await expect(cloudPopover.locator('[data-cloud-matter="deuterium"]')).toHaveCount(0);
 });
 
 test('the full ordered reaction path keeps available fuel visible and previews carbon burning', async ({ page }) => {
