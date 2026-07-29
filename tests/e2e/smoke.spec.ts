@@ -136,8 +136,8 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   );
   expect(resourceWidthsAfter).toEqual(resourceWidthsBefore);
   await expect(page.getByText('1', { exact: true }).first()).toBeVisible();
-  await expect(page.locator('[data-matter="hydrogen"] strong')).toContainText('ME');
-  await expect(page.locator('[data-matter="hydrogen"] strong')).not.toContainText('%');
+  await expect(page.locator('.left-panel [data-matter="hydrogen"] strong')).toContainText('ME');
+  await expect(page.locator('.left-panel [data-matter="hydrogen"] strong')).not.toContainText('%');
 });
 
 test('the first objective collects one ME and congratulates the player', async ({ page }) => {
@@ -161,7 +161,7 @@ test('the first objective collects one ME and congratulates the player', async (
   await expect(page.getByRole('dialog', { name: 'Aktuelles Ziel' })).toContainText('Erzeuge 1 MeV Energie');
   await page.getByRole('button', { name: 'Ziel schließen' }).click();
   await expect(page.locator('[data-ui="energy"]')).toHaveText('0');
-  await expect(page.locator('.energy-metric small')).toHaveText('MeV');
+  await expect(page.locator('.left-panel .energy-metric small')).toHaveText('MeV');
   await expect(page.locator('[data-ui="chamber-objective-percent"]')).toHaveText('1,8%');
   await expect(page.locator('.achievement-banner')).toContainText('Glückwunsch – die erste Materie ist gesammelt!');
 });
@@ -251,10 +251,12 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByRole('tab', { name: 'Perks' })).toBeVisible();
   await expect(page.getByRole('tab')).toHaveCount(4);
   await expect(page.locator('.action-sidepanel')).toContainText('Kontrollzentrum');
+  await expect(page.locator('.left-panel')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stern-Echtzeitdaten anzeigen' })).toBeHidden();
   await expect(page.getByText('Automatische Akkretion', { exact: true })).toHaveCount(0);
   const cloudPanel = page.locator('[data-ui="cloud-panel"]');
   const cloudPopover = cloudPanel.locator('.cloud-popover');
-  const coreComposition = page.locator('.core-elements');
+  const coreComposition = page.locator('.left-panel .core-elements');
   await expect(coreComposition.locator('[data-matter="hydrogen"]')).toContainText('Wasserstoff');
   await expect(coreComposition.locator('[data-matter="hydrogen"]')).toContainText('ME');
   await expect(coreComposition.locator('.mini-track')).toHaveCount(0);
@@ -307,6 +309,35 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   expect(dimensions.documentHeight).toBeLessThanOrEqual(dimensions.viewportHeight);
   expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
 
+});
+
+test('small screens open stellar realtime data below the primordial cloud button', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoGame(page);
+
+  await expect(page.locator('.left-panel')).toBeHidden();
+  const stellarData = page.locator('[data-ui="stellar-data-panel"]');
+  const stellarDataButton = stellarData.getByRole('button', { name: 'Stern-Echtzeitdaten anzeigen' });
+  const stellarDataPopover = stellarData.locator('.stellar-data-popover');
+  const cloudButton = page.getByRole('button', { name: 'Informationen zur Urwolke anzeigen' });
+  await expect(stellarDataButton).toBeVisible();
+  await expect(stellarDataPopover).toBeHidden();
+
+  const cloudBox = (await cloudButton.boundingBox())!;
+  const stellarDataBox = (await stellarDataButton.boundingBox())!;
+  expect(stellarDataBox.x).toBeCloseTo(cloudBox.x, 1);
+  expect(stellarDataBox.y).toBeGreaterThan(cloudBox.y);
+  expect(stellarDataBox.y - cloudBox.y).toBeCloseTo(44, 1);
+
+  await stellarDataButton.click();
+  await expect(stellarDataPopover).toBeVisible();
+  await expect(stellarDataPopover.getByRole('heading', { name: 'Stellarer Kern' })).toBeVisible();
+  await expect(stellarDataPopover.locator('[data-ui-mirror="temperature"]')).toHaveText('10 K');
+  await expect(stellarDataPopover).toContainText('Kernzusammensetzung');
+
+  await cloudButton.click();
+  await expect(stellarDataPopover).toBeHidden();
+  await expect(page.locator('.cloud-popover')).toBeVisible();
 });
 
 test('chronicle opens from the control-center button', async ({ page }) => {
@@ -496,13 +527,14 @@ test('every core metric carries its own knowledge entry', async ({ page }) => {
     ['accretion', 'Akkretion'],
   ];
 
-  await expect(page.locator('.metric-grid .knowledge-button')).toHaveCount(metrics.length);
+  const realtimePanel = page.locator('.left-panel');
+  await expect(realtimePanel.locator('.metric-grid .knowledge-button')).toHaveCount(metrics.length);
   for (const [id, title] of metrics) {
     // Der Button gehört zu genau der Kachel, deren Begriff er erklärt.
-    const metric = page.locator('.metric').filter({ hasText: title });
+    const metric = realtimePanel.locator('.metric').filter({ hasText: title });
     await expect(metric.locator(`[data-knowledge="${id}"]`)).toHaveCount(1);
 
-    await page.locator(`[data-knowledge="${id}"]`).click();
+    await realtimePanel.locator(`[data-knowledge="${id}"]`).click();
     await expect(modal.locator('#knowledge-title')).toHaveText(title);
     // Jeder Eintrag hat Erklärabsätze und einen abgesetzten Spielbezug.
     expect(await modal.locator('.knowledge-body > p').count()).toBeGreaterThan(0);
@@ -527,7 +559,7 @@ test('new players can complete and resume the interactive tutorial', async ({ pa
   await expect(tutorial).toContainText('winzig kleinen Materieteilchen');
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Dein Stern im Blick');
-  await expect(page.locator('[data-tutorial="realtime-data"]')).toHaveClass(/tutorial-focus/);
+  await expect(page.locator('[data-tutorial="realtime-data"].tutorial-focus')).toBeVisible();
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Alles beginnt in der Urwolke');
   await expect(page.locator('[data-tutorial="matter-reservoir"]')).toHaveClass(/tutorial-focus/);
@@ -649,7 +681,7 @@ test('tutorial resumes when the first upgrade and automation can be purchased', 
   await accretionCard.locator('[data-action="buy-accretion"]').click();
   await expect(tutorial).toContainText('Der Akkretionsstrom arbeitet');
   await expect(tutorial).toContainText('automatisch im Kern verdichtet');
-  await expect(page.locator('[data-tutorial="left-panel"]')).toHaveClass(/tutorial-focus/);
+  await expect(page.locator('[data-tutorial="left-panel"].tutorial-focus')).toBeVisible();
   await expectTutorialFrameInsideViewport(page);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toHaveCount(0);
@@ -778,7 +810,7 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   await expect(page.locator('.tutorial-highlight-shield')).toHaveCount(0);
   await expect(page.locator('.tutorial-inner-frame')).toHaveCount(0);
   await expect(page.locator('.tutorial-spotlight')).toHaveCount(0);
-  const firstTarget = page.locator('[data-tutorial="realtime-data"]');
+  const firstTarget = page.locator('[data-tutorial="realtime-data"].tutorial-focus');
   await expect.poll(() => firstTarget.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     return rect.top < window.innerHeight && rect.bottom > 0;
@@ -1775,7 +1807,7 @@ test('the full ordered reaction path keeps available fuel visible and previews c
   // Dispatch the click synchronously in-page rather than racing Playwright's
   // scroll-then-click flow against the next re-render.
   await page.locator('[data-reaction-card="alphaCapture"] [data-action="run-reaction"]').evaluate((element) => (element as HTMLButtonElement).click());
-  await expect(page.locator('[data-matter="oxygen"]')).toBeVisible();
+  await expect(page.locator('.left-panel [data-matter="oxygen"]')).toBeVisible();
   await expect(page.locator('[data-ui="oxygen-value"]')).not.toHaveText('0%');
 
   await page.getByRole('tab', { name: /Automationen/ }).click();

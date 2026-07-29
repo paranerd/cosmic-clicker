@@ -6,12 +6,14 @@ let fullResetArmed = false;
 let resetTimer = 0;
 let warningsOpen = false;
 let cloudInfoOpen = false;
+let stellarDataOpen = false;
 let prestigeConfirmationArmed = false;
 let prestigeConfirmationTimer = 0;
 
 export const isFullResetArmed = (): boolean => fullResetArmed;
 export const isWarningsOpen = (): boolean => warningsOpen;
 export const isCloudInfoOpen = (): boolean => cloudInfoOpen;
+export const isStellarDataOpen = (): boolean => stellarDataOpen;
 export const isPrestigeConfirmationArmed = (): boolean => prestigeConfirmationArmed;
 
 export function closeResetMenu(): void {
@@ -29,7 +31,10 @@ export function armFullReset(): void {
 
 // Punkt 4: Popover mit allen aktiven Warnungen am Warnsymbol der Star Chamber.
 export function setWarningsOpen(open: boolean): void {
-  if (open) setCloudInfoOpen(false);
+  if (open) {
+    setCloudInfoOpen(false);
+    setStellarDataOpen(false);
+  }
   warningsOpen = open;
   app.querySelector('.warning-corner')?.classList.toggle('is-open', open);
   app.querySelector('[data-action="toggle-warnings"]')?.setAttribute('aria-expanded', String(open));
@@ -39,10 +44,25 @@ export function setWarningsOpen(open: boolean): void {
 // Warnungen. Es kann immer nur eines der beiden Popover geöffnet sein, damit
 // sie sich auf kleinen Displays nicht überlagern.
 export function setCloudInfoOpen(open: boolean): void {
-  if (open) setWarningsOpen(false);
+  if (open) {
+    setWarningsOpen(false);
+    setStellarDataOpen(false);
+  }
   cloudInfoOpen = open;
   app.querySelector('.cloud-corner')?.classList.toggle('is-open', open);
   app.querySelector('[data-action="toggle-cloud-info"]')?.setAttribute('aria-expanded', String(open));
+}
+
+// Auf kleinen Screens ersetzt dieses Popover das linke Echtzeitdaten-Panel.
+// Es teilt sich die vertikale Buttonleiste mit Urwolke und Warnungen.
+export function setStellarDataOpen(open: boolean): void {
+  if (open) {
+    setWarningsOpen(false);
+    setCloudInfoOpen(false);
+  }
+  stellarDataOpen = open;
+  app.querySelector('.stellar-data-corner')?.classList.toggle('is-open', open);
+  app.querySelector('[data-action="toggle-stellar-data"]')?.setAttribute('aria-expanded', String(open));
 }
 
 export function hasAffordableSummaryPerk(): boolean {

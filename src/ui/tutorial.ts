@@ -128,7 +128,12 @@ function prepareTutorialTarget(step: TutorialStep): void {
 }
 
 function tutorialTarget(step: TutorialStep): Element | null {
-  return step.selector ? app.querySelector(step.selector) : null;
+  if (!step.selector) return null;
+  const targets = [...app.querySelectorAll(step.selector)];
+  // Desktop-Panel und mobiles Popover tragen dieselben semantischen
+  // Tutorial-Ziele. Nur die responsive Variante mit einem Layout-Rechteck
+  // ist im jeweiligen Viewport tatsächlich in Benutzung.
+  return targets.find((target) => target.getClientRects().length > 0) ?? targets[0] ?? null;
 }
 
 function revealTutorialTarget(target: Element): void {

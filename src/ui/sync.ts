@@ -64,18 +64,24 @@ function rememberPanelStructure(panel: Panel): void {
   lastDynamicPanelSignature = dynamicPanelSignature(panel);
 }
 
+function realtimeDataMarkup(mirror = false): string {
+  const ui = (name: string): string => mirror ? `data-ui-mirror="${name}"` : `data-ui="${name}"`;
+  return `
+    <section class="data-panel core-panel" data-tutorial="realtime-data">
+      <div class="panel-heading"><span class="index">01</span><div><small>Echtzeitdaten</small><h2>Stellarer Kern</h2></div></div>
+      <div class="primary-reading"><span>Kerntemperatur${knowledgeButton('coreTemperature')}</span><b ${ui('temperature')}></b><div class="thermal-scale"><i ${ui('temperature-bar')}></i></div><small><span>${formatTemperature(INITIAL_TEMPERATURE)}</span><span ${ui('temperature-max')}></span></small></div>
+      <div class="metric-grid"><div class="metric"><span>Sternmasse${knowledgeButton('starMass')}</span><b ${ui('mass')}></b><small>ME</small></div><div class="metric"><span>Kerndruck${knowledgeButton('corePressure')}</span><b ${ui('pressure')}></b><small>% Zünddruck</small></div><div class="metric energy-metric" data-tutorial="energy"><span>Energie${knowledgeButton('energy')}</span><b ${ui('energy')}></b><small>MeV</small></div><div class="metric"><span>Akkretion${knowledgeButton('accretion')}</span><b ${ui('accretion-rate')}></b><small>ME / Sek.</small></div></div>
+      <div class="composition" data-tutorial="core-composition"><div class="section-label"><span>Kernzusammensetzung</span></div><div class="matter-elements core-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><p><b>${RESOURCES[key].label}</b><strong ${ui(`${key}-value`)}></strong></p></div>`).join('')}</div></div>
+    </section>`;
+}
+
 export function renderShell(): void {
   app.innerHTML = `
     <div class="cosmos" aria-hidden="true"><div class="stars stars-a"></div><div class="stars stars-b"></div><div class="nebula-glow"></div></div>
     <main>
       <section class="stellar-lab">
         <aside class="left-panel" data-tutorial="left-panel">
-          <section class="data-panel core-panel" data-tutorial="realtime-data">
-            <div class="panel-heading"><span class="index">01</span><div><small>Echtzeitdaten</small><h2>Stellarer Kern</h2></div></div>
-            <div class="primary-reading"><span>Kerntemperatur${knowledgeButton('coreTemperature')}</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>${formatTemperature(INITIAL_TEMPERATURE)}</span><span data-ui="temperature-max"></span></small></div>
-            <div class="metric-grid"><div class="metric"><span>Sternmasse${knowledgeButton('starMass')}</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck${knowledgeButton('corePressure')}</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric energy-metric" data-tutorial="energy"><span>Energie${knowledgeButton('energy')}</span><b data-ui="energy"></b><small>MeV</small></div><div class="metric"><span>Akkretion${knowledgeButton('accretion')}</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
-            <div class="composition" data-tutorial="core-composition"><div class="section-label"><span>Kernzusammensetzung</span></div><div class="matter-elements core-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><p><b>${RESOURCES[key].label}</b><strong data-ui="${key}-value"></strong></p></div>`).join('')}</div></div>
-          </section>
+          ${realtimeDataMarkup()}
         </aside>
 
         <section class="star-chamber">
@@ -101,6 +107,12 @@ export function renderShell(): void {
               <h2 data-ui="cloud-name">Urwolke</h2>
               <div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div></div>
               <div data-tutorial="cloud-composition"><div class="section-label cloud-composition-label"><span>Zusammensetzung</span></div><div class="matter-elements cloud-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-cloud-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><p><b>${RESOURCES[key].label}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
+            </section>
+          </div>
+          <div class="stellar-data-corner" data-ui="stellar-data-panel">
+            <button class="stellar-data-toggle" data-action="toggle-stellar-data" aria-label="Stern-Echtzeitdaten anzeigen" aria-expanded="false" aria-haspopup="true">${icons.realtime}</button>
+            <section class="stellar-data-popover" data-tutorial="left-panel" aria-label="Stern-Echtzeitdaten">
+              ${realtimeDataMarkup(true)}
             </section>
           </div>
           <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
@@ -138,6 +150,9 @@ function uiElement(name: string): HTMLElement | null {
 function setText(name: string, value: string): void {
   const element = uiElement(name);
   if (element && element.textContent !== value) element.textContent = value;
+  app.querySelectorAll<HTMLElement>(`[data-ui-mirror="${name}"]`).forEach((mirror) => {
+    if (mirror.textContent !== value) mirror.textContent = value;
+  });
 }
 
 function setWidth(name: string, value: number): void {
@@ -307,7 +322,10 @@ export function updateUI(forcePanel = false): void {
   syncObjectiveAchievement(objective);
   setText('temperature', formatTemperature(state.temperature));
   setText('chamber-temperature', formatTemperature(state.temperature).replace(/ K$/, ''));
-  setText('temperature-max', scale.label); uiElement('temperature-bar')?.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
+  setText('temperature-max', scale.label);
+  app.querySelectorAll<HTMLElement>('[data-ui="temperature-bar"], [data-ui-mirror="temperature-bar"]').forEach((bar) => {
+    bar.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
+  });
   setText('mass', formatMatter(mass));
   setText('chamber-mass', formatMatter(mass));
   setText('pressure', formatNumber(pressureProgress(state), 1));
@@ -317,9 +335,10 @@ export function updateUI(forcePanel = false): void {
   DISPLAY_MATTER_KEYS.forEach((key) => {
     setText(`${key}-value`, `${formatMatter(state.star[key])} ME`);
     setText(`cloud-${key}`, formatMatter(state.cloud[key]));
-    const coreElement = app.querySelector<HTMLElement>(`[data-matter="${key}"]`);
     const cloudElement = app.querySelector<HTMLElement>(`[data-cloud-matter="${key}"]`);
-    if (coreElement) coreElement.hidden = state.star[key] <= 0 && currentCloudDefinition.matter[key] <= 0;
+    app.querySelectorAll<HTMLElement>(`[data-matter="${key}"]`).forEach((coreElement) => {
+      coreElement.hidden = state.star[key] <= 0 && currentCloudDefinition.matter[key] <= 0;
+    });
     if (cloudElement) cloudElement.hidden = currentCloudDefinition.matter[key] <= 0;
   });
   setText('stage', STAGE_LABELS[state.stage]); setText('stage-detail', STAGES[state.stage].detail); setText('cloud-name', currentCloudDefinition.name);

@@ -18,8 +18,10 @@ import {
   isCloudInfoOpen,
   isFullResetArmed,
   isPrestigeConfirmationArmed,
+  isStellarDataOpen,
   isWarningsOpen,
   setCloudInfoOpen,
+  setStellarDataOpen,
   setWarningsOpen,
 } from './ui/menus';
 import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement, dismissCycleEndNotice, showToast } from './ui/notifications';
@@ -83,8 +85,10 @@ app.addEventListener('click', (event) => {
   const debugButton = target.closest<HTMLButtonElement>('[data-debug]'); if (debugButton?.dataset.debug) { runDebugAction(debugButton.dataset.debug); return; }
   const insideWarningCorner = target.closest('.warning-corner');
   const insideCloudCorner = target.closest('.cloud-corner');
+  const insideStellarDataCorner = target.closest('.stellar-data-corner');
   if (isWarningsOpen() && !insideWarningCorner) setWarningsOpen(false);
   if (isCloudInfoOpen() && !insideCloudCorner) setCloudInfoOpen(false);
+  if (isStellarDataOpen() && !insideStellarDataCorner) setStellarDataOpen(false);
   if (target.dataset.overlayDismiss === 'chronicle') { setChronicleOpen(false); return; }
   if (target.dataset.overlayDismiss === 'stats') { setStatsOpen(false); return; }
   if (target.dataset.overlayDismiss === 'settings') { setSettingsOpen(false); return; }
@@ -109,6 +113,7 @@ app.addEventListener('click', (event) => {
   if (action === 'close-settings') { setSettingsOpen(false); return; }
   if (action === 'toggle-warnings') { setWarningsOpen(!isWarningsOpen()); return; }
   if (action === 'toggle-cloud-info') { setCloudInfoOpen(!isCloudInfoOpen()); return; }
+  if (action === 'toggle-stellar-data') { setStellarDataOpen(!isStellarDataOpen()); return; }
   // Wissensdatenbank: Der Eintrag steckt als data-knowledge am Erklär-Button,
   // die Texte kommen aus content/knowledge.ts — neue Erklärstellen brauchen
   // hier keine Änderung.

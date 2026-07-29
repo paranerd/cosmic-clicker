@@ -164,6 +164,18 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .cloud-corner:has(.tutorial-focus) .cloud-popover { visibility: visible; opacity: 1; transform: translateY(0); }
 .cloud-popover-kicker { display: block; color: $cyan; font-size: 7px; letter-spacing: .14em; text-transform: uppercase; }
 .cloud-popover h2 { margin: 3px 0 0; font-family: Georgia,serif; font-size: 18px; font-weight: 400; }
+.stellar-data-corner { display: none; position: absolute; left: 14px; bottom: 14px; z-index: 30; }
+.stellar-data-toggle { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid rgba($cyan,.34); border-radius: 50%; background: rgba(8,13,22,.84); color: #b7dfe2; cursor: pointer; transition: background .2s ease, border-color .2s ease, filter .2s ease; }
+.stellar-data-toggle svg { width: 16px; height: 16px; }
+.stellar-data-toggle:hover, .stellar-data-toggle:focus-visible { border-color: rgba($cyan,.58); background: rgba($cyan,.08); filter: brightness(1.18); }
+.stellar-data-popover { width: min(340px, calc(100vw - 28px)); max-height: calc(100dvh - 140px); padding: 14px; position: absolute; z-index: 40; left: 0; bottom: 44px; overflow-y: auto; visibility: hidden; opacity: 0; transform: translateY(5px); border: 1px solid rgba($cyan,.28); background: rgba(8,13,22,.98); box-shadow: 0 18px 45px rgba(0,0,0,.45); transition: .18s ease; text-align: left; }
+.stellar-data-corner.is-open .stellar-data-popover,
+.stellar-data-corner:has(.tutorial-focus) .stellar-data-popover { visibility: visible; opacity: 1; transform: translateY(0); }
+.stellar-data-popover .data-panel { padding: 0; background: none; }
+.stellar-data-popover .panel-heading { margin-bottom: 18px; }
+.stellar-data-popover .primary-reading { margin-bottom: 18px; }
+.stellar-data-popover .primary-reading > b { font-size: 28px; }
+.stellar-data-popover .metric-grid { margin-bottom: 18px; }
 .warning-corner { position: absolute; left: 14px; bottom: 58px; z-index: 30; }
 .warning-toggle { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba($amber,.45); border-radius: 50%; background: rgba($amber,.09); color: $amber; cursor: pointer; transition: .2s; animation: warning-pulse 2.6s ease-in-out infinite; }
 .warning-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
@@ -657,7 +669,9 @@ footer button:hover { color: $cyan; }
 .tutorial-focus { position: relative; z-index: 43; outline: 0; filter: none; }
 .tutorial-focus::after { content: ""; position: absolute; z-index: 20; inset: calc(-1 * var(--tutorial-frame-padding, 12px)); border: 1px solid rgba($cyan,.72); box-shadow: 0 0 32px rgba($cyan,.2); pointer-events: none; }
 .cloud-corner:has(.tutorial-focus) { z-index: 43; }
+.stellar-data-corner:has(.tutorial-focus) { z-index: 43; }
 .cloud-popover.tutorial-focus { position: absolute; z-index: 43; }
+.stellar-data-popover.tutorial-focus { position: absolute; z-index: 43; }
 .chamber-objective-progress.tutorial-focus { position: absolute; z-index: 4; }
 .star-button.tutorial-focus { z-index: 43; }
 .star-button.tutorial-focus::after { border-radius: 50%; box-shadow: 0 0 45px rgba($cyan,.25); }
@@ -743,8 +757,11 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   main { width: 100%; }
   footer { width: min(100% - 24px, 620px); }
   .stellar-lab { grid-template-columns: 1fr; }
-  .left-panel { grid-row: 3; border-right: 0; border-top: 1px solid $line; border-bottom: 1px solid $line; }
+  .left-panel { display: none; }
   .star-chamber { min-height: 100svh; min-height: 100dvh; grid-row: 1; }
+  .stellar-data-corner { display: block; }
+  .cloud-corner { bottom: 58px; }
+  .warning-corner { bottom: 102px; }
   .action-sidepanel { min-height: 520px; grid-row: 2; }
   .sidepanel-heading { padding: 20px 20px 12px; }
   .side-content { padding: 16px 20px; }
