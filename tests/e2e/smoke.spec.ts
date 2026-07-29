@@ -334,6 +334,8 @@ test('small screens open stellar realtime data below the primordial cloud button
   await expect(stellarDataPopover.getByRole('heading', { name: 'Stellarer Kern' })).toBeVisible();
   await expect(stellarDataPopover.locator('[data-ui-mirror="temperature"]')).toHaveText('10 K');
   await expect(stellarDataPopover).toContainText('Kernzusammensetzung');
+  const stellarDataPopoverBox = (await stellarDataPopover.boundingBox())!;
+  expect(stellarDataPopoverBox.y + stellarDataPopoverBox.height).toBeLessThanOrEqual(cloudBox.y);
 
   await cloudButton.click();
   await expect(stellarDataPopover).toBeHidden();
@@ -1543,7 +1545,7 @@ test('modal utility buttons share the same translucent hover treatment', async (
   expect(await hoverStyle(page.getByRole('button', { name: 'Chronik schließen' }))).toEqual(settingsStyle);
 });
 
-test('mobile cockpit stacks star, actions and stats without horizontal overflow', async ({ page }) => {
+test('mobile cockpit stacks star and actions while keeping realtime data in its popover', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoGame(page);
   await expect(page.getByRole('button', { name: 'Materie einsammeln' })).toHaveCSS('touch-action', 'manipulation');
@@ -1555,7 +1557,6 @@ test('mobile cockpit stacks star, actions and stats without horizontal overflow'
       chamber: chamber ? { x: chamber.x, y: chamber.y, width: chamber.width, height: chamber.height } : null,
       star: star ? { x: star.x, y: star.y, width: star.width, height: star.height } : null,
       actions: document.querySelector('.action-sidepanel')?.getBoundingClientRect().top ?? 0,
-      stats: document.querySelector('.left-panel')?.getBoundingClientRect().top ?? 0,
       documentWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
     };
@@ -1570,8 +1571,9 @@ test('mobile cockpit stacks star, actions and stats without horizontal overflow'
     positions.star!.y + positions.star!.height / 2
       - (positions.chamber!.y + positions.chamber!.height / 2),
   )).toBeLessThanOrEqual(1);
-  expect(positions.actions).toBeLessThan(positions.stats);
   expect(positions.documentWidth).toBeLessThanOrEqual(positions.viewportWidth);
+  await expect(page.locator('.left-panel')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Stern-Echtzeitdaten anzeigen' })).toBeVisible();
   await expect(page.locator('.chronicle-dock')).toHaveCount(0);
   await expect(page.locator('.action-sidepanel').getByRole('button', { name: 'Chronik öffnen' })).toBeVisible();
 });
