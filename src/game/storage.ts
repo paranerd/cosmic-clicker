@@ -1,5 +1,6 @@
 import { cloudMassForLevel, EMPTY_MATTER, LIMITS, MATTER_KEYS, PRESTIGE_PERKS, REACTIONS, REACTION_ORDER, UPGRADES, UPGRADE_ORDER } from '../content';
 import { compressionHeat, createInitialState, createRunStatistics, tick } from './engine';
+import { getSaveAdapter } from './save-adapter';
 import type { CloudTier, GameState, LogEntry, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState, UpgradeState } from './types';
 
 const SAVE_KEY = 'cosmic-clicker-save-v1';
@@ -185,7 +186,7 @@ export const normalizeGameState = (value: unknown): GameState | null => {
 
 export const loadGame = (): { state: GameState; offlineSeconds: number } => {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = getSaveAdapter().read(SAVE_KEY);
     if (!raw) return { state: createInitialState(), offlineSeconds: 0 };
     const parsed = normalizeGameState(JSON.parse(raw));
     if (!parsed) return { state: createInitialState(), offlineSeconds: 0 };
@@ -200,7 +201,7 @@ export const loadGame = (): { state: GameState; offlineSeconds: number } => {
 };
 
 export const saveGame = (state: GameState): void => {
-  localStorage.setItem(SAVE_KEY, JSON.stringify({ ...state, lastTick: Date.now() }));
+  getSaveAdapter().write(SAVE_KEY, JSON.stringify({ ...state, lastTick: Date.now() }));
 };
 
-export const clearSave = (): void => localStorage.removeItem(SAVE_KEY);
+export const clearSave = (): void => getSaveAdapter().clear(SAVE_KEY);
