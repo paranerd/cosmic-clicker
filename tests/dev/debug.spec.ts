@@ -35,6 +35,13 @@ test('console cheats add and subtract stardust and energy in development', async
   });
 
   expect(result).toEqual({ stardustAdded: 5, stardustReduced: 3, energyAdded: 100, energyReduced: 0, clampedAtZero: 0 });
-  await expect(page.locator('[data-ui="stardust"]')).toHaveText('3');
   await expect(page.locator('[data-ui="energy"]')).toHaveText('0');
+
+  // Sternenstaub steht nicht mehr in den Kerndaten, sondern als Kontostand
+  // über der Perk-Liste — dafür muss das Intro aus dem Weg.
+  await page.getByRole('button', { name: 'Ohne Tutorial starten' }).click();
+  const acknowledgement = page.getByRole('button', { name: 'Okay' });
+  if (await acknowledgement.isVisible()) await acknowledgement.click();
+  await page.getByRole('tab', { name: 'Perks' }).click();
+  await expect(page.locator('[data-panel-resource="stardust"]')).toHaveText('3');
 });

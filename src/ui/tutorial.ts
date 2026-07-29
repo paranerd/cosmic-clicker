@@ -210,8 +210,11 @@ export function syncTutorial(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="tutorial-root"]');
   if (!root) return;
   app.classList.remove('tutorial-active');
-  const settingsButton = app.querySelector<HTMLElement>('[data-action="open-settings"]');
-  settingsButton?.classList.remove('tutorial-settings-access');
+  // Den Einstellungen-Knopf gibt es zweimal: in der Kopfzeile des
+  // Kontrollzentrums und im Dock der Sternkammer. Je nach Layout ist der eine
+  // oder der andere sichtbar, deshalb beide freischalten.
+  const settingsButtons = app.querySelectorAll<HTMLElement>('[data-action="open-settings"]');
+  settingsButtons.forEach((button) => button.classList.remove('tutorial-settings-access'));
   app.querySelectorAll<HTMLElement>('.tutorial-focus').forEach((element) => {
     element.classList.remove('tutorial-focus');
     element.style.removeProperty('--tutorial-frame-padding');
@@ -232,7 +235,7 @@ export function syncTutorial(): void {
   }
 
   app.classList.add('tutorial-active');
-  settingsButton?.classList.add('tutorial-settings-access');
+  settingsButtons.forEach((button) => button.classList.add('tutorial-settings-access'));
   prepareTutorialTarget(step);
   const target = tutorialTarget(step);
   target?.classList.add('tutorial-focus');

@@ -208,10 +208,12 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await expect(warningPopover).toContainText('ME/s');
   const warningBox = (await warningCorner.boundingBox())!;
   const chamberBox = (await page.locator('.star-chamber').boundingBox())!;
-  const settingsBox = (await page.getByRole('button', { name: 'Einstellungen öffnen' }).boundingBox())!;
+  // Warnung und Urwolke teilen sich den linken unteren Rand der Kammer; die
+  // Warnung sitzt 44px über der Wolke.
+  const cloudBox = (await page.locator('.cloud-toggle').boundingBox())!;
   expect(warningBox.x - chamberBox.x).toBe(14);
-  expect(warningBox.x + warningBox.width).toBeLessThanOrEqual(settingsBox.x);
-  expect(settingsBox.y - warningBox.y).toBe(44);
+  expect(cloudBox.x - chamberBox.x).toBe(14);
+  expect(cloudBox.y - warningBox.y).toBe(44);
   await page.locator('.star-button').click({ position: { x: 10, y: 10 }, force: true });
   await expect(warningPopover).not.toBeVisible();
 });
@@ -366,7 +368,7 @@ test('chronicle shows runtime timestamps and only entries from the current cycle
   const dockLog = page.locator('[data-ui="dock-log"]');
   await expect(dockLog).toContainText('Zweiter Zyklus gestartet.');
   await expect(dockLog).not.toContainText('Erster Zyklus abgeschlossen.');
-  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
+  await page.locator('.sidepanel-tools [data-action="open-chronicle"]').click();
   const chronicle = page.getByRole('dialog', { name: 'Lebenswege der Sterne' });
 
   await expect(chronicle.locator('[data-ui="chronicle-elapsed"]')).toHaveText(/^LAUFZEIT \d{2}:\d{2}:\d{2}$/);
@@ -428,18 +430,22 @@ test('the chamber progress is the only persistent objective display and opens a 
   await context.close();
 });
 
-test('header is removed and settings occupies the round lower-right chamber control', async ({ page }) => {
+test('header is removed and settings sits in the control centre heading', async ({ page }) => {
   await gotoGame(page);
   await expect(page.locator('header')).toHaveCount(0);
   await expect(page.locator('.mission-strip')).toHaveCount(0);
 
-  const settingsButton = page.getByRole('button', { name: 'Einstellungen öffnen' });
-  const chamberBox = (await page.locator('.star-chamber').boundingBox())!;
-  const settingsBox = await settingsButton.boundingBox();
-  expect(settingsBox).not.toBeNull();
-  expect(chamberBox.x + chamberBox.width - (settingsBox!.x + settingsBox!.width)).toBe(14);
-  expect(chamberBox.y + chamberBox.height - (settingsBox!.y + settingsBox!.height)).toBe(14);
-  await expect(settingsButton).toHaveCSS('border-radius', '50%');
+  // Der Knopf steht nicht mehr in der Sternkammer, sondern rechts in der
+  // Kopfzeile des Kontrollzentrums — neben der Chronik.
+  const settingsButton = page.locator('.sidepanel-tools [data-action="open-settings"]');
+  const headingBox = (await page.locator('.sidepanel-heading').boundingBox())!;
+  const settingsBox = (await settingsButton.boundingBox())!;
+  expect(settingsBox.x).toBeGreaterThan(headingBox.x + headingBox.width / 2);
+  expect(settingsBox.y).toBeGreaterThanOrEqual(headingBox.y);
+  expect(settingsBox.y + settingsBox.height).toBeLessThanOrEqual(headingBox.y + headingBox.height);
+  // Der Knopf im Dock der Kammer bleibt im DOM, ist auf dem Desktop aber
+  // ausgeblendet — sichtbar ist nur der in der Kopfzeile.
+  await expect(page.locator('.star-chamber [data-action="open-settings"]')).toBeHidden();
 
   await settingsButton.click();
   await expect(page.getByRole('dialog', { name: 'Einstellungen' })).toBeVisible();
@@ -957,7 +963,7 @@ test('round statistics are integrated into the chronicle and production exposes 
   await gotoGame(page);
   await page.getByRole('button', { name: 'Materie einsammeln' }).click();
   await expect(page.getByRole('button', { name: 'Statistik öffnen' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
+  await page.locator('.sidepanel-tools [data-action="open-chronicle"]').click();
   const stats = page.getByRole('dialog', { name: 'Lebenswege der Sterne' }).locator('.chronicle-stats');
   await expect(stats).toContainText('Eingesammelte Materie');
   await expect(stats).toContainText('1 ME');
@@ -1518,12 +1524,14 @@ test('modal utility buttons share the same translucent hover treatment', async (
     });
   };
 
-  const settingsStyle = await hoverStyle(page.getByRole('button', { name: 'Einstellungen öffnen' }));
+  // Der Zeichenknopf in der Kopfzeile des Kontrollzentrums gehört zu derselben
+  // Familie wie die Schließen-Kreuze der Modale.
+  const settingsStyle = await hoverStyle(page.locator('.sidepanel-tools [data-action="open-settings"]'));
   await page.getByRole('button', { name: 'Aktuelles Ziel öffnen' }).click();
   expect(await hoverStyle(page.getByRole('button', { name: 'Ziel schließen' }))).toEqual(settingsStyle);
   await page.getByRole('button', { name: 'Ziel schließen' }).click();
 
-  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
+  await page.locator('.sidepanel-tools [data-action="open-chronicle"]').click();
   expect(await hoverStyle(page.getByRole('button', { name: 'Chronik schließen' }))).toEqual(settingsStyle);
 });
 
@@ -1548,8 +1556,9 @@ for (const device of [{ name: 'iPhone 14', width: 390, height: 844 }, { name: 'i
         stageLabel: rect('.stage-label'),
         dock: rect('.chamber-dock'),
         objective: rect('.chamber-objective-progress'),
-        settings: rect('.chamber-settings'),
+        cornerTool: rect('.chamber-tools'),
         dockButtons: document.querySelectorAll('.dock-button').length,
+        dockTools: document.querySelectorAll('.dock-tool').length,
         sheetVisible: Boolean(document.querySelector('.action-sidepanel')?.checkVisibility()),
         chronicleDockVisible: Boolean(document.querySelector('.chronicle-dock')?.checkVisibility()),
         coreSheetVisible: Boolean(document.querySelector('.left-panel')?.checkVisibility()),
@@ -1566,14 +1575,16 @@ for (const device of [{ name: 'iPhone 14', width: 390, height: 844 }, { name: 'i
     expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
     expect(layout.documentHeight).toBeLessThanOrEqual(layout.viewportHeight);
 
-    // Das Dock sitzt als Overlay am unteren Rand der Kammer, mit allen vier Bereichen.
-    expect(layout.dockButtons).toBe(4);
+    // Das Dock sitzt als Overlay am unteren Rand der Kammer: vier Bereiche
+    // plus Chronik und Einstellungen.
+    expect(layout.dockButtons).toBe(6);
+    expect(layout.dockTools).toBe(2);
     expect(layout.dock!.bottom).toBe(layout.viewportHeight);
     expect(layout.dock!.width).toBe(layout.viewportWidth);
 
-    // Zielbalken und Ecktasten rücken über das Dock, statt darunter zu geraten.
+    // Zielbalken und Ecktaste rücken über das Dock, statt darunter zu geraten.
     expect(layout.objective!.bottom).toBeLessThanOrEqual(layout.dock!.top);
-    expect(layout.settings!.bottom).toBeLessThanOrEqual(layout.dock!.top);
+    expect(layout.cornerTool!.bottom).toBeLessThanOrEqual(layout.dock!.top);
 
     // Der Stern bleibt zwischen Stadium-Label und Dock.
     expect(layout.star!.top).toBeGreaterThanOrEqual(layout.stageLabel!.bottom);
@@ -1682,11 +1693,13 @@ test('mobile overlays all stretch to the same inset as the area popups', async (
   const area = await insets('.action-sidepanel');
   await page.locator('.panel-modal-heading button').click();
 
-  await page.locator('[data-action="open-settings"]').click();
+  // getByRole trifft nur den sichtbaren Knopf; das Zeichen gibt es zweimal
+  // im DOM — in der Panel-Kopfzeile und im Dock.
+  await page.getByRole('button', { name: 'Einstellungen öffnen' }).click();
   const settings = await insets('.settings-modal');
   await page.locator('[data-action="close-settings"]').click();
 
-  await page.locator('[data-action="open-chronicle"]').click();
+  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   const chronicle = await insets('.chronicle-modal');
   await page.locator('[data-action="close-chronicle"]').click();
 
@@ -1711,6 +1724,25 @@ test('desktop keeps the column heading and tabs, without the mobile popup chrome
   await expect(page.locator('.chamber-tools')).toBeHidden();
   await expect(page.locator('.sidepanel-heading')).toBeVisible();
   await expect(page.locator('.side-tabs')).toBeVisible();
+
+  // Chronik und Einstellungen stehen als Zeichenknöpfe in der Kopfzeile des
+  // Kontrollzentrums — dort, wo früher Tutorial und Statistik lagen.
+  const tools = page.locator('.sidepanel-tools button');
+  await expect(tools).toHaveCount(2);
+  await expect(tools.nth(0)).toHaveAttribute('aria-label', 'Chronik öffnen');
+  await expect(tools.nth(1)).toHaveAttribute('aria-label', 'Einstellungen öffnen');
+  const toolShape = await tools.first().evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return { width: box.width, height: box.height };
+  });
+  expect(toolShape).toEqual({ width: 28, height: 28 });
+
+  await tools.nth(0).click();
+  await expect(page.getByRole('dialog', { name: 'Lebenswege der Sterne' })).toBeVisible();
+  await page.locator('[data-action="close-chronicle"]').click();
+  await tools.nth(1).click();
+  await expect(page.getByRole('dialog', { name: 'Einstellungen' })).toBeVisible();
+  await page.locator('[data-action="close-settings"]').click();
   await expect(page.locator('.left-panel')).toBeVisible();
   await expect(page.locator('.chronicle-dock')).toBeVisible();
 
@@ -1755,6 +1787,15 @@ test('mobile dock buttons are round icons with a counter badge', async ({ page }
   expect(shape.width).toBe(shape.height);
   expect(shape.radius).toBe('50%');
 
+  // Chronik und Einstellungen liegen hinten im Dock, ohne Zähler.
+  for (const [action, label] of [['open-chronicle', 'Chronik öffnen'], ['open-settings', 'Einstellungen öffnen']]) {
+    const tool = page.locator(`.dock-tool[data-action="${action}"]`);
+    await expect(tool).toBeVisible();
+    await expect(tool).toHaveAttribute('aria-label', label);
+    await expect(tool.locator('.dock-count')).toHaveCount(0);
+  }
+  await expect(page.locator('.sidepanel-tools')).toBeHidden();
+
   // Der Indikator sitzt als Kreis oben rechts auf dem Knopf.
   const badge = page.locator('[data-dock-panel="upgrades"] .dock-count');
   await expect(badge).toBeVisible();
@@ -1796,7 +1837,7 @@ test('mobile core data opens as a sheet and the card list scrolls on its own', a
   await page.locator('[data-action="close-core-data"]').click();
   await expect(coreSheet).toBeHidden();
 
-  await page.locator('[data-action="open-chronicle"]').click();
+  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   await expect(page.getByRole('dialog', { name: 'Lebenswege der Sterne' })).toBeVisible();
   await page.locator('[data-action="close-chronicle"]').click();
 
@@ -1837,7 +1878,7 @@ test('cycle completion slides in a compact notice and opens the summary only on 
   const settings = await openSettings(page);
   await settings.getByRole('switch', { name: 'Tutorial einschalten' }).click();
   await expect(page.getByRole('complementary', { name: 'Tutorial' })).toBeVisible();
-  await page.getByRole('button', { name: 'Chronik öffnen' }).evaluate((button: HTMLButtonElement) => button.click());
+  await page.locator('.sidepanel-tools [data-action="open-chronicle"]').evaluate((button: HTMLButtonElement) => button.click());
   await expect(page.getByRole('dialog', { name: 'Lebenswege der Sterne' })).toBeVisible();
   await page.locator('[data-ui="achievement-root"]').evaluate((root) => { root.innerHTML = '<aside class="achievement-banner is-visible">Alter Zielhinweis</aside>'; });
 

@@ -2,7 +2,10 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lässt den Sternenhimmel unter Notch und Home-Anzeige
+         weiterlaufen. Die Bedienelemente an den Rändern halten sich über
+         env(safe-area-inset-*) davon frei. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#070b14" />
     <meta name="description" content="Forme aus einer Urwolke deinen ersten Stern." />
     <link rel="icon" href="%BASE_URL%favicon.ico" type="image/x-icon" sizes="16x16 32x32 48x48" />

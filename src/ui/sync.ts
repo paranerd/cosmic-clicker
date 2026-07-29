@@ -55,6 +55,14 @@ const PANELS: { id: Panel; label: string; icon: string; eyebrow: string }[] = [
   { id: 'perks', label: 'Perks', icon: icons.crown, eyebrow: 'Vermächtnis' },
 ];
 
+// Chronik und Einstellungen öffnen kein Panel, sondern ein eigenes Modal.
+// Auf dem Desktop stehen sie als kleine Zeichenknöpfe in der Kopfzeile des
+// Kontrollzentrums, mobil hinten im Dock.
+const SIDE_TOOLS: { action: string; label: string; icon: string }[] = [
+  { action: 'open-chronicle', label: 'Chronik öffnen', icon: icons.chronicle },
+  { action: 'open-settings', label: 'Einstellungen öffnen', icon: icons.settings },
+];
+
 let lastStage = getState().stage;
 let lastLogSignature = '';
 let lastUpgradeOrderSignature = '';
@@ -108,10 +116,8 @@ export function renderShell(): void {
             <span class="chamber-progress-track"><i data-ui="chamber-objective-bar"></i></span>
             <b data-ui="chamber-objective-percent"></b>
           </button>
-          <button class="chamber-settings settings-button" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button>
           <div class="chamber-tools">
             <button class="chamber-tool" data-action="toggle-core-data" aria-label="Kerndaten anzeigen" aria-expanded="false">${icons.core}</button>
-            <button class="chamber-tool" data-action="open-chronicle" aria-label="Chronik öffnen" aria-haspopup="dialog">${icons.chronicle}</button>
           </div>
           <div class="cloud-corner" data-ui="cloud-panel">
             <button class="cloud-toggle" data-action="toggle-cloud-info" aria-label="Informationen zur Urwolke anzeigen" aria-expanded="false" aria-haspopup="true">
@@ -125,12 +131,12 @@ export function renderShell(): void {
             </section>
           </div>
           <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
-          <nav class="chamber-dock" aria-label="Kontrollbereiche">${PANELS.map((panel) => `<button class="dock-button" data-panel="${panel.id}" data-dock-panel="${panel.id}" aria-label="${panel.label} öffnen" aria-haspopup="dialog">${panel.icon}<b class="dock-count" data-tab-count="${panel.id}" hidden></b></button>`).join('')}</nav>
+          <nav class="chamber-dock" aria-label="Kontrollbereiche">${PANELS.map((panel) => `<button class="dock-button" data-panel="${panel.id}" data-dock-panel="${panel.id}" aria-label="${panel.label} öffnen" aria-haspopup="dialog">${panel.icon}<b class="dock-count" data-tab-count="${panel.id}" hidden></b></button>`).join('')}${SIDE_TOOLS.map((tool) => `<button class="dock-button dock-tool" data-action="${tool.action}" aria-label="${tool.label}" aria-haspopup="dialog">${tool.icon}</button>`).join('')}</nav>
         </section>
 
         <div class="panel-modal-backdrop" data-overlay-dismiss="panel" role="presentation">
         <aside class="action-sidepanel">
-          <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div></div>
+          <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div><div class="sidepanel-tools">${SIDE_TOOLS.map((tool) => `<button data-action="${tool.action}" aria-label="${tool.label}" aria-haspopup="dialog">${tool.icon}</button>`).join('')}</div></div>
           <div class="panel-modal-heading"><div><small data-ui="panel-sheet-eyebrow"></small><h2 data-ui="panel-sheet-title"></h2></div><button data-action="close-panel-sheet" aria-label="Bereich schließen">×</button></div>
           <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${PANELS.map((panel) => `<button data-panel="${panel.id}" role="tab"><span>${panel.label}</span><b class="tab-count" data-tab-count="${panel.id}" hidden></b></button>`).join('')}</div>
           <div class="side-content" data-ui="deck-content"></div>
