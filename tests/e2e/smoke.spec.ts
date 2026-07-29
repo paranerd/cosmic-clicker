@@ -1669,6 +1669,37 @@ test('every dock button opens its own popup with its own heading', async ({ page
   await expect(sheet).toBeHidden();
 });
 
+test('mobile overlays all stretch to the same inset as the area popups', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoGame(page);
+
+  const insets = async (selector: string): Promise<number[]> => page.evaluate((target) => {
+    const box = document.querySelector(target)!.getBoundingClientRect();
+    return [box.top, window.innerWidth - box.right, window.innerHeight - box.bottom, box.left].map(Math.round);
+  }, selector);
+
+  await page.locator('[data-dock-panel="reactions"]').click();
+  const area = await insets('.action-sidepanel');
+  await page.locator('.panel-modal-heading button').click();
+
+  await page.locator('[data-action="open-settings"]').click();
+  const settings = await insets('.settings-modal');
+  await page.locator('[data-action="close-settings"]').click();
+
+  await page.locator('[data-action="open-chronicle"]').click();
+  const chronicle = await insets('.chronicle-modal');
+  await page.locator('[data-action="close-chronicle"]').click();
+
+  await page.locator('[data-action="open-objective"]').click();
+  const objective = await insets('.objective-modal');
+
+  // Auf dem Desktop zentrieren sich die Modale auf ihren Inhalt; mobil füllen
+  // sie die Fläche und lassen unten notfalls Raum frei.
+  for (const measured of [area, settings, chronicle, objective]) {
+    expect(measured).toEqual([20, 20, 20, 20]);
+  }
+});
+
 test('desktop keeps the column heading and tabs, without the mobile popup chrome', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoGame(page);

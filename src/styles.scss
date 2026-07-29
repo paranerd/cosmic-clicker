@@ -785,7 +785,9 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .upgrade-grid { grid-template-columns: 1fr; }
   .upgrade-layout, .legacy-layout, .chronicle-layout { grid-template-columns: 1fr; }
   .chronicle-layout { margin: -26px -30px -30px; }
-  .chronicle-modal .chronicle-layout { height: auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  // flex: 1, damit der Inhalt die gestreckte Höhe des Modals ausfüllt statt
+  // oben zu kleben.
+  .chronicle-modal .chronicle-layout { flex: 1; height: auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .chronicle-modal .timeline-card { overflow: visible; }
   .chronicle-modal .log-card { height: min(420px, calc(100vh - 100px)); min-height: 260px; }
   .upgrade-card p { min-height: 0; }
@@ -820,11 +822,20 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .chamber-settings { bottom: calc(14px + var(--dock-height)); }
   .chamber-tools { bottom: calc(58px + var(--dock-height)); }
 
-  // Die Bereiche erscheinen im Bild der übrigen Modale: abgedunkelter,
-  // weichgezeichneter Grund, darauf ein gerahmter Kasten mit Kopfzeile und
-  // Schließen-Kreuz. Werte bewusst gleich denen von .modal-backdrop; nur der
-  // z-index liegt tiefer, damit die echten Modale und die Tutorial-Karte (45)
-  // weiterhin darüber liegen. Das untere Polster hält den Kasten von der
+  // Mobil nimmt jedes Overlay die volle Fläche ein und lässt notfalls unten
+  // Raum frei, statt auf seinen Inhalt zu schrumpfen. Die fünf Modale mit
+  // gemeinsamer Regel sind bereits Flex-Spalten mit scrollendem Rumpf und
+  // derselben Maximalhöhe — sie füllen die Fläche dadurch von selbst.
+  .modal-backdrop { place-items: stretch; }
+  // Das Intro hat als einziges Overlay keinen eigenen Scrollbereich; gestreckt
+  // würde langer Text sonst unter overflow: hidden abgeschnitten.
+  .intro-modal { overflow-y: auto; overscroll-behavior: contain; }
+
+  // Die Bereiche erscheinen im selben Bild: abgedunkelter, weichgezeichneter
+  // Grund, darauf ein gerahmter Kasten mit Kopfzeile und Schließen-Kreuz.
+  // Werte bewusst gleich denen von .modal-backdrop; nur der z-index liegt
+  // tiefer, damit die echten Modale und die Tutorial-Karte (45) weiterhin
+  // darüber liegen. Das untere Polster hält den Kasten von der
   // iOS-Home-Anzeige frei.
   .panel-modal-backdrop { display: none; position: fixed; z-index: 36; inset: 0; place-items: stretch; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); background: rgba(2,5,9,.82); backdrop-filter: blur(12px); }
   .panel-modal-backdrop:has(.action-sidepanel.is-open) { display: grid; }
