@@ -25,7 +25,7 @@ import {
 } from '../game/engine';
 import { syncDebug } from './debug';
 import { formatEnergy, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, temperatureScale } from './format';
-import { isWarningsOpen, setWarningsOpen } from './menus';
+import { isCloudInfoOpen, isWarningsOpen, setCloudInfoOpen, setWarningsOpen } from './menus';
 import { markOpportunitiesSeen, syncCycleEndNotice, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
 import { syncOverlay } from './overlay';
 import { app, getActivePanel, getState, setActivePanel, type Panel } from './store';
@@ -80,10 +80,6 @@ export function renderShell(): void {
             <div class="metric-grid"><div class="metric"><span>Sternmasse${knowledgeButton('starMass')}</span><b data-ui="mass"></b><small>ME</small></div><div class="metric"><span>Kerndruck${knowledgeButton('corePressure')}</span><b data-ui="pressure"></b><small>% Zünddruck</small></div><div class="metric energy-metric" data-tutorial="energy"><span>Energie${knowledgeButton('energy')}</span><b data-ui="energy"></b><small>MeV</small></div><div class="metric"><span>Akkretion${knowledgeButton('accretion')}</span><b data-ui="accretion-rate"></b><small>ME / Sek.</small></div></div>
             <div class="composition" data-tutorial="core-composition"><div class="section-label"><span>Kernzusammensetzung</span></div><div class="matter-elements core-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><p><b>${RESOURCES[key].label}</b><strong data-ui="${key}-value"></strong></p></div>`).join('')}</div></div>
           </section>
-          <section class="data-panel cloud-panel" data-ui="cloud-panel" data-tutorial="matter-reservoir">
-            <div class="panel-heading cloud-panel-heading"><span class="index">01B</span><div><small>Materiereservoir</small><h2 data-ui="cloud-name">Urwolke</h2></div></div>
-            <div class="cloud-stats"><div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div><div class="cloud-mini-gauge"><i class="gauge-ring"></i><b data-ui="cloud-percent"></b></div></div><div data-tutorial="cloud-composition"><div class="section-label cloud-composition-label"><span>Zusammensetzung</span></div><div class="matter-elements cloud-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-cloud-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><p><b>${RESOURCES[key].label}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div></div>
-          </section>
         </aside>
 
         <section class="star-chamber">
@@ -101,6 +97,17 @@ export function renderShell(): void {
             <b data-ui="chamber-objective-percent"></b>
           </button>
           <button class="chamber-settings settings-button" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button>
+          <div class="cloud-corner" data-ui="cloud-panel">
+            <button class="cloud-toggle" data-action="toggle-cloud-info" aria-label="Informationen zur Urwolke anzeigen" aria-expanded="false" aria-haspopup="true">
+              <i class="cloud-gauge-ring"></i><b data-ui="cloud-percent"></b>
+            </button>
+            <section class="cloud-popover" data-tutorial="matter-reservoir" aria-label="Informationen zur Urwolke">
+              <span class="cloud-popover-kicker">Materiereservoir</span>
+              <h2 data-ui="cloud-name">Urwolke</h2>
+              <div class="cloud-summary"><div><span>Restmaterie</span><b data-ui="cloud-mass"></b><small data-ui="cloud-initial"></small></div></div>
+              <div data-tutorial="cloud-composition"><div class="section-label cloud-composition-label"><span>Zusammensetzung</span></div><div class="matter-elements cloud-elements">${DISPLAY_MATTER_KEYS.map((key) => `<div data-cloud-matter="${key}"><span class="element ${RESOURCES[key].className}">${RESOURCES[key].symbol}</span><p><b>${RESOURCES[key].label}</b><strong data-ui="cloud-${key}"></strong></p></div>`).join('')}</div></div>
+            </section>
+          </div>
           <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
         </section>
 
@@ -302,7 +309,10 @@ export function updateUI(forcePanel = false): void {
   const stageChanged = state.stage !== lastStage;
 
   const cloudPanel = uiElement('cloud-panel');
-  if (cloudPanel) cloudPanel.hidden = remaining <= .001;
+  if (cloudPanel) {
+    cloudPanel.hidden = remaining <= .001;
+    if (remaining <= .001 && isCloudInfoOpen()) setCloudInfoOpen(false);
+  }
 
   setText('chamber-objective-percent', `${formatNumber(objective.progress, 1)}%`);
   setWidth('chamber-objective-bar', objective.progress);
@@ -345,8 +355,8 @@ export function updateUI(forcePanel = false): void {
   chamber?.style.setProperty('--auto-accretion-duration', `${Math.max(1.45, 3.2 - state.automation.accretion * .2)}s`);
   chamber?.classList.toggle('has-auto-accretion', state.automation.accretion > 0 && !state.completed && remaining > 0);
   setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Hier klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken, um Materie einzusammeln');
-  const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatMatter(remaining)} ME`); setText('cloud-initial', `von ${formatMatter(initialCloud)} ME`); app.querySelector<HTMLElement>('.gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
-  // Punkt 4: Warnsymbol unten rechts in der Star Chamber, sobald mindestens
+  const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatMatter(remaining)} ME`); setText('cloud-initial', `von ${formatMatter(initialCloud)} ME`); app.querySelector<HTMLElement>('.cloud-gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
+  // Punkt 4: Warnsymbol links unten in der Star Chamber, sobald mindestens
   // eine Warnung aktiv ist; das Popover listet alle aktiven Warnungen samt
   // aktueller Verlustrate.
   const warnings = activeWarnings(state);
