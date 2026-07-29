@@ -5,11 +5,13 @@ import { app, getState } from './store';
 let fullResetArmed = false;
 let resetTimer = 0;
 let warningsOpen = false;
+let cloudInfoOpen = false;
 let prestigeConfirmationArmed = false;
 let prestigeConfirmationTimer = 0;
 
 export const isFullResetArmed = (): boolean => fullResetArmed;
 export const isWarningsOpen = (): boolean => warningsOpen;
+export const isCloudInfoOpen = (): boolean => cloudInfoOpen;
 export const isPrestigeConfirmationArmed = (): boolean => prestigeConfirmationArmed;
 
 export function closeResetMenu(): void {
@@ -27,9 +29,20 @@ export function armFullReset(): void {
 
 // Punkt 4: Popover mit allen aktiven Warnungen am Warnsymbol der Star Chamber.
 export function setWarningsOpen(open: boolean): void {
+  if (open) setCloudInfoOpen(false);
   warningsOpen = open;
   app.querySelector('.warning-corner')?.classList.toggle('is-open', open);
   app.querySelector('[data-action="toggle-warnings"]')?.setAttribute('aria-expanded', String(open));
+}
+
+// Die Urwolken-Details teilen sich den linken unteren Aktionsbereich mit den
+// Warnungen. Es kann immer nur eines der beiden Popover geöffnet sein, damit
+// sie sich auf kleinen Displays nicht überlagern.
+export function setCloudInfoOpen(open: boolean): void {
+  if (open) setWarningsOpen(false);
+  cloudInfoOpen = open;
+  app.querySelector('.cloud-corner')?.classList.toggle('is-open', open);
+  app.querySelector('[data-action="toggle-cloud-info"]')?.setAttribute('aria-expanded', String(open));
 }
 
 export function hasAffordableSummaryPerk(): boolean {

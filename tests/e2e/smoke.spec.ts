@@ -80,7 +80,14 @@ test('player can accrete matter and see the stellar data update', async ({ page 
   await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute('href', '/cosmic-clicker/favicon.svg');
   await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/cosmic-clicker/apple-touch-icon.png');
   await expect(page.getByRole('heading', { name: 'Stellarer Kern' })).toBeVisible();
-  await expect(page.getByText('Urwolke', { exact: true }).first()).toBeVisible();
+  const cloudInfo = page.locator('[data-ui="cloud-panel"]');
+  await expect(cloudInfo).toBeVisible();
+  await expect(cloudInfo.locator('.cloud-popover')).not.toBeVisible();
+  await cloudInfo.getByRole('button', { name: 'Informationen zur Urwolke anzeigen' }).click();
+  await expect(cloudInfo.locator('.cloud-popover')).toBeVisible();
+  await expect(cloudInfo.getByText('Kleine Urwolke', { exact: true })).toBeVisible();
+  await page.locator('.chamber-resources').click({ position: { x: 5, y: 5 }, force: true });
+  await expect(cloudInfo.locator('.cloud-popover')).not.toBeVisible();
   await expect(page.locator('[data-ui="temperature"]')).toHaveText('10 K');
   const chamberResources = page.getByRole('region', { name: 'Ressourcen' });
   await expect(chamberResources).toBeVisible();
@@ -185,14 +192,18 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await page.waitForTimeout(4_800);
   await expect(achievement).toBeVisible();
   await expect(achievement).toHaveCount(0);
-  // Aktive Warnungen erscheinen nicht mehr im Urwolken-Panel, sondern im
-  // gegenüberliegenden linken Eck der Star Chamber mit Popover.
+  // Aktive Warnungen stehen über dem Urwolken-Ring in der linken Ecke der
+  // Star Chamber und öffnen weiterhin ihr eigenes Popover.
   const warningCorner = page.locator('[data-ui="warning-corner"]');
   await expect(warningCorner).toBeVisible();
   const warningPopover = page.locator('.warning-popover');
+  const cloudPopover = page.locator('.cloud-popover');
   await expect(warningPopover).not.toBeVisible();
+  await page.getByRole('button', { name: 'Informationen zur Urwolke anzeigen' }).click();
+  await expect(cloudPopover).toBeVisible();
   await page.getByRole('button', { name: 'Aktive Warnungen anzeigen' }).click();
   await expect(warningPopover).toBeVisible();
+  await expect(cloudPopover).not.toBeVisible();
   await expect(warningPopover).toContainText('Sternwind aktiv');
   await expect(warningPopover).toContainText('ME/s');
   const warningBox = (await warningCorner.boundingBox())!;
@@ -200,7 +211,7 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   const settingsBox = (await page.getByRole('button', { name: 'Einstellungen öffnen' }).boundingBox())!;
   expect(warningBox.x - chamberBox.x).toBe(14);
   expect(warningBox.x + warningBox.width).toBeLessThanOrEqual(settingsBox.x);
-  expect(warningBox.y).toBe(settingsBox.y);
+  expect(settingsBox.y - warningBox.y).toBe(44);
   await page.locator('.star-button').click({ position: { x: 10, y: 10 }, force: true });
   await expect(warningPopover).not.toBeVisible();
 });
@@ -244,36 +255,33 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.locator('.action-sidepanel')).toContainText('Kontrollzentrum');
   await expect(page.getByText('Automatische Akkretion', { exact: true })).toHaveCount(0);
   const cloudPanel = page.locator('[data-ui="cloud-panel"]');
+  const cloudPopover = cloudPanel.locator('.cloud-popover');
   const coreComposition = page.locator('.core-elements');
   await expect(coreComposition.locator('[data-matter="hydrogen"]')).toContainText('Wasserstoff');
   await expect(coreComposition.locator('[data-matter="hydrogen"]')).toContainText('ME');
   await expect(coreComposition.locator('.mini-track')).toHaveCount(0);
   await expect(coreComposition).toHaveCSS('grid-template-columns', /\d+(?:\.\d+)?px \d+(?:\.\d+)?px/);
-  await expect(cloudPanel).toContainText('Kleine Urwolke');
-  await expect(cloudPanel).toContainText('Zusammensetzung');
-  await expect(cloudPanel.locator('.cloud-elements')).toHaveCSS('grid-template-columns', /\d+(?:\.\d+)?px \d+(?:\.\d+)?px/);
-  const panelFlow = await page.locator('.left-panel').evaluate((leftPanel) => {
-    const core = leftPanel.querySelector('.core-panel')?.getBoundingClientRect();
-    const cloud = leftPanel.querySelector('.cloud-panel')?.getBoundingClientRect();
-    const left = leftPanel.getBoundingClientRect();
-    return {
-      sectionGap: core && cloud ? cloud.top - core.bottom : Number.NaN,
-      spaceBelowCloud: cloud ? left.bottom - cloud.bottom : Number.NaN,
-    };
-  });
-  expect(Math.abs(panelFlow.sectionGap)).toBeLessThanOrEqual(1);
-  expect(panelFlow.spaceBelowCloud).toBeGreaterThan(12);
-  await expect(page.locator('.cloud-mini-gauge [data-ui="cloud-percent"]')).toHaveText('100%');
+  await expect(page.locator('.left-panel .cloud-panel')).toHaveCount(0);
+  await expect(cloudPanel.locator('[data-ui="cloud-percent"]')).toHaveText('100%');
+  const cloudBox = (await cloudPanel.boundingBox())!;
+  const chamberBox = (await page.locator('.star-chamber').boundingBox())!;
+  expect(cloudBox.x - chamberBox.x).toBe(14);
+  expect(chamberBox.y + chamberBox.height - cloudBox.y - cloudBox.height).toBe(14);
+  await cloudPanel.getByRole('button', { name: 'Informationen zur Urwolke anzeigen' }).click();
+  await expect(cloudPopover).toBeVisible();
+  await expect(cloudPopover).toContainText('Kleine Urwolke');
+  await expect(cloudPopover).toContainText('Zusammensetzung');
+  await expect(cloudPopover.locator('.cloud-elements')).toHaveCSS('grid-template-columns', /\d+(?:\.\d+)?px \d+(?:\.\d+)?px/);
   // The smallest cloud now shares the same realistic primordial composition
   // as every other cloud size (~75 % H, ~25 % He, a small D trace) instead of
   // a hydrogen-only special case.
-  await expect(page.locator('[data-cloud-matter="hydrogen"]')).toContainText('7.867');
-  await expect(page.locator('[data-cloud-matter="helium"]')).toBeVisible();
-  await expect(page.locator('[data-cloud-matter="helium"]')).toContainText('2.622');
+  await expect(cloudPopover.locator('[data-cloud-matter="hydrogen"]')).toContainText('7.867');
+  await expect(cloudPopover.locator('[data-cloud-matter="helium"]')).toBeVisible();
+  await expect(cloudPopover.locator('[data-cloud-matter="helium"]')).toContainText('2.622');
   // Deuterium is intentionally never shown in the composition grid
   // (RESOURCES.deuterium.visibleInComposition is false), independent of the
   // cloud's actual composition.
-  await expect(page.locator('[data-cloud-matter="deuterium"]')).toHaveCount(0);
+  await expect(cloudPopover.locator('[data-cloud-matter="deuterium"]')).toHaveCount(0);
   await expect(page.locator('.chronicle-dock')).toBeVisible();
   await expect(page.locator('.star-chamber .orbit')).toHaveCount(0);
   await expect.poll(() => page.locator('.star-chamber').evaluate((element) => [
@@ -529,7 +537,7 @@ test('new players can complete and resume the interactive tutorial', async ({ pa
   await expect(tutorial).toContainText('Der kosmische Baustoff');
   const cloudComposition = page.locator('[data-tutorial="cloud-composition"]');
   await expect(cloudComposition).toHaveClass(/tutorial-focus/);
-  await expect(page.locator('.cloud-panel')).toHaveCSS('overflow-y', 'visible');
+  await expect(page.locator('.cloud-popover')).toBeVisible();
   await expectTutorialFrameInsideViewport(page);
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   await expect(tutorial).toContainText('Dein erster Akkretionsimpuls');

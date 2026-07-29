@@ -54,8 +54,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .data-panel { padding: 30px; background: linear-gradient(180deg, rgba(12,18,29,.5), rgba(8,13,22,.35)); }
 .left-panel { min-height: 0; border-right: 1px solid $line; background: linear-gradient(180deg, rgba(12,18,29,.5), rgba(8,13,22,.35)); }
 .core-panel { background: none; }
-.cloud-panel { border-top: 1px solid $line; background: rgba(8,13,22,.28); }
-.cloud-panel[hidden] { display: none; }
 .right-panel { border-left: 1px solid $line; }
 .panel-heading { display: flex; align-items: center; gap: 13px; margin-bottom: 30px; }
 .panel-heading .index { color: rgba($cyan, .35); font-family: ui-monospace, monospace; font-size: 10px; }
@@ -96,16 +94,11 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .element.ne { color: #dc9cff; border-color: rgba(#c979f4,.48); background: rgba(#c979f4,.08); }
 .element.si { color: #e9b784; border-color: rgba(#d99b60,.48); background: rgba(#d99b60,.08); }
 .element.fe { color: #d38b72; border-color: rgba(#c66c54,.5); background: rgba(#c66c54,.09); }
-.cloud-panel-heading { margin-bottom: 22px; }
-.cloud-stats { margin: 0; padding: 0; border: 0; }
-.cloud-summary { display: grid; grid-template-columns: 1fr 42px; align-items: center; }
-.cloud-summary > div:first-child { display: flex; flex-direction: column; }
+.cloud-summary { margin-top: 12px; }
+.cloud-summary > div { display: flex; flex-direction: column; }
 .cloud-summary span { color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .08em; }
 .cloud-summary b { margin-top: 2px; font-family: ui-monospace,monospace; font-size: 15px; font-weight: 400; }
 .cloud-summary small { color: #536176; font-size: 7px; }
-.cloud-mini-gauge { width: 35px; height: 35px; position: relative; display: grid; place-items: center; }
-.cloud-mini-gauge .gauge-ring { position: absolute; inset: 0; display: block; width: 35px; height: 35px; padding: 0; background: conic-gradient($cyan var(--remaining), rgba(255,255,255,.06) 0); -webkit-mask: radial-gradient(circle, transparent 52%, #000 55%); mask: radial-gradient(circle, transparent 52%, #000 55%); }
-.cloud-mini-gauge b { position: relative; z-index: 1; color: #b7dfe2; font-family: ui-monospace,monospace; font-size: 6px; font-weight: 500; }
 .cloud-composition-label { margin: 20px 0 10px; }
 .matter-elements { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px 12px; }
 .matter-elements > div { min-width: 0; display: grid; grid-template-columns: 27px 1fr; gap: 8px; align-items: center; }
@@ -160,14 +153,24 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .click-callout:not(:disabled) { pointer-events: auto; cursor: pointer; }
 .click-callout:not(:disabled):hover span, .click-callout:not(:disabled):focus-visible span { color: #ffd193; text-shadow: 0 0 12px rgba($orange,.5); }
 .click-callout:focus-visible { outline: 1px solid rgba($amber,.55); outline-offset: 7px; }
-// Settings sitzt dauerhaft unten rechts. Aktive Warnungen erhalten den
-// gegenüberliegenden Eckplatz ganz links, damit sie nicht wie ein zweiter
-// Settings-Schalter wirken.
+// Settings sitzt dauerhaft unten rechts. Urwolke und aktive Warnungen teilen
+// sich die gegenüberliegende linke Ecke.
 .chamber-settings { width: 34px; height: 34px; padding: 0; position: absolute; right: 14px; bottom: 14px; z-index: 30; display: grid; place-items: center; border: 1px solid $line; border-radius: 50%; background: rgba(8,13,22,.84); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .chamber-settings svg { width: 15px; height: 15px; display: block; }
 .chamber-settings:hover, .chamber-settings:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 .chamber-settings.tutorial-settings-access { z-index: 46; pointer-events: auto; }
-.warning-corner { position: absolute; left: 14px; bottom: 14px; z-index: 30; }
+.cloud-corner { position: absolute; left: 14px; bottom: 14px; z-index: 30; }
+.cloud-corner[hidden] { display: none; }
+.cloud-toggle { width: 34px; height: 34px; padding: 0; position: relative; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(8,13,22,.84); color: #b7dfe2; cursor: pointer; transition: background .2s ease, filter .2s ease; }
+.cloud-toggle:hover, .cloud-toggle:focus-visible { background: rgba($cyan,.08); filter: brightness(1.18); }
+.cloud-gauge-ring { position: absolute; inset: 0; display: block; border-radius: 50%; background: conic-gradient($cyan var(--remaining), rgba(255,255,255,.08) 0); -webkit-mask: radial-gradient(circle, transparent 52%, #000 55%); mask: radial-gradient(circle, transparent 52%, #000 55%); }
+.cloud-toggle b { position: relative; z-index: 1; font-family: ui-monospace,monospace; font-size: 6px; font-weight: 500; }
+.cloud-popover { width: 265px; padding: 14px; position: absolute; z-index: 40; left: 0; bottom: 44px; visibility: hidden; opacity: 0; transform: translateY(5px); border: 1px solid rgba($cyan,.28); background: rgba(8,13,22,.98); box-shadow: 0 18px 45px rgba(0,0,0,.45); transition: .18s ease; text-align: left; }
+.cloud-corner.is-open .cloud-popover,
+.cloud-corner:has(.tutorial-focus) .cloud-popover { visibility: visible; opacity: 1; transform: translateY(0); }
+.cloud-popover-kicker { display: block; color: $cyan; font-size: 7px; letter-spacing: .14em; text-transform: uppercase; }
+.cloud-popover h2 { margin: 3px 0 0; font-family: Georgia,serif; font-size: 18px; font-weight: 400; }
+.warning-corner { position: absolute; left: 14px; bottom: 58px; z-index: 30; }
 .warning-toggle { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba($amber,.45); border-radius: 50%; background: rgba($amber,.09); color: $amber; cursor: pointer; transition: .2s; animation: warning-pulse 2.6s ease-in-out infinite; }
 .warning-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .warning-toggle:hover { background: rgba($amber,.16); border-color: rgba($amber,.7); }
@@ -672,6 +675,8 @@ footer button:hover { color: $cyan; }
 .tutorial-secondary { color: $muted; }
 .tutorial-focus { position: relative; z-index: 43; outline: 0; filter: none; }
 .tutorial-focus::after { content: ""; position: absolute; z-index: 20; inset: calc(-1 * var(--tutorial-frame-padding, 12px)); border: 1px solid rgba($cyan,.72); box-shadow: 0 0 32px rgba($cyan,.2); pointer-events: none; }
+.cloud-corner:has(.tutorial-focus) { z-index: 43; }
+.cloud-popover.tutorial-focus { position: absolute; z-index: 43; }
 .chamber-objective-progress.tutorial-focus { position: absolute; z-index: 4; }
 .star-button.tutorial-focus { z-index: 43; }
 .star-button.tutorial-focus::after { border-radius: 50%; box-shadow: 0 0 45px rgba($cyan,.25); }
@@ -721,8 +726,6 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .metric-grid { margin-bottom: 7px; }
   .metric { min-height: 48px; padding: 5px 9px; }
   .composition .section-label { margin-bottom: 6px; }
-  .cloud-panel { padding-top: 12px; padding-bottom: 12px; }
-  .cloud-panel-heading { margin-bottom: 8px; }
   .cloud-composition-label { margin: 9px 0 5px; }
   .matter-elements { gap: 5px 10px; }
   .cloud-gauge { padding-bottom: 13px; }
