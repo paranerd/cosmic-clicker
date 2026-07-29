@@ -24,7 +24,7 @@ import {
   starMass,
 } from '../game/engine';
 import { syncDebug } from './debug';
-import { formatEnergy, formatMatter, formatNumber, formatRate, formatSolarMasses, formatTemperature, icons, temperatureScale } from './format';
+import { formatEnergy, formatMatter, formatNumber, formatRate, formatTemperature, icons, temperatureScale } from './format';
 import { isCloudInfoOpen, isWarningsOpen, setCloudInfoOpen, setWarningsOpen } from './menus';
 import { markOpportunitiesSeen, syncCycleEndNotice, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
 import { syncOverlay } from './overlay';
@@ -35,17 +35,14 @@ import {
   automationVisible,
   currentOpportunities,
   knowledgeButton,
-  logMarkup,
   orderedUpgradeCards,
   panelMarkup,
   reactionView,
   tileButtonInner,
-  timelineMarkup,
   upgradeOrderSignature,
 } from './views';
 
 let lastStage = getState().stage;
-let lastLogSignature = '';
 let lastUpgradeOrderSignature = '';
 let lastDynamicPanelSignature = '';
 const uiElements = new Map<string, HTMLElement>();
@@ -68,7 +65,6 @@ function rememberPanelStructure(panel: Panel): void {
 }
 
 export function renderShell(): void {
-  const state = getState();
   app.innerHTML = `
     <div class="cosmos" aria-hidden="true"><div class="stars stars-a"></div><div class="stars stars-b"></div><div class="nebula-glow"></div></div>
     <main>
@@ -96,7 +92,6 @@ export function renderShell(): void {
             <span class="chamber-progress-track"><i data-ui="chamber-objective-bar"></i></span>
             <b data-ui="chamber-objective-percent"></b>
           </button>
-          <button class="chamber-settings settings-button" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button>
           <div class="cloud-corner" data-ui="cloud-panel">
             <button class="cloud-toggle" data-action="toggle-cloud-info" aria-label="Informationen zur Urwolke anzeigen" aria-expanded="false" aria-haspopup="true">
               <i class="cloud-gauge-ring"></i><b data-ui="cloud-percent"></b>
@@ -112,13 +107,17 @@ export function renderShell(): void {
         </section>
 
         <aside class="action-sidepanel">
-          <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div></div>
+          <div class="sidepanel-heading">
+            <div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div>
+            <div class="sidepanel-tools">
+              <button data-action="open-chronicle" aria-label="Chronik öffnen" aria-haspopup="dialog">${icons.stats}</button>
+              <button class="settings-button" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button>
+            </div>
+          </div>
           <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${([['reactions','Reaktionen'],['upgrades','Upgrades'],['automation','Automationen'],['perks','Perks']] as [Panel,string][]).map(([panel,label])=>`<button data-panel="${panel}" role="tab"><span>${label}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</div>
           <div class="side-content" data-ui="deck-content"></div>
         </aside>
       </section>
-
-      <section class="chronicle-dock" role="button" tabindex="0" aria-label="Chronik öffnen"><div class="dock-timeline"><div class="section-label"><span>Stellare Entwicklung</span><small>${cloudDefinition(state.cloudTier).shortName.toUpperCase()} · ≈ ${formatSolarMasses(cloudDefinition(state.cloudTier).solarMasses)}</small></div><div class="timeline" data-ui="dock-timeline">${timelineMarkup()}</div></div><div class="dock-log"><div class="section-label"><span>Sternenlogbuch</span><small>LIVE</small></div><div class="log-list" data-ui="dock-log">${logMarkup(2)}</div></div><span class="chronicle-expand" aria-hidden="true">↗</span></section>
     </main>
 
     <footer><span>COSMIC CLICKER · PROTOTYP 0.3</span><p>Wissenschaftlich plausibel · spielerisch komprimiert</p></footer>
@@ -286,17 +285,6 @@ function syncActivePanel(): void {
   }
 }
 
-function syncChronicleDock(): void {
-  const state = getState();
-  const signature = `${state.stage}:${state.log.map((entry) => entry.id).join(',')}`;
-  if (signature === lastLogSignature) return;
-  const timeline = app.querySelector<HTMLElement>('[data-ui="dock-timeline"]');
-  const logList = app.querySelector<HTMLElement>('[data-ui="dock-log"]');
-  if (timeline) timeline.innerHTML = timelineMarkup();
-  if (logList) logList.innerHTML = logMarkup(2);
-  lastLogSignature = signature;
-}
-
 export function updateUI(forcePanel = false): void {
   const state = getState();
   const activePanel = getActivePanel();
@@ -384,7 +372,7 @@ export function updateUI(forcePanel = false): void {
   const currentDynamicPanelSignature = dynamicPanelSignature(activePanel);
   const dynamicPanelChanged = currentDynamicPanelSignature !== lastDynamicPanelSignature;
   if (forcePanel || stageChanged || upgradeOrderChanged || dynamicPanelChanged) { const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(activePanel); lastStage = state.stage; lastUpgradeOrderSignature = currentUpgradeOrder; lastDynamicPanelSignature = currentDynamicPanelSignature; }
-  syncNotifications(); syncActivePanel(); syncChronicleDock(); syncOverlay(); syncCycleEndNotice(); syncTutorial(); syncToast();
+  syncNotifications(); syncActivePanel(); syncOverlay(); syncCycleEndNotice(); syncTutorial(); syncToast();
   if (import.meta.hot) syncDebug();
 }
 

@@ -85,7 +85,6 @@ app.addEventListener('click', (event) => {
   const insideCloudCorner = target.closest('.cloud-corner');
   if (isWarningsOpen() && !insideWarningCorner) setWarningsOpen(false);
   if (isCloudInfoOpen() && !insideCloudCorner) setCloudInfoOpen(false);
-  if (target.closest('.chronicle-dock')) { setChronicleOpen(true); advanceTutorial('open-chronicle'); return; }
   if (target.dataset.overlayDismiss === 'chronicle') { setChronicleOpen(false); return; }
   if (target.dataset.overlayDismiss === 'stats') { setStatsOpen(false); return; }
   if (target.dataset.overlayDismiss === 'settings') { setSettingsOpen(false); return; }
@@ -160,15 +159,6 @@ app.addEventListener('click', (event) => {
   }
   if (action === 'export') exportSave();
   if (action === 'import') document.querySelector<HTMLInputElement>('#save-import')?.click();
-});
-
-app.addEventListener('keydown', (event) => {
-  if (event.key !== 'Enter' && event.key !== ' ') return;
-  const dock = (event.target as HTMLElement).closest<HTMLElement>('.chronicle-dock');
-  if (!dock) return;
-  event.preventDefault();
-  setChronicleOpen(true);
-  advanceTutorial('open-chronicle');
 });
 
 // Escape schließt einen offenen Wissenseintrag, die Zielanzeige oder die

@@ -208,10 +208,8 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await expect(warningPopover).toContainText('ME/s');
   const warningBox = (await warningCorner.boundingBox())!;
   const chamberBox = (await page.locator('.star-chamber').boundingBox())!;
-  const settingsBox = (await page.getByRole('button', { name: 'Einstellungen öffnen' }).boundingBox())!;
   expect(warningBox.x - chamberBox.x).toBe(14);
-  expect(warningBox.x + warningBox.width).toBeLessThanOrEqual(settingsBox.x);
-  expect(settingsBox.y - warningBox.y).toBe(44);
+  expect(warningBox.y).toBeGreaterThan(chamberBox.y);
   await page.locator('.star-button').click({ position: { x: 10, y: 10 }, force: true });
   await expect(warningPopover).not.toBeVisible();
 });
@@ -282,7 +280,11 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   // (RESOURCES.deuterium.visibleInComposition is false), independent of the
   // cloud's actual composition.
   await expect(cloudPopover.locator('[data-cloud-matter="deuterium"]')).toHaveCount(0);
-  await expect(page.locator('.chronicle-dock')).toBeVisible();
+  await expect(page.locator('.chronicle-dock')).toHaveCount(0);
+  const sidepanelTools = page.locator('.action-sidepanel .sidepanel-tools');
+  await expect(sidepanelTools.getByRole('button')).toHaveCount(2);
+  await expect(sidepanelTools.getByRole('button', { name: 'Chronik öffnen' })).toBeVisible();
+  await expect(sidepanelTools.getByRole('button', { name: 'Einstellungen öffnen' })).toBeVisible();
   await expect(page.locator('.star-chamber .orbit')).toHaveCount(0);
   await expect.poll(() => page.locator('.star-chamber').evaluate((element) => [
     getComputedStyle(element, '::before').content,
@@ -305,16 +307,11 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   expect(dimensions.documentHeight).toBeLessThanOrEqual(dimensions.viewportHeight);
   expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
 
-  const widths = await page.evaluate(() => ({
-    sidepanel: document.querySelector('.action-sidepanel')?.getBoundingClientRect().width ?? 0,
-    log: document.querySelector('.dock-log')?.getBoundingClientRect().width ?? 0,
-  }));
-  expect(Math.abs(widths.sidepanel - widths.log)).toBeLessThanOrEqual(1);
 });
 
-test('chronicle expands from the persistent bottom dock', async ({ page }) => {
+test('chronicle opens from the control-center button', async ({ page }) => {
   await gotoGame(page);
-  await page.getByRole('button', { name: 'Chronik öffnen' }).locator('.dock-log').click();
+  await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   const chronicle = page.getByRole('dialog', { name: 'Lebenswege der Sterne' });
   await expect(chronicle).toBeVisible();
   // Punkt 3: Die Timeline zeigt nur den Stand bis jetzt (frisches Spiel =
@@ -363,9 +360,7 @@ test('chronicle shows runtime timestamps and only entries from the current cycle
     ],
   });
   await gotoGame(page);
-  const dockLog = page.locator('[data-ui="dock-log"]');
-  await expect(dockLog).toContainText('Zweiter Zyklus gestartet.');
-  await expect(dockLog).not.toContainText('Erster Zyklus abgeschlossen.');
+  await expect(page.locator('[data-ui="dock-log"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Chronik öffnen' }).click();
   const chronicle = page.getByRole('dialog', { name: 'Lebenswege der Sterne' });
 
@@ -428,18 +423,21 @@ test('the chamber progress is the only persistent objective display and opens a 
   await context.close();
 });
 
-test('header is removed and settings occupies the round lower-right chamber control', async ({ page }) => {
+test('header is removed and chronicle and settings sit next to each other in the control center', async ({ page }) => {
   await gotoGame(page);
   await expect(page.locator('header')).toHaveCount(0);
   await expect(page.locator('.mission-strip')).toHaveCount(0);
 
+  const tools = page.locator('.action-sidepanel .sidepanel-tools');
+  const chronicleButton = tools.getByRole('button', { name: 'Chronik öffnen' });
   const settingsButton = page.getByRole('button', { name: 'Einstellungen öffnen' });
-  const chamberBox = (await page.locator('.star-chamber').boundingBox())!;
-  const settingsBox = await settingsButton.boundingBox();
-  expect(settingsBox).not.toBeNull();
-  expect(chamberBox.x + chamberBox.width - (settingsBox!.x + settingsBox!.width)).toBe(14);
-  expect(chamberBox.y + chamberBox.height - (settingsBox!.y + settingsBox!.height)).toBe(14);
-  await expect(settingsButton).toHaveCSS('border-radius', '50%');
+  await expect(page.locator('.star-chamber .settings-button')).toHaveCount(0);
+  await expect(chronicleButton).toBeVisible();
+  await expect(settingsButton).toBeVisible();
+  const chronicleBox = (await chronicleButton.boundingBox())!;
+  const settingsBox = (await settingsButton.boundingBox())!;
+  expect(settingsBox.x - (chronicleBox.x + chronicleBox.width)).toBe(5);
+  expect(settingsBox.y).toBe(chronicleBox.y);
 
   await settingsButton.click();
   await expect(page.getByRole('dialog', { name: 'Einstellungen' })).toBeVisible();
@@ -1507,7 +1505,7 @@ test('modal utility buttons share the same translucent hover treatment', async (
   expect(await hoverStyle(page.getByRole('button', { name: 'Chronik schließen' }))).toEqual(settingsStyle);
 });
 
-test('mobile cockpit stacks star, actions, stats and chronicle without horizontal overflow', async ({ page }) => {
+test('mobile cockpit stacks star, actions and stats without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoGame(page);
   await expect(page.getByRole('button', { name: 'Materie einsammeln' })).toHaveCSS('touch-action', 'manipulation');
@@ -1520,7 +1518,6 @@ test('mobile cockpit stacks star, actions, stats and chronicle without horizonta
       star: star ? { x: star.x, y: star.y, width: star.width, height: star.height } : null,
       actions: document.querySelector('.action-sidepanel')?.getBoundingClientRect().top ?? 0,
       stats: document.querySelector('.left-panel')?.getBoundingClientRect().top ?? 0,
-      chronicle: document.querySelector('.chronicle-dock')?.getBoundingClientRect().top ?? 0,
       documentWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
     };
@@ -1536,8 +1533,9 @@ test('mobile cockpit stacks star, actions, stats and chronicle without horizonta
       - (positions.chamber!.y + positions.chamber!.height / 2),
   )).toBeLessThanOrEqual(1);
   expect(positions.actions).toBeLessThan(positions.stats);
-  expect(positions.stats).toBeLessThan(positions.chronicle);
   expect(positions.documentWidth).toBeLessThanOrEqual(positions.viewportWidth);
+  await expect(page.locator('.chronicle-dock')).toHaveCount(0);
+  await expect(page.locator('.action-sidepanel').getByRole('button', { name: 'Chronik öffnen' })).toBeVisible();
 });
 
 test('restart uses an inline confirmation instead of a browser dialog', async ({ page }) => {

@@ -153,12 +153,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .click-callout:not(:disabled) { pointer-events: auto; cursor: pointer; }
 .click-callout:not(:disabled):hover span, .click-callout:not(:disabled):focus-visible span { color: #ffd193; text-shadow: 0 0 12px rgba($orange,.5); }
 .click-callout:focus-visible { outline: 1px solid rgba($amber,.55); outline-offset: 7px; }
-// Settings sitzt dauerhaft unten rechts. Urwolke und aktive Warnungen teilen
-// sich die gegenüberliegende linke Ecke.
-.chamber-settings { width: 34px; height: 34px; padding: 0; position: absolute; right: 14px; bottom: 14px; z-index: 30; display: grid; place-items: center; border: 1px solid $line; border-radius: 50%; background: rgba(8,13,22,.84); color: $muted; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
-.chamber-settings svg { width: 15px; height: 15px; display: block; }
-.chamber-settings:hover, .chamber-settings:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
-.chamber-settings.tutorial-settings-access { z-index: 46; pointer-events: auto; }
 .cloud-corner { position: absolute; left: 14px; bottom: 14px; z-index: 30; }
 .cloud-corner[hidden] { display: none; }
 .cloud-toggle { width: 34px; height: 34px; padding: 0; position: relative; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(8,13,22,.84); color: #b7dfe2; cursor: pointer; transition: background .2s ease, filter .2s ease; }
@@ -228,8 +222,9 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .sidepanel-heading h2 { margin: 2px 0 0; font-family: Georgia,serif; font-size: 18px; font-weight: 400; }
 .sidepanel-tools { display: flex; gap: 5px; }
 .sidepanel-tools button { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid $line; background: transparent; color: $muted; cursor: pointer; transition: .18s ease; }
-.sidepanel-tools button:hover { color: $text; border-color: rgba($cyan,.45); background: rgba($cyan,.07); }
+.sidepanel-tools button:hover, .sidepanel-tools button:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 .sidepanel-tools svg { width: 14px; height: 14px; }
+.sidepanel-tools .tutorial-settings-access { z-index: 46; pointer-events: auto; }
 .side-tabs { height: 44px; display: grid; grid-template-columns: repeat(4,1fr); padding: 0 14px; border-top: 1px solid $line; border-bottom: 1px solid $line; }
 .side-tabs button { min-width: 0; position: relative; display: flex; gap: 4px; align-items: center; justify-content: center; border: 0; border-bottom: 2px solid transparent; background: transparent; color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; transition: color .18s ease, border-color .18s ease, background-color .18s ease; }
 .side-tabs button.active { color: $text; border-bottom-color: $cyan; }
@@ -391,24 +386,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .danger-action:hover, .danger-action.is-armed { color: #1b0b09; border-color: #db715f; background: #db715f; }
 .chronicle-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); margin: -26px -30px -30px; }
 .chronicle-layout .timeline-card, .chronicle-layout .log-card { min-height: 250px; }
-.chronicle-dock { min-height: 116px; position: relative; display: grid; grid-template-columns: minmax(0,1fr) var(--action-panel-width); border-bottom: 1px solid $line; background: rgba(7,11,18,.72); overflow: hidden; cursor: pointer; transition: background .2s ease, border-color .2s ease; }
-.chronicle-dock:hover, .chronicle-dock:focus-visible { border-bottom-color: rgba($cyan,.28); background: rgba(10,17,27,.86); }
-.chronicle-dock:focus-visible { outline: 2px solid $cyan; outline-offset: -2px; }
-.dock-timeline, .dock-log { min-width: 0; padding: 13px 22px; }
-.dock-timeline { border-right: 1px solid $line; }
-.chronicle-dock .section-label { margin-bottom: 5px; }
-.chronicle-dock .timeline { margin: 0; }
-.chronicle-dock .timeline::before { top: 11px; }
-.chronicle-dock .timeline-node { width: 95px; flex-direction: row; gap: 6px; text-align: left; }
-.chronicle-dock .timeline-node > i { width: 23px; height: 23px; flex: 0 0 auto; }
-.chronicle-dock .timeline-node span { margin-top: 0; }
-.chronicle-dock .timeline-node small { display: none; }
-.chronicle-dock .log-list { gap: 4px; }
-.chronicle-dock .log-entry { padding-bottom: 4px; }
-.chronicle-dock .log-entry p { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.chronicle-expand { position: absolute; right: 10px; top: 8px; width: 25px; height: 25px; display: grid; place-items: center; border: 1px solid $line; background: rgba($cyan,.035); color: $cyan; }
-.chronicle-dock:hover .chronicle-expand { border-color: rgba($cyan,.45); background: rgba($cyan,.09); }
-
 .bottom-grid { display: grid; grid-template-columns: 2fr 1fr; border-bottom: 1px solid $line; }
 .timeline-card, .log-card { padding: 28px 30px; }
 .timeline-card { border-right: 1px solid $line; }
@@ -719,7 +696,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 
 @media (min-width: 1101px) and (min-height: 800px) {
   html, body, #app { height: 100%; overflow: hidden; }
-  main { --action-panel-width: clamp(330px,28vw,360px); height: 100vh; display: grid; grid-template-rows: minmax(420px, 1fr) 116px; }
+  main { --action-panel-width: clamp(330px,28vw,360px); height: 100vh; display: grid; grid-template-rows: minmax(420px, 1fr); }
   .stellar-lab { grid-template-columns: minmax(300px, 325px) minmax(390px, 1fr) var(--action-panel-width); }
   .stellar-lab, .star-chamber { min-height: 0; }
   .data-panel { padding: 14px 18px; overflow: hidden; }
@@ -782,9 +759,6 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .chronicle-layout .timeline-card { border-right: 0; border-bottom: 1px solid $line; }
   .evolution-map { grid-template-columns: 1fr; }
   .massive-branches { grid-template-columns: 1fr; }
-  .chronicle-dock { grid-template-columns: 1fr; min-height: 0; }
-  .dock-timeline { border-right: 0; border-bottom: 1px solid $line; }
-  .dock-log { padding-right: 45px; }
   .summary-perk-grid { grid-template-columns: 1fr; }
   .summary-actions { grid-template-columns: 1fr; }
   .run-stat-grid { grid-template-columns: repeat(2,1fr); }
