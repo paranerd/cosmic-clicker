@@ -1051,7 +1051,11 @@ test('tabs count unseen opportunities, flash on unlock and clear when opened', a
 
   await unlockedAutomationTab.click();
   await expect(page.getByRole('tab', { name: 'Automationen' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('[data-tab-count="automation"]')).toBeHidden();
+  // Denselben Zähler tragen der Tab und der Dock-Knopf; beide müssen leeren.
+  await expect(page.locator('[data-tab-count="automation"]')).toHaveCount(2);
+  for (const counter of await page.locator('[data-tab-count="automation"]').all()) {
+    await expect(counter).toBeHidden();
+  }
 });
 
 test('active accretion automation continuously streams particles into the star', async ({ page }) => {
@@ -1523,10 +1527,10 @@ test('modal utility buttons share the same translucent hover treatment', async (
   expect(await hoverStyle(page.getByRole('button', { name: 'Chronik schließen' }))).toEqual(settingsStyle);
 });
 
-// Das mobile Cockpit passt auf eine Bildschirmhöhe: Kammer und Kartenliste
-// teilen sich den Platz, gescrollt wird nur noch innerhalb der Liste.
+// Mobil gehört der Bildschirm der Sternkammer. Alles andere wird über das
+// Dock am unteren Rand aufgerufen und legt sich als Popup darüber.
 for (const device of [{ name: 'iPhone 14', width: 390, height: 844 }, { name: 'iPhone SE', width: 375, height: 667 }]) {
-  test(`mobile cockpit fits one screen on ${device.name}`, async ({ page }) => {
+  test(`mobile chamber fills the screen above the dock on ${device.name}`, async ({ page }) => {
     await page.setViewportSize({ width: device.width, height: device.height });
     await gotoGame(page);
     await expect(page.getByRole('button', { name: 'Materie einsammeln' })).toHaveCSS('touch-action', 'manipulation');
@@ -1542,8 +1546,11 @@ for (const device of [{ name: 'iPhone 14', width: 390, height: 844 }, { name: 'i
         chamber: rect('.star-chamber'),
         star: rect('.star-button'),
         stageLabel: rect('.stage-label'),
-        actions: rect('.action-sidepanel'),
-        content: document.querySelector('.side-content'),
+        dock: rect('.chamber-dock'),
+        objective: rect('.chamber-objective-progress'),
+        settings: rect('.chamber-settings'),
+        dockButtons: document.querySelectorAll('.dock-button').length,
+        sheetVisible: Boolean(document.querySelector('.action-sidepanel')?.checkVisibility()),
         chronicleDockVisible: Boolean(document.querySelector('.chronicle-dock')?.checkVisibility()),
         coreSheetVisible: Boolean(document.querySelector('.left-panel')?.checkVisibility()),
         documentWidth: document.documentElement.scrollWidth,
@@ -1553,27 +1560,74 @@ for (const device of [{ name: 'iPhone 14', width: 390, height: 844 }, { name: 'i
       };
     });
 
-    expect(layout.chamber).not.toBeNull();
-    expect(layout.star).not.toBeNull();
+    // Die Kammer nimmt den ganzen Bildschirm ein, und die Seite scrollt nicht.
     expect(layout.chamber!.width).toBe(layout.viewportWidth);
-
-    // Der Kern der Umstellung: weder waagerecht noch senkrecht scrollt die Seite.
+    expect(layout.chamber!.height).toBe(layout.viewportHeight);
     expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
     expect(layout.documentHeight).toBeLessThanOrEqual(layout.viewportHeight);
 
-    // Kammer und Kartenliste teilen sich den Bildschirm, statt zu stapeln.
-    expect(layout.actions!.top).toBeGreaterThan(layout.chamber!.top);
-    expect(layout.actions!.bottom).toBeLessThanOrEqual(layout.viewportHeight + 1);
+    // Das Dock sitzt als Overlay am unteren Rand der Kammer, mit allen vier Bereichen.
+    expect(layout.dockButtons).toBe(4);
+    expect(layout.dock!.bottom).toBe(layout.viewportHeight);
+    expect(layout.dock!.width).toBe(layout.viewportWidth);
 
-    // Der Stern schrumpft mit der Kammer, statt in das Stadium-Label zu wachsen.
+    // Zielbalken und Ecktasten rücken über das Dock, statt darunter zu geraten.
+    expect(layout.objective!.bottom).toBeLessThanOrEqual(layout.dock!.top);
+    expect(layout.settings!.bottom).toBeLessThanOrEqual(layout.dock!.top);
+
+    // Der Stern bleibt zwischen Stadium-Label und Dock.
     expect(layout.star!.top).toBeGreaterThanOrEqual(layout.stageLabel!.bottom);
-    expect(layout.star!.bottom).toBeLessThanOrEqual(layout.chamber!.bottom);
+    expect(layout.star!.bottom).toBeLessThanOrEqual(layout.dock!.top);
 
-    // Kerndaten und Chronik sind mobil hinter Knöpfe gewandert.
-    expect(layout.chronicleDockVisible).toBe(false);
+    // Kontrollzentrum, Kerndaten und Chronik erscheinen erst auf Anforderung.
+    expect(layout.sheetVisible).toBe(false);
     expect(layout.coreSheetVisible).toBe(false);
+    expect(layout.chronicleDockVisible).toBe(false);
   });
 }
+
+test('mobile dock opens each area as a popup over the chamber', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoGame(page);
+
+  const sheet = page.locator('.action-sidepanel');
+  await expect(sheet).toBeHidden();
+
+  // Ein Dock-Knopf öffnet das Popup und wählt gleich den passenden Bereich.
+  await page.locator('[data-dock-panel="upgrades"]').click();
+  await expect(sheet).toBeVisible();
+  await expect(page.locator('.side-tabs [data-panel="upgrades"]')).toHaveClass(/active/);
+
+  // Im Popup lässt sich der Bereich wechseln, ohne es zu schließen.
+  await page.locator('.side-tabs [data-panel="automation"]').click();
+  await expect(sheet).toBeVisible();
+  await expect(page.locator('.side-tabs [data-panel="automation"]')).toHaveClass(/active/);
+
+  // Das Popup hängt am unteren Rand und lässt die Kammer oben stehen — die
+  // Statuszeile bleibt sichtbar, damit der Zustand des Sterns ablesbar ist.
+  // Bei langen Listen darf es bis über den Stern reichen.
+  const overlap = await page.evaluate(() => {
+    const sheetBox = document.querySelector('.action-sidepanel')!.getBoundingClientRect();
+    return {
+      sheetTop: sheetBox.top,
+      sheetBottom: sheetBox.bottom,
+      resourcesBottom: document.querySelector('.chamber-resources')!.getBoundingClientRect().bottom,
+      viewportHeight: window.innerHeight,
+    };
+  });
+  expect(overlap.sheetBottom).toBe(overlap.viewportHeight);
+  expect(overlap.sheetTop).toBeGreaterThan(overlap.resourcesBottom);
+  expect(overlap.sheetTop).toBeGreaterThanOrEqual(overlap.viewportHeight * 0.22);
+
+  await page.locator('.panel-sheet-close').click();
+  await expect(sheet).toBeHidden();
+
+  // Auch ein Tipp neben das Popup schließt es.
+  await page.locator('[data-dock-panel="perks"]').click();
+  await expect(sheet).toBeVisible();
+  await page.locator('.panel-sheet-backdrop').click({ position: { x: 10, y: 10 } });
+  await expect(sheet).toBeHidden();
+});
 
 test('mobile core data opens as a sheet and the card list scrolls on its own', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -1602,7 +1656,8 @@ test('mobile core data opens as a sheet and the card list scrolls on its own', a
   await expect(page.getByRole('dialog', { name: 'Lebenswege der Sterne' })).toBeVisible();
   await page.locator('[data-action="close-chronicle"]').click();
 
-  // Die Kartenliste ist der einzige Scrollbereich der Ansicht.
+  // Gescrollt wird innerhalb der Kartenliste im Popup, nie in der Seite.
+  await page.locator('[data-dock-panel="reactions"]').click();
   const scrolled = await page.locator('.side-content').evaluate((element) => {
     element.scrollTop = 200;
     return { scrollTop: element.scrollTop, pageOffset: window.scrollY };

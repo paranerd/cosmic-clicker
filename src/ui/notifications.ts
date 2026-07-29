@@ -130,12 +130,12 @@ export function markOpportunitiesSeen(panel: Panel, opportunities: Record<Panel,
 }
 
 function flashUnlockedTab(panel: Panel): void {
-  const button = app.querySelector<HTMLButtonElement>(`[data-panel="${panel}"]`);
-  if (!button) return;
-  button.classList.remove('unlock-flash');
-  void button.offsetWidth;
-  button.classList.add('unlock-flash');
-  button.addEventListener('animationend', () => button.classList.remove('unlock-flash'), { once: true });
+  app.querySelectorAll<HTMLButtonElement>(`[data-panel="${panel}"]`).forEach((button) => {
+    button.classList.remove('unlock-flash');
+    void button.offsetWidth;
+    button.classList.add('unlock-flash');
+    button.addEventListener('animationend', () => button.classList.remove('unlock-flash'), { once: true });
+  });
 }
 
 export function syncNotifications(): void {
@@ -156,15 +156,15 @@ export function syncNotifications(): void {
   }, { reactions: [], upgrades: [], automation: [], perks: [] });
 
   markOpportunitiesSeen(activePanel, opportunities);
+  // Jeder Bereich hat zwei Schaltflächen: den Tab im Seitenpanel und den
+  // Dock-Knopf in der Sternkammer. Beide tragen denselben Zähler.
   (Object.keys(opportunities) as Panel[]).forEach((panel) => {
-    const button = app.querySelector<HTMLButtonElement>(`[data-panel="${panel}"]`);
-    const count = app.querySelector<HTMLElement>(`[data-tab-count="${panel}"]`);
     const unreadCount = panel === activePanel ? 0 : opportunities[panel].filter((key) => !state.seenOpportunities.includes(key)).length;
-    button?.classList.toggle('has-notice', unreadCount > 0);
-    if (count) {
+    app.querySelectorAll<HTMLButtonElement>(`[data-panel="${panel}"]`).forEach((button) => button.classList.toggle('has-notice', unreadCount > 0));
+    app.querySelectorAll<HTMLElement>(`[data-tab-count="${panel}"]`).forEach((count) => {
       count.textContent = unreadCount ? String(unreadCount) : '';
       count.hidden = unreadCount === 0;
-    }
+    });
   });
 
   if (newlyUnlocked.length) {

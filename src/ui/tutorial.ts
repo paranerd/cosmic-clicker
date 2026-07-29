@@ -2,7 +2,7 @@ import { LEGACY_TUTORIAL_STEP_ID_ALIASES, LEGACY_TUTORIAL_STEP_IDS, TUTORIAL_STE
 import { canBuyAutomation, canBuyUpgrade } from '../game/engine';
 import { saveGame } from '../game/storage';
 import { tutorialResumeStepIndex } from '../game/tutorial-progress';
-import { isCoreDataOpen, setCoreDataOpen } from './menus';
+import { isCoreDataOpen, isPanelSheetOpen, setCoreDataOpen, setPanelSheetOpen } from './menus';
 import { markCurrentObjectiveSeen, showToast } from './notifications';
 import { invalidateOverlay, syncOverlay } from './overlay';
 import { app, getActivePanel, getState } from './store';
@@ -132,13 +132,16 @@ function tutorialTarget(step: TutorialStep): Element | null {
   return step.selector ? app.querySelector(step.selector) : null;
 }
 
-// Zwei Schritte zeigen auf die Kerndaten, die im mobilen Layout hinter einer
-// Blende liegen. Entschieden wird beim Schrittwechsel, nicht bei jedem
-// Sync-Tick — sonst ließe sich die Blende während des Tutorials nicht mehr
-// von Hand öffnen oder schließen.
-function syncTutorialCoreSheet(target: Element | null): void {
+// Im mobilen Layout liegen Kerndaten und Kontrollzentrum hinter Blenden.
+// Zeigt ein Schritt dorthin, muss die passende offen sein, bevor der
+// Fokusrahmen gesetzt wird. Entschieden wird beim Schrittwechsel, nicht bei
+// jedem Sync-Tick — sonst ließen sich die Blenden während des Tutorials nicht
+// mehr von Hand öffnen oder schließen.
+function syncTutorialSheets(target: Element | null): void {
   const needsCoreSheet = Boolean(target?.closest('.left-panel'));
+  const needsPanelSheet = Boolean(target?.closest('.action-sidepanel'));
   if (needsCoreSheet !== isCoreDataOpen()) setCoreDataOpen(needsCoreSheet);
+  if (needsPanelSheet !== isPanelSheetOpen()) setPanelSheetOpen(needsPanelSheet);
 }
 
 function revealTutorialTarget(target: Element): void {
@@ -236,7 +239,7 @@ export function syncTutorial(): void {
   const signature = `step:${step.id}:confirm:${tutorialEndConfirmation}`;
   if (signature !== tutorialSignature) {
     tutorialSignature = signature;
-    syncTutorialCoreSheet(target);
+    syncTutorialSheets(target);
     if (target) revealTutorialTarget(target);
     const normalInteraction = step.trigger.type === 'action'
       ? `<small class="tutorial-hint">${step.trigger.hint}</small>`

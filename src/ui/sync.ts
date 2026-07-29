@@ -44,6 +44,10 @@ import {
   upgradeOrderSignature,
 } from './views';
 
+// Dieselben vier Bereiche erscheinen zweimal: als Tabs im Seitenpanel und —
+// im mobilen Layout — als Dock am unteren Rand der Sternkammer.
+const PANEL_TABS: [Panel, string][] = [['reactions', 'Reaktionen'], ['upgrades', 'Upgrades'], ['automation', 'Automationen'], ['perks', 'Perks']];
+
 let lastStage = getState().stage;
 let lastLogSignature = '';
 let lastUpgradeOrderSignature = '';
@@ -114,11 +118,13 @@ export function renderShell(): void {
             </section>
           </div>
           <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
+          <nav class="chamber-dock" aria-label="Kontrollbereiche">${PANEL_TABS.map(([panel, label]) => `<button class="dock-button" data-panel="${panel}" data-dock-panel="${panel}" aria-haspopup="dialog"><span>${label}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</nav>
         </section>
 
+        <div class="panel-sheet-backdrop" data-action="close-panel-sheet" aria-hidden="true"></div>
         <aside class="action-sidepanel">
-          <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div></div>
-          <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${([['reactions','Reaktionen'],['upgrades','Upgrades'],['automation','Automationen'],['perks','Perks']] as [Panel,string][]).map(([panel,label])=>`<button data-panel="${panel}" role="tab"><span>${label}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</div>
+          <div class="sidepanel-heading"><div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div><button class="panel-sheet-close" data-action="close-panel-sheet" aria-label="Bereich schließen">${icons.chevron}</button></div>
+          <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${PANEL_TABS.map(([panel, label]) => `<button data-panel="${panel}" role="tab"><span>${label}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</div>
           <div class="side-content" data-ui="deck-content"></div>
         </aside>
       </section>
@@ -395,7 +401,9 @@ export function updateUI(forcePanel = false): void {
 
 export function switchPanel(panel: Panel, markSeen = true): void {
   setActivePanel(panel);
-  app.querySelectorAll<HTMLButtonElement>('[data-panel]').forEach((button) => { const active = button.dataset.panel === panel; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
+  // aria-selected gehört nur an die echten Tabs; die Dock-Knöpfe sind
+  // Auslöser für ein Popup, keine Tabs.
+  app.querySelectorAll<HTMLButtonElement>('[data-panel]').forEach((button) => { const active = button.dataset.panel === panel; button.classList.toggle('active', active); if (button.getAttribute('role') === 'tab') button.setAttribute('aria-selected', String(active)); });
   const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(panel);
   // Der nächste UI-Tick darf das soeben gerenderte Panel nicht direkt erneut
   // ersetzen. Andernfalls zeigen die gespeicherten Signaturen noch auf den

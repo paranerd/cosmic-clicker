@@ -7,6 +7,7 @@ let resetTimer = 0;
 let warningsOpen = false;
 let cloudInfoOpen = false;
 let coreDataOpen = false;
+let panelSheetOpen = false;
 let prestigeConfirmationArmed = false;
 let prestigeConfirmationTimer = 0;
 
@@ -14,14 +15,24 @@ export const isFullResetArmed = (): boolean => fullResetArmed;
 export const isWarningsOpen = (): boolean => warningsOpen;
 export const isCloudInfoOpen = (): boolean => cloudInfoOpen;
 export const isCoreDataOpen = (): boolean => coreDataOpen;
+export const isPanelSheetOpen = (): boolean => panelSheetOpen;
 
 // Im mobilen Vollbild-Layout liegt der Kerndaten-Bereich als Blende über der
 // Sternkammer, statt unter ihr im Seitenfluss zu hängen. Auf breiten Displays
 // ist die Klasse wirkungslos — dort steht die Spalte ohnehin dauerhaft.
 export function setCoreDataOpen(open: boolean): void {
   coreDataOpen = open;
+  if (open) setPanelSheetOpen(false);
   app.querySelector('.left-panel')?.classList.toggle('is-open', open);
   app.querySelector('[data-action="toggle-core-data"]')?.setAttribute('aria-expanded', String(open));
+}
+
+// Dasselbe Prinzip für die vier Bereiche des Kontrollzentrums: Auf dem Desktop
+// steht die Spalte fest, mobil öffnet das Dock sie als Popup über der Kammer.
+export function setPanelSheetOpen(open: boolean): void {
+  panelSheetOpen = open;
+  app.classList.toggle('panel-sheet-open', open);
+  app.querySelector('.action-sidepanel')?.classList.toggle('is-open', open);
 }
 export const isPrestigeConfirmationArmed = (): boolean => prestigeConfirmationArmed;
 

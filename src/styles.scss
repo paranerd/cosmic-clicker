@@ -165,7 +165,21 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .chamber-tool { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid $line; border-radius: 50%; background: rgba(8,13,22,.84); color: $muted; cursor: pointer; touch-action: manipulation; transition: color .2s ease, border-color .2s ease, background .2s ease; }
 .chamber-tool svg { width: 15px; height: 15px; display: block; }
 .chamber-tool:hover, .chamber-tool:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
-.core-sheet-close { display: none; }
+.core-sheet-close, .panel-sheet-close, .panel-sheet-backdrop { display: none; }
+// Dock am unteren Rand der Sternkammer — nur im mobilen Layout sichtbar.
+// Die Höhe steckt in einer Variablen, weil die übrigen Bedienelemente der
+// Kammer sich an ihr ausrichten.
+.star-chamber { --dock-height: 0px; }
+.chamber-dock { display: none; height: var(--dock-height); position: absolute; z-index: 30; right: 0; bottom: 0; left: 0; grid-template-columns: repeat(4, 1fr); padding-bottom: env(safe-area-inset-bottom, 0px); border-top: 1px solid $line; background: rgba(8,13,22,.92); backdrop-filter: blur(10px); }
+// Das Dock ist mobil die einzige Navigation — etwas größer und heller als die
+// Tabs im Seitenpanel, die auf dem Desktop nur eine von mehreren Flächen sind.
+.dock-button { min-width: 0; position: relative; display: flex; gap: 5px; align-items: center; justify-content: center; padding: 0 2px; border: 0; background: transparent; color: rgba($text,.72); font-size: 8px; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; touch-action: manipulation; transition: color .18s ease, background-color .18s ease; }
+.dock-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dock-button:active { color: $text; background: rgba($cyan,.06); }
+.dock-button.has-notice { color: rgba($text,.85); }
+.dock-button.unlock-flash { animation: tabUnlockFlash 1.25s ease-out; }
+.panel-sheet-close { width: 34px; height: 34px; padding: 0; place-items: center; border: 1px solid $line; border-radius: 50%; background: transparent; color: $muted; cursor: pointer; }
+.panel-sheet-close svg { width: 17px; height: 17px; }
 // Die Fußzeile entfällt im mobilen Vollbild-Layout; ihr Text steht dann hier.
 .settings-colophon { margin: 0; padding: 16px 0 4px; border-top: 1px solid $line; color: #4e5a6a; font-size: 8px; line-height: 1.7; letter-spacing: .1em; text-align: center; }
 .cloud-corner { position: absolute; left: 14px; bottom: 14px; z-index: 30; }
@@ -768,30 +782,47 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 }
 
 @media (max-width: 780px) {
-  // Eine Bildschirmhöhe statt vier: main wird zur festen Hülle, die Seite
-  // selbst scrollt nicht mehr. Der einzige Scrollbereich ist die Kartenliste
-  // im Panel — sieben Reaktionen und acht Automationen passen auf kein
-  // Telefon, ohne sie unlesbar zu stauchen.
+  // Die Sternkammer bekommt den ganzen Bildschirm; alles andere wird von ihr
+  // aus aufgerufen. Die Seite selbst scrollt nicht mehr — gescrollt wird nur
+  // innerhalb der Blenden.
   html, body { height: 100%; overflow: hidden; }
   body { min-height: 0; }
   main { width: 100%; height: 100svh; height: 100dvh; display: grid; grid-template-rows: minmax(0,1fr); }
-  .stellar-lab { min-height: 0; grid-template-columns: 1fr; grid-template-rows: minmax(0,1fr) auto; border-bottom: 0; }
-  // minmax(0,1fr) statt 1fr: sonst hält die Mindestgröße des Inhalts die
-  // Kammer auf und das Raster wächst doch wieder über den Bildschirm hinaus.
-  // Die Kammer ist jetzt variabel hoch statt volle Bildschirmhöhe. Stadium-
-  // Label, Klick-Hinweis und Zielbalken sitzen absolut an ihren Rändern; das
-  // Polster hält die Mitte frei, damit der Stern nicht in sie hineinwächst.
-  // Der Stern selbst folgt der Kammerhöhe statt einer festen Pixelgröße.
-  .star-chamber { min-height: 0; grid-row: 1; container-type: size; padding: 132px 0 96px; }
-  .star-button { --size: min(calc(140px + var(--star-scale) * 100px), 78cqh); }
-  .action-sidepanel { min-height: 0; max-height: 45dvh; grid-row: 2; grid-template-rows: auto minmax(0,1fr); border-left: 0; border-top: 1px solid $line; }
-  .sidepanel-heading { display: none; }
+  .stellar-lab { min-height: 0; grid-template-columns: 1fr; grid-template-rows: minmax(0,1fr); border-bottom: 0; }
+  // Das Polster hält die Mitte frei, damit der Stern nicht unter das Dock
+  // gerät: absolut positionierte Kinder ignorieren Padding, der in-flow
+  // zentrierte Stern nicht.
+  .star-chamber { --dock-height: 58px; min-height: 0; grid-row: 1; padding-bottom: var(--dock-height); }
   .side-content { padding: 16px 20px; overscroll-behavior: contain; }
   .chamber-tools { display: flex; }
   // Zeitstrahl und Logbuch sind schon auf dem Desktop nur eine Vorschau des
   // Chronik-Modals; mobil genügt der Knopf, der dasselbe Modal öffnet.
   .chronicle-dock { display: none; }
   footer { display: none; }
+
+  // Das Dock sitzt unter dem Zielbalken am Rand der Kammer. Die übrigen
+  // Bedienelemente rücken um seine Höhe nach oben.
+  .chamber-dock { display: grid; }
+  .chamber-objective-progress { bottom: calc(20px + var(--dock-height)); }
+  .click-callout { bottom: calc(70px + var(--dock-height)); }
+  .cloud-corner { bottom: calc(14px + var(--dock-height)); }
+  .warning-corner { bottom: calc(58px + var(--dock-height)); }
+  .chamber-settings { bottom: calc(14px + var(--dock-height)); }
+  .chamber-tools { bottom: calc(58px + var(--dock-height)); }
+
+  // Das Kontrollzentrum wird zum Popup über der Kammer. Wie bei den Kerndaten
+  // bewusst ohne Transform oder Opacity — beides erzeugt einen Stacking-
+  // Context, aus dem der Tutorial-Fokusrahmen nicht mehr über den Dimmer käme.
+  .panel-sheet-backdrop { display: none; position: fixed; z-index: 35; inset: 0; background: rgba(2,5,9,.6); }
+  .panel-sheet-open .panel-sheet-backdrop { display: block; }
+  // Deckender Grund: Die Panel-Farbe ist auf dem Desktop halbtransparent, weil
+  // sie dort auf dem Seitenhintergrund liegt. Als Popup über der Kammer würden
+  // Stern und Dock durchscheinen.
+  .action-sidepanel { display: none; position: fixed; z-index: 36; right: 0; bottom: 0; left: 0; max-height: 78dvh; border: 0; border-top: 1px solid rgba($cyan,.3); background: linear-gradient(180deg, rgba(12,18,29,.62), rgba(8,13,22,.42)), $bg; box-shadow: 0 -20px 60px rgba(0,0,0,.5); }
+  .action-sidepanel.is-open { display: grid; }
+  .action-sidepanel:has(.tutorial-focus) { z-index: 43; }
+  .sidepanel-heading { padding: 16px 18px 10px; }
+  .panel-sheet-close { display: grid; }
   // Kerndaten liegen als Blende über der Kammer. Bewusst ohne Transform oder
   // Opacity: beides erzeugt einen Stacking-Context, aus dem der Tutorial-
   // Fokusrahmen (z-index 43) nicht mehr über den Dimmer (42) käme.
@@ -837,20 +868,13 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .debug-panel { width: calc(100% - 24px); right: 12px; top: 74px; }
 }
 
-// Auf niedrigen Displays (iPhone SE und ähnlich) gibt die Kartenliste Höhe an
-// die Kammer zurück — sonst bleibt für den Stern kein tragfähiger Rest.
-@media (max-width: 780px) and (max-height: 720px) {
-  .action-sidepanel { max-height: 36dvh; }
-  .star-chamber { padding: 118px 0 88px; }
-}
-
 @media (max-width: 430px) {
   .chamber-resources { width: calc(100% - 16px); }
   .chamber-resource { padding-right: 3px; padding-left: 3px; }
   .chamber-resource span { font-size: 6px; letter-spacing: .06em; }
   .chamber-resource b { font-size: 20px; }
-  .click-callout { bottom: 62px; }
-  .chamber-objective-progress { width: min(180px, calc(100% - 128px)); bottom: 18px; }
+  .click-callout { bottom: calc(62px + var(--dock-height)); }
+  .chamber-objective-progress { width: min(180px, calc(100% - 128px)); bottom: calc(18px + var(--dock-height)); }
   .summary-modal { padding: 32px 20px; }
   .summary-modal h2 { font-size: 28px; }
   .summary-heading { grid-template-columns: 1fr; text-align: center; }

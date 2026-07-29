@@ -21,6 +21,7 @@ import {
   isWarningsOpen,
   setCloudInfoOpen,
   setCoreDataOpen,
+  setPanelSheetOpen,
   setWarningsOpen,
 } from './ui/menus';
 import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement, dismissCycleEndNotice, showToast } from './ui/notifications';
@@ -92,7 +93,9 @@ app.addEventListener('click', (event) => {
   if (target.dataset.overlayDismiss === 'settings') { setSettingsOpen(false); return; }
   if (target.dataset.overlayDismiss === 'knowledge') { setKnowledgeOpen(null); return; }
   if (target.dataset.overlayDismiss === 'objective') { setObjectiveOpen(false); return; }
-  const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); advanceTutorial('panel'); return; }
+  // Dock-Knöpfe wechseln nicht nur den Bereich, sie öffnen ihn auch: mobil ist
+  // das Kontrollzentrum ein Popup, das aus der Sternkammer heraus aufgerufen wird.
+  const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); if (panelButton.dataset.dockPanel) setPanelSheetOpen(true); advanceTutorial('panel'); return; }
   const button = target.closest<HTMLButtonElement>('[data-action]'); if (!button || button.disabled) return;
   const action = button.dataset.action; if (!action) return;
   if (action === 'start-intro-tutorial') { resolveIntro(true); return; }
@@ -113,6 +116,7 @@ app.addEventListener('click', (event) => {
   if (action === 'toggle-cloud-info') { setCloudInfoOpen(!isCloudInfoOpen()); return; }
   if (action === 'toggle-core-data') { setCoreDataOpen(!isCoreDataOpen()); return; }
   if (action === 'close-core-data') { setCoreDataOpen(false); return; }
+  if (action === 'close-panel-sheet') { setPanelSheetOpen(false); return; }
   // Wissensdatenbank: Der Eintrag steckt als data-knowledge am Erklär-Button,
   // die Texte kommen aus content/knowledge.ts — neue Erklärstellen brauchen
   // hier keine Änderung.
