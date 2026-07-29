@@ -1622,43 +1622,40 @@ test('every dock button opens its own popup with its own heading', async ({ page
     // useInnerText, weil textContent auch die ausgeblendete Spaltenüberschrift läse.
     await expect(sheet).not.toContainText('Sternsysteme', { useInnerText: true });
 
-    // Gleiches Bild wie Einstellungen und Chronik: abgedunkelter Grund, darauf
-    // ein zentrierter, gerahmter Kasten mit Schließen-Kreuz.
+    // Wie eine eigene Seite: füllt den Bildschirm ganz aus, in der Farbe der
+    // übrigen Modale und mit deren Kopfzeile samt Schließen-Kreuz.
     const shape = await page.evaluate(() => {
-      const backdropElement = document.querySelector('.panel-modal-backdrop')!;
       const modalElement = document.querySelector('.action-sidepanel')!;
-      const backdropStyle = getComputedStyle(backdropElement);
-      const modalStyle = getComputedStyle(modalElement);
-      const settingsStyle = getComputedStyle(document.querySelector('.modal-backdrop') ?? backdropElement);
-      const backdrop = backdropElement.getBoundingClientRect();
       const modal = modalElement.getBoundingClientRect();
+      const heading = document.querySelector('.panel-modal-heading')!.getBoundingClientRect();
       return {
-        backdropCoversViewport: backdrop.width === window.innerWidth && backdrop.height === window.innerHeight,
-        backdropColor: backdropStyle.backgroundColor,
-        backdropBlur: backdropStyle.backdropFilter,
-        modalBackground: modalStyle.backgroundColor,
-        centered: Math.abs((modal.left + modal.width / 2) - window.innerWidth / 2) <= 1,
-        inset: modal.top > 0 && modal.bottom < window.innerHeight,
-        settingsColor: settingsStyle.backgroundColor,
+        top: modal.top,
+        left: modal.left,
+        width: modal.width,
+        height: modal.height,
+        background: getComputedStyle(modalElement).backgroundColor,
+        headingAtTop: Math.abs(heading.top - modal.top) <= 1,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
       };
     });
-    expect(shape.backdropCoversViewport).toBe(true);
-    expect(shape.backdropColor).toBe('rgba(2, 5, 9, 0.82)');
-    expect(shape.backdropBlur).toBe('blur(12px)');
-    expect(shape.modalBackground).toBe('rgb(10, 16, 26)');
-    expect(shape.centered).toBe(true);
-    expect(shape.inset).toBe(true);
+    expect(shape.top).toBe(0);
+    expect(shape.left).toBe(0);
+    expect(shape.width).toBe(shape.viewportWidth);
+    expect(shape.height).toBe(shape.viewportHeight);
+    expect(shape.background).toBe('rgb(10, 16, 26)');
+    expect(shape.headingAtTop).toBe(true);
 
     await page.locator('.panel-modal-heading button').click();
     await expect(sheet).toBeHidden();
   }
 
-  // Ein Tipp auf den abgedunkelten Grund schließt, ein Tipp im Kasten nicht.
+  // Ein Tipp in die Seite schließt sie nicht — dafür ist das Kreuz da.
   await page.locator('[data-dock-panel="upgrades"]').click();
   await expect(sheet).toBeVisible();
   await page.locator('.panel-modal-heading h2').click();
   await expect(sheet).toBeVisible();
-  await page.locator('.panel-modal-backdrop').click({ position: { x: 6, y: 6 } });
+  await page.locator('.panel-modal-heading button').click();
   await expect(sheet).toBeHidden();
 });
 

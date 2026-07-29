@@ -803,7 +803,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   // gerät: absolut positionierte Kinder ignorieren Padding, der in-flow
   // zentrierte Stern nicht.
   .star-chamber { --dock-height: 72px; min-height: 0; grid-row: 1; padding-bottom: var(--dock-height); }
-  .side-content { padding: 16px 20px; overscroll-behavior: contain; }
+  .side-content { padding: 16px 20px calc(20px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
   .chamber-tools { display: flex; }
   // Zeitstrahl und Logbuch sind schon auf dem Desktop nur eine Vorschau des
   // Chronik-Modals; mobil genügt der Knopf, der dasselbe Modal öffnet.
@@ -820,18 +820,18 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .chamber-settings { bottom: calc(14px + var(--dock-height)); }
   .chamber-tools { bottom: calc(58px + var(--dock-height)); }
 
-  // Die Bereiche erscheinen als Modal im selben Bild wie Einstellungen und
-  // Chronik: abgedunkelter, weichgezeichneter Grund, gerahmter Kasten, Kopfzeile
-  // mit Schließen-Kreuz. Werte bewusst gleich denen von .modal-backdrop; nur der
-  // z-index liegt tiefer, damit die echten Modale und die Tutorial-Karte (45)
-  // weiterhin darüber liegen.
-  .panel-modal-backdrop { display: none; position: fixed; z-index: 36; inset: 0; place-items: center; padding: 20px; background: rgba(2,5,9,.82); backdrop-filter: blur(12px); }
+  // Die Bereiche übernehmen Kopfzeile und Farbe der übrigen Modale, füllen
+  // aber den ganzen Bildschirm — sie sollen wie eigene Seiten wirken, nicht
+  // wie ein Kasten auf der Kammer. place-items: stretch statt center, damit
+  // das Panel die Fläche wirklich einnimmt und unten notfalls leer bleibt.
+  // Der z-index liegt unter dem der echten Modale und der Tutorial-Karte (45).
+  .panel-modal-backdrop { display: none; position: fixed; z-index: 36; inset: 0; place-items: stretch; background: $bg; }
   .panel-modal-backdrop:has(.action-sidepanel.is-open) { display: grid; }
-  // Enthält das Modal das Tutorial-Ziel, muss es über den Dimmer (42).
+  // Enthält die Seite das Tutorial-Ziel, muss sie über den Dimmer (42).
   .panel-modal-backdrop:has(.tutorial-focus) { z-index: 43; }
   // Zwei Reihen statt drei, weil die Tabs entfallen — sonst bekäme die
   // Kartenliste eine automatische Höhe und liefe über, statt selbst zu scrollen.
-  .action-sidepanel { width: min(680px, 100%); max-height: calc(100dvh - 40px); grid-template-rows: auto minmax(0,1fr); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+  .action-sidepanel { max-height: none; grid-template-rows: auto minmax(0,1fr); border: 0; background: #0a101a; }
   // Vier eigenständige Popups: Die gemeinsame Spaltenüberschrift und die Tabs
   // entfallen, jedes Popup trägt den Namen seines Bereichs.
   .sidepanel-heading, .side-tabs { display: none; }
