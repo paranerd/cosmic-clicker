@@ -1622,29 +1622,39 @@ test('every dock button opens its own popup with its own heading', async ({ page
     // useInnerText, weil textContent auch die ausgeblendete Spaltenüberschrift läse.
     await expect(sheet).not.toContainText('Sternsysteme', { useInnerText: true });
 
-    // Wie eine eigene Seite: füllt den Bildschirm ganz aus, in der Farbe der
-    // übrigen Modale und mit deren Kopfzeile samt Schließen-Kreuz.
+    // Gerahmter Kasten mit sichtbarem Abstand nach außen, im Bild der übrigen
+    // Modale — der Kasten nimmt aber immer die volle Höhe ein.
     const shape = await page.evaluate(() => {
+      const backdropElement = document.querySelector('.panel-modal-backdrop')!;
       const modalElement = document.querySelector('.action-sidepanel')!;
+      const backdropStyle = getComputedStyle(backdropElement);
+      const modalStyle = getComputedStyle(modalElement);
       const modal = modalElement.getBoundingClientRect();
-      const heading = document.querySelector('.panel-modal-heading')!.getBoundingClientRect();
       return {
         top: modal.top,
         left: modal.left,
-        width: modal.width,
+        right: window.innerWidth - modal.right,
+        bottom: window.innerHeight - modal.bottom,
         height: modal.height,
-        background: getComputedStyle(modalElement).backgroundColor,
-        headingAtTop: Math.abs(heading.top - modal.top) <= 1,
-        viewportWidth: window.innerWidth,
+        background: modalStyle.backgroundColor,
+        borderWidth: modalStyle.borderTopWidth,
+        backdropColor: backdropStyle.backgroundColor,
+        backdropBlur: backdropStyle.backdropFilter,
         viewportHeight: window.innerHeight,
       };
     });
-    expect(shape.top).toBe(0);
-    expect(shape.left).toBe(0);
-    expect(shape.width).toBe(shape.viewportWidth);
-    expect(shape.height).toBe(shape.viewportHeight);
+    // Rundum Abstand, damit der Rahmen sichtbar bleibt.
+    expect(shape.top).toBe(20);
+    expect(shape.left).toBe(20);
+    expect(shape.right).toBe(20);
+    expect(shape.bottom).toBe(20);
+    expect(shape.borderWidth).toBe('1px');
     expect(shape.background).toBe('rgb(10, 16, 26)');
-    expect(shape.headingAtTop).toBe(true);
+    expect(shape.backdropColor).toBe('rgba(2, 5, 9, 0.82)');
+    expect(shape.backdropBlur).toBe('blur(12px)');
+    // Volle Höhe unabhängig vom Inhalt: für jeden der vier Bereiche derselbe
+    // Wert, obwohl die Listen unterschiedlich lang sind.
+    expect(shape.height).toBe(shape.viewportHeight - 40);
 
     await page.locator('.panel-modal-heading button').click();
     await expect(sheet).toBeHidden();
