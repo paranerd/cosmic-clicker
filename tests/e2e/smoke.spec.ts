@@ -769,13 +769,18 @@ test('the protostar achievement and its next objective remain visible during the
 });
 
 test('mobile tutorial centers its card, spotlights targets and scrolls them into view', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  // Bewusst niedrig: Die Kerndaten sind rund 525px hoch, erst darunter wird
+  // die Blende — in der das erste Tutorial-Ziel liegt — wirklich scrollbar.
+  // Genau dieses Scrollen prüft der Test weiter unten.
+  await page.setViewportSize({ width: 390, height: 480 });
   await page.goto('/');
   await page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
   const tutorial = page.getByRole('complementary', { name: 'Tutorial' });
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   const cardBox = await tutorial.boundingBox();
   expect(Math.abs(cardBox!.x + cardBox!.width / 2 - 195)).toBeLessThanOrEqual(1);
+  // Der Schritt zeigt auf die Kerndaten; mobil öffnet das Tutorial dafür die Blende.
+  await expect(page.locator('.left-panel')).toBeVisible();
   await expect(page.locator('.tutorial-blocker').first()).toHaveCSS('background-color', 'rgba(2, 5, 9, 0.82)');
   await expect(page.locator('.tutorial-highlight-shield')).toHaveCount(0);
   await expect(page.locator('.tutorial-inner-frame')).toHaveCount(0);
@@ -790,8 +795,19 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   // Der sichtbare Rahmen ist direkt am Ziel verankert. Dadurch bewegt er
   // sich auch beim compositor-gesteuerten mobilen Scrollen zusammen mit dem
   // Element; nur die unsichtbaren Ausschnittsgrenzen werden per JS angepasst.
-  const trackedBoxes = await page.evaluate(() => {
+  // Mobil scrollt nicht mehr die Seite, sondern die Kerndaten-Blende — der
+  // Fensterlistener fängt das über die Capture-Phase weiterhin ab.
+  // Das Einblenden des Ziels hat die Blende schon bewegt; gescrollt wird
+  // deshalb in die Richtung, in der noch Weg ist.
+  const sheetRange = await page.locator('.left-panel').evaluate((element) => ({
+    scrollTop: element.scrollTop,
+    scrollable: element.scrollHeight - element.clientHeight,
+  }));
+  expect(sheetRange.scrollable).toBeGreaterThanOrEqual(40);
+
+  const trackedBoxes = await page.evaluate((range) => {
     return new Promise<{ targetTop: number; frameTop: number; blockerBottom: number }>((resolve) => {
+      const sheet = document.querySelector<HTMLElement>('.left-panel')!;
       window.addEventListener('scroll', () => {
         const target = document.querySelector<HTMLElement>('.tutorial-focus')!;
         const targetRect = target.getBoundingClientRect();
@@ -803,9 +819,9 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
           blockerBottom: blocker.bottom,
         });
       }, { once: true, capture: true });
-      window.scrollBy(0, 60);
+      sheet.scrollBy(0, range.scrollTop > range.scrollable - 40 ? -40 : 40);
     });
-  });
+  }, sheetRange);
   expect(Math.abs(trackedBoxes.blockerBottom - trackedBoxes.frameTop)).toBeLessThanOrEqual(1);
   // Am Viewportrand darf der elementgebundene Rahmen innerhalb des Ziels
   // liegen. Entscheidend für scrollsynchrones Verhalten ist, dass die
@@ -1507,37 +1523,92 @@ test('modal utility buttons share the same translucent hover treatment', async (
   expect(await hoverStyle(page.getByRole('button', { name: 'Chronik schließen' }))).toEqual(settingsStyle);
 });
 
-test('mobile cockpit stacks star, actions, stats and chronicle without horizontal overflow', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await gotoGame(page);
-  await expect(page.getByRole('button', { name: 'Materie einsammeln' })).toHaveCSS('touch-action', 'manipulation');
+// Das mobile Cockpit passt auf eine Bildschirmhöhe: Kammer und Kartenliste
+// teilen sich den Platz, gescrollt wird nur noch innerhalb der Liste.
+for (const device of [{ name: 'iPhone 14', width: 390, height: 844 }, { name: 'iPhone SE', width: 375, height: 667 }]) {
+  test(`mobile cockpit fits one screen on ${device.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: device.width, height: device.height });
+    await gotoGame(page);
+    await expect(page.getByRole('button', { name: 'Materie einsammeln' })).toHaveCSS('touch-action', 'manipulation');
 
-  const positions = await page.evaluate(() => {
-    const chamber = document.querySelector('.star-chamber')?.getBoundingClientRect();
-    const star = document.querySelector('.star-button')?.getBoundingClientRect();
-    return {
-      chamber: chamber ? { x: chamber.x, y: chamber.y, width: chamber.width, height: chamber.height } : null,
-      star: star ? { x: star.x, y: star.y, width: star.width, height: star.height } : null,
-      actions: document.querySelector('.action-sidepanel')?.getBoundingClientRect().top ?? 0,
-      stats: document.querySelector('.left-panel')?.getBoundingClientRect().top ?? 0,
-      chronicle: document.querySelector('.chronicle-dock')?.getBoundingClientRect().top ?? 0,
-      documentWidth: document.documentElement.scrollWidth,
-      viewportWidth: window.innerWidth,
-    };
+    const layout = await page.evaluate(() => {
+      const rect = (selector: string): { top: number; bottom: number; width: number; height: number } | null => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const box = element.getBoundingClientRect();
+        return { top: box.top, bottom: box.bottom, width: box.width, height: box.height };
+      };
+      return {
+        chamber: rect('.star-chamber'),
+        star: rect('.star-button'),
+        stageLabel: rect('.stage-label'),
+        actions: rect('.action-sidepanel'),
+        content: document.querySelector('.side-content'),
+        chronicleDockVisible: Boolean(document.querySelector('.chronicle-dock')?.checkVisibility()),
+        coreSheetVisible: Boolean(document.querySelector('.left-panel')?.checkVisibility()),
+        documentWidth: document.documentElement.scrollWidth,
+        documentHeight: document.documentElement.scrollHeight,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      };
+    });
+
+    expect(layout.chamber).not.toBeNull();
+    expect(layout.star).not.toBeNull();
+    expect(layout.chamber!.width).toBe(layout.viewportWidth);
+
+    // Der Kern der Umstellung: weder waagerecht noch senkrecht scrollt die Seite.
+    expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+    expect(layout.documentHeight).toBeLessThanOrEqual(layout.viewportHeight);
+
+    // Kammer und Kartenliste teilen sich den Bildschirm, statt zu stapeln.
+    expect(layout.actions!.top).toBeGreaterThan(layout.chamber!.top);
+    expect(layout.actions!.bottom).toBeLessThanOrEqual(layout.viewportHeight + 1);
+
+    // Der Stern schrumpft mit der Kammer, statt in das Stadium-Label zu wachsen.
+    expect(layout.star!.top).toBeGreaterThanOrEqual(layout.stageLabel!.bottom);
+    expect(layout.star!.bottom).toBeLessThanOrEqual(layout.chamber!.bottom);
+
+    // Kerndaten und Chronik sind mobil hinter Knöpfe gewandert.
+    expect(layout.chronicleDockVisible).toBe(false);
+    expect(layout.coreSheetVisible).toBe(false);
   });
+}
 
-  expect(positions.chamber).not.toBeNull();
-  expect(positions.star).not.toBeNull();
-  expect(positions.chamber!.width).toBe(positions.viewportWidth);
-  expect(positions.chamber!.height).toBeGreaterThanOrEqual(844);
-  expect(positions.actions).toBeGreaterThanOrEqual(844);
-  expect(Math.abs(
-    positions.star!.y + positions.star!.height / 2
-      - (positions.chamber!.y + positions.chamber!.height / 2),
-  )).toBeLessThanOrEqual(1);
-  expect(positions.actions).toBeLessThan(positions.stats);
-  expect(positions.stats).toBeLessThan(positions.chronicle);
-  expect(positions.documentWidth).toBeLessThanOrEqual(positions.viewportWidth);
+test('mobile core data opens as a sheet and the card list scrolls on its own', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  // Mehrere freigeschaltete Reaktionen: erst dann ist die Kartenliste länger
+  // als ihr Platz und der interne Scrollbereich überhaupt beweglich.
+  await seedLegacyGame(page, {
+    version: 7, run: 2, stage: 'helium', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 40_000, helium: 12_000, deuterium: 0 },
+    star: { hydrogen: 20_000, helium: 15_000, deuterium: 0 },
+    temperature: 120_000_000, energy: 50_000,
+    unlockedReactions: ['hydrogen', 'helium', 'alphaCapture'],
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+
+  const coreSheet = page.locator('.left-panel');
+  await expect(coreSheet).toBeHidden();
+  await page.locator('[data-action="toggle-core-data"]').click();
+  await expect(coreSheet).toBeVisible();
+  await expect(coreSheet.getByText('Stellarer Kern')).toBeVisible();
+  await page.locator('[data-action="close-core-data"]').click();
+  await expect(coreSheet).toBeHidden();
+
+  await page.locator('[data-action="open-chronicle"]').click();
+  await expect(page.getByRole('dialog', { name: 'Lebenswege der Sterne' })).toBeVisible();
+  await page.locator('[data-action="close-chronicle"]').click();
+
+  // Die Kartenliste ist der einzige Scrollbereich der Ansicht.
+  const scrolled = await page.locator('.side-content').evaluate((element) => {
+    element.scrollTop = 200;
+    return { scrollTop: element.scrollTop, pageOffset: window.scrollY };
+  });
+  expect(scrolled.scrollTop).toBeGreaterThan(0);
+  expect(scrolled.pageOffset).toBe(0);
 });
 
 test('restart uses an inline confirmation instead of a browser dialog', async ({ page }) => {

@@ -74,6 +74,7 @@ export function renderShell(): void {
     <main>
       <section class="stellar-lab">
         <aside class="left-panel" data-tutorial="left-panel">
+          <button class="core-sheet-close" data-action="close-core-data" aria-label="Kerndaten schließen">${icons.chevron}</button>
           <section class="data-panel core-panel" data-tutorial="realtime-data">
             <div class="panel-heading"><span class="index">01</span><div><small>Echtzeitdaten</small><h2>Stellarer Kern</h2></div></div>
             <div class="primary-reading"><span>Kerntemperatur${knowledgeButton('coreTemperature')}</span><b data-ui="temperature"></b><div class="thermal-scale"><i data-ui="temperature-bar"></i></div><small><span>${formatTemperature(INITIAL_TEMPERATURE)}</span><span data-ui="temperature-max"></span></small></div>
@@ -97,6 +98,10 @@ export function renderShell(): void {
             <b data-ui="chamber-objective-percent"></b>
           </button>
           <button class="chamber-settings settings-button" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button>
+          <div class="chamber-tools">
+            <button class="chamber-tool" data-action="toggle-core-data" aria-label="Kerndaten anzeigen" aria-expanded="false">${icons.core}</button>
+            <button class="chamber-tool" data-action="open-chronicle" aria-label="Chronik öffnen" aria-haspopup="dialog">${icons.chronicle}</button>
+          </div>
           <div class="cloud-corner" data-ui="cloud-panel">
             <button class="cloud-toggle" data-action="toggle-cloud-info" aria-label="Informationen zur Urwolke anzeigen" aria-expanded="false" aria-haspopup="true">
               <i class="cloud-gauge-ring"></i><b data-ui="cloud-percent"></b>

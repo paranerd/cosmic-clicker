@@ -6,12 +6,23 @@ let fullResetArmed = false;
 let resetTimer = 0;
 let warningsOpen = false;
 let cloudInfoOpen = false;
+let coreDataOpen = false;
 let prestigeConfirmationArmed = false;
 let prestigeConfirmationTimer = 0;
 
 export const isFullResetArmed = (): boolean => fullResetArmed;
 export const isWarningsOpen = (): boolean => warningsOpen;
 export const isCloudInfoOpen = (): boolean => cloudInfoOpen;
+export const isCoreDataOpen = (): boolean => coreDataOpen;
+
+// Im mobilen Vollbild-Layout liegt der Kerndaten-Bereich als Blende über der
+// Sternkammer, statt unter ihr im Seitenfluss zu hängen. Auf breiten Displays
+// ist die Klasse wirkungslos — dort steht die Spalte ohnehin dauerhaft.
+export function setCoreDataOpen(open: boolean): void {
+  coreDataOpen = open;
+  app.querySelector('.left-panel')?.classList.toggle('is-open', open);
+  app.querySelector('[data-action="toggle-core-data"]')?.setAttribute('aria-expanded', String(open));
+}
 export const isPrestigeConfirmationArmed = (): boolean => prestigeConfirmationArmed;
 
 export function closeResetMenu(): void {

@@ -15,10 +15,12 @@ import {
   hasAffordableSummaryPerk,
   hasPendingPerks,
   isCloudInfoOpen,
+  isCoreDataOpen,
   isFullResetArmed,
   isPrestigeConfirmationArmed,
   isWarningsOpen,
   setCloudInfoOpen,
+  setCoreDataOpen,
   setWarningsOpen,
 } from './ui/menus';
 import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement, dismissCycleEndNotice, showToast } from './ui/notifications';
@@ -109,6 +111,8 @@ app.addEventListener('click', (event) => {
   if (action === 'close-settings') { setSettingsOpen(false); return; }
   if (action === 'toggle-warnings') { setWarningsOpen(!isWarningsOpen()); return; }
   if (action === 'toggle-cloud-info') { setCloudInfoOpen(!isCloudInfoOpen()); return; }
+  if (action === 'toggle-core-data') { setCoreDataOpen(!isCoreDataOpen()); return; }
+  if (action === 'close-core-data') { setCoreDataOpen(false); return; }
   // Wissensdatenbank: Der Eintrag steckt als data-knowledge am Erklär-Button,
   // die Texte kommen aus content/knowledge.ts — neue Erklärstellen brauchen
   // hier keine Änderung.

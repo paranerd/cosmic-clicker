@@ -161,6 +161,7 @@ export function syncOverlay(): void {
             <div class="settings-section-copy"><span>Hilfestellung</span><h3>Tutorial</h3><p>Zeige die geführten Hinweise im Spiel. Beim Einschalten wird das Tutorial passend zu deinem Fortschritt fortgesetzt.</p></div>
             <button class="settings-switch ${tutorialEnabled ? 'is-on' : ''}" data-action="toggle-tutorial" role="switch" aria-checked="${String(tutorialEnabled)}" aria-label="Tutorial ${tutorialEnabled ? 'ausschalten' : 'einschalten'}"><span>${tutorialEnabled ? 'Ein' : 'Aus'}</span><i aria-hidden="true"></i></button>
           </section>
+          <p class="settings-colophon">COSMIC CLICKER · PROTOTYP 0.3<br />Wissenschaftlich plausibel · spielerisch komprimiert</p>
         </div>
       </section>
     </div>`;

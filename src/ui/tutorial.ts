@@ -2,6 +2,7 @@ import { LEGACY_TUTORIAL_STEP_ID_ALIASES, LEGACY_TUTORIAL_STEP_IDS, TUTORIAL_STE
 import { canBuyAutomation, canBuyUpgrade } from '../game/engine';
 import { saveGame } from '../game/storage';
 import { tutorialResumeStepIndex } from '../game/tutorial-progress';
+import { isCoreDataOpen, setCoreDataOpen } from './menus';
 import { markCurrentObjectiveSeen, showToast } from './notifications';
 import { invalidateOverlay, syncOverlay } from './overlay';
 import { app, getActivePanel, getState } from './store';
@@ -131,6 +132,15 @@ function tutorialTarget(step: TutorialStep): Element | null {
   return step.selector ? app.querySelector(step.selector) : null;
 }
 
+// Zwei Schritte zeigen auf die Kerndaten, die im mobilen Layout hinter einer
+// Blende liegen. Entschieden wird beim Schrittwechsel, nicht bei jedem
+// Sync-Tick — sonst ließe sich die Blende während des Tutorials nicht mehr
+// von Hand öffnen oder schließen.
+function syncTutorialCoreSheet(target: Element | null): void {
+  const needsCoreSheet = Boolean(target?.closest('.left-panel'));
+  if (needsCoreSheet !== isCoreDataOpen()) setCoreDataOpen(needsCoreSheet);
+}
+
 function revealTutorialTarget(target: Element): void {
   const rect = target.getBoundingClientRect();
   const safeGap = 20;
@@ -226,6 +236,7 @@ export function syncTutorial(): void {
   const signature = `step:${step.id}:confirm:${tutorialEndConfirmation}`;
   if (signature !== tutorialSignature) {
     tutorialSignature = signature;
+    syncTutorialCoreSheet(target);
     if (target) revealTutorialTarget(target);
     const normalInteraction = step.trigger.type === 'action'
       ? `<small class="tutorial-hint">${step.trigger.hint}</small>`
