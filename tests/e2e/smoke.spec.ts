@@ -790,6 +790,12 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   // Element; nur die unsichtbaren Ausschnittsgrenzen werden per JS angepasst.
   const trackedBoxes = await page.evaluate(() => {
     return new Promise<{ targetTop: number; frameTop: number; blockerBottom: number }>((resolve) => {
+      const startY = window.scrollY;
+      const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const targetY = startY > 0
+        ? Math.max(0, startY - 60)
+        : Math.min(maxY, startY + 60);
+      if (targetY === startY) throw new Error('Expected the mobile tutorial page to be scrollable.');
       window.addEventListener('scroll', () => {
         const target = document.querySelector<HTMLElement>('.tutorial-focus')!;
         const targetRect = target.getBoundingClientRect();
@@ -801,7 +807,7 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
           blockerBottom: blocker.bottom,
         });
       }, { once: true, capture: true });
-      window.scrollBy(0, 60);
+      window.scrollTo(0, targetY);
     });
   });
   expect(Math.abs(trackedBoxes.blockerBottom - trackedBoxes.frameTop)).toBeLessThanOrEqual(1);
