@@ -150,7 +150,9 @@ export interface ReactionView {
   available: boolean;
   amount: number;
   energy: number;
-  label: string;
+  // Sperrgrund der noch nicht gezündeten Reaktion ("Ab 10 Mio. K"). Er steht
+  // wie bei Upgrades/Automationen als Kostenzeile unter den Ausbaustufen.
+  lockedLabel: string;
   detail: string;
   upgradeLevel: number;
   upgradePrice: number;
@@ -190,15 +192,13 @@ export function reactionView(id: ReactionId): ReactionView {
   const nextLocked = REACTION_ORDER.find((reaction) => !state.unlockedReactions.includes(reaction));
   const visible = unlocked || id === nextLocked;
   const available = reactionAvailable(state, id);
-  const label = !unlocked ? `Ab ${formatTemperature(definition.ignitionTemperature)}`
-    : capacity <= 0 ? 'Kein Brennstoff verfügbar.'
-      : 'Fusionieren';
   // Punkt 2: Zustand des Reaktionsausbaus für die Karte.
   const upgradeLevel = state.reactionUpgrades[id];
   const upgradePrice = reactionUpgradeCost(id, upgradeLevel);
   const upgradeMax = upgradeLevel >= definition.upgrade.maxLevel;
   return {
-    id, visible, unlocked, available, amount, energy, label,
+    id, visible, unlocked, available, amount, energy,
+    lockedLabel: `Ab ${formatTemperature(definition.ignitionTemperature)}`,
     detail: !unlocked ? '' : capacity > 0 ? reactionConversionLabel(id, amount, energy) : '',
     upgradeLevel, upgradePrice, upgradeMax, upgradeAffordable: !upgradeMax && state.energy >= upgradePrice,
   };
@@ -229,16 +229,17 @@ function reactionUpgradeButton(view: ReactionView): string {
 
 // Punkt 7/8: Analog zu Automationen/Upgrades zeigt die Karte den aktuellen
 // Wert (manuelle Fusionsmenge inkl. Ausbau) und den Wert der nächsten Stufe
-// nebeneinander direkt unter der Titelzeile.
+// nebeneinander direkt unter der Titelzeile. Eine noch nicht gezündete
+// Reaktion zeigt unter „Aktuell" wie eine gesperrte Automation ein „-" statt
+// einer Menge, die noch niemand umsetzen kann.
 function reactionRateRow(view: ReactionView): string {
-  if (!view.unlocked) return '';
   const state = getState();
   const definition = REACTIONS[view.id];
   const symbol = RESOURCES[definition.primaryInput].symbol;
   const nextLevel = Math.min(definition.upgrade.maxLevel, view.upgradeLevel + 1);
   const currentAmount = reactionManualAmount(state, view.id);
   const nextAmount = reactionManualAmountAtLevel(state, view.id, nextLevel);
-  return `<div class="tile-rate"><div><span>Aktuell</span><b>${formatMatter(currentAmount)} ${symbol}</b></div><div><span>Nächste Stufe:</span> <b>${view.upgradeMax ? 'Voll ausgebaut' : `${formatMatter(nextAmount)} ${symbol}`}</b></div></div>`;
+  return `<div class="tile-rate"><div><span>Aktuell</span><b>${view.unlocked ? `${formatMatter(currentAmount)} ${symbol}` : '-'}</b></div><div><span>Nächste Stufe:</span> <b>${view.upgradeMax ? 'Voll ausgebaut' : `${formatMatter(nextAmount)} ${symbol}`}</b></div></div>`;
 }
 
 // Ausbaustufen (Pips) stehen ganz unten in der Kachel, exakt wie bei
@@ -246,17 +247,16 @@ function reactionRateRow(view: ReactionView): string {
 // mehr. Der Ausbaupreis steht NICHT zusätzlich hier (wie früher), sondern nur
 // noch einmal im Eck-Ausbaubutton selbst — die doppelte Anzeige war redundant.
 function reactionUpgradeFooter(view: ReactionView): string {
-  if (!view.unlocked) return '';
   return `<div class="level-row" data-reaction-upgrade-levels="${view.id}">${levelPips(view.upgradeLevel, REACTIONS[view.id].upgrade.maxLevel)}</div>`;
 }
 
-// Punkt 4: Reaktionskarten folgen jetzt derselben Grundstruktur wie
-// Automations-/Upgradekarten (Icon+Titel-Zeile, Aktuell/Nächste-Stufe,
-// Beschreibung, Ausbaustufen, Kosten) — nur der Kicker (Reaktionskette-Label)
-// und der Fusions-Button haben dort keine Entsprechung und stehen als
-// zusätzliche Zeile zwischen Beschreibung und Pips. Die dynamische Gleichung
-// steht direkt als Detailzeile im Button, daher braucht die Karte keine zweite,
-// statische Gleichungszeile mehr.
+// Reaktionskarten sind jetzt vollständig wie Automations-/Upgradekarten
+// aufgebaut (Eck-Ausbaubutton, Icon+Titel-Zeile, Aktuell/Nächste-Stufe,
+// Beschreibung, Ausbaustufen, Sperrgrund als Kostenzeile). Der frühere
+// vollbreite Fusionsbutton ist ersatzlos entfallen: Die Reaktion selbst wird
+// über den Fusionsring in der Star Chamber ausgewählt und am Stern ausgelöst
+// (siehe fusionRingMarkup unten). Einzige reaktionsspezifische Ergänzung
+// bleibt der Kicker (Reaktionskette-Label) über der Titelzeile.
 function reactionCard(view: ReactionView): string {
   const definition = REACTIONS[view.id];
   const primaryOutput = RESOURCES[definition.primaryOutput];
@@ -266,8 +266,8 @@ function reactionCard(view: ReactionView): string {
     <div class="upgrade-heading"><span class="upgrade-icon reaction-symbol element ${primaryOutput.className}" aria-label="Erzeugt ${primaryOutput.label}">${primaryOutput.symbol}</span><h3>${definition.title}</h3></div>
     ${reactionRateRow(view)}
     <p>${definition.description}</p>
-    <button class="primary-action compact" data-action="run-reaction" data-reaction="${view.id}" ${disabled(!view.available)}><span data-button-label>${view.label}</span><small class="reaction-conversion" data-button-detail>${view.detail}</small></button>
     ${reactionUpgradeFooter(view)}
+    ${view.unlocked ? '' : `<div class="tile-cost" data-reaction-cost="${view.id}">${view.lockedLabel}</div>`}
   </div>`;
 }
 
@@ -275,6 +275,52 @@ function renderReactionPanel(): string {
   const cards = REACTION_ORDER.map(reactionView).filter((view) => view.visible);
   return `<div class="reaction-grid">${cards.map(reactionCard).join('')}</div>`;
 }
+
+// Fusionsring: Für jede freigeschaltete Reaktion ein runder Button, ringförmig
+// um die untere Hälfte des Sterns angeordnet. Ein Klick wählt die Reaktion aus
+// (erneuter Klick hebt die Auswahl auf), ausgeführt wird sie danach durch
+// Klicks auf den Stern — der Ring ersetzt damit den früheren Fusionsbutton in
+// der Reaktionskachel.
+//
+// Die Winkel werden hier in Position*Faktoren* übersetzt (--ring-cos/--ring-sin)
+// und erst im Stylesheet mit dem Ringradius multipliziert. So bleibt die
+// Geometrie an einer Stelle (hier die Verteilung, dort der Radius samt
+// Anpassung an kleine Bildschirme) und braucht kein CSS-`sin()`/`cos()`.
+export const unlockedReactionIds = (): ReactionId[] => {
+  const state = getState();
+  return REACTION_ORDER.filter((id) => state.unlockedReactions.includes(id));
+};
+
+const FUSION_RING_STEP_DEGREES = 26;
+const FUSION_RING_MAX_SPAN_DEGREES = 150;
+
+function fusionRingOffset(index: number, count: number): { cos: number; sin: number } {
+  const span = Math.min(FUSION_RING_MAX_SPAN_DEGREES, (count - 1) * FUSION_RING_STEP_DEGREES);
+  // 90° zeigt in Bildschirmkoordinaten senkrecht nach unten; der Bogen wird
+  // symmetrisch darum verteilt, ein einzelner Button steht genau unter dem
+  // Stern. Der Winkel läuft absteigend, damit die Reaktionen von links nach
+  // rechts in ihrer Kettenreihenfolge stehen (cos > 0 liegt rechts).
+  const degrees = 90 + span / 2 - (count > 1 ? span * index / (count - 1) : 0);
+  const radians = degrees * Math.PI / 180;
+  const round = (value: number): number => Math.round(value * 10_000) / 10_000;
+  return { cos: round(Math.cos(radians)), sin: round(Math.sin(radians)) };
+}
+
+export function fusionRingButton(id: ReactionId, index: number, count: number): string {
+  const state = getState();
+  const definition = REACTIONS[id];
+  const output = RESOURCES[definition.primaryOutput];
+  const { cos, sin } = fusionRingOffset(index, count);
+  const active = state.activeReaction === id;
+  // Ohne Brennstoff wird der Button nur gedämpft dargestellt, aber NICHT
+  // deaktiviert: sonst ließe sich eine ausgewählte, leergebrannte Reaktion
+  // nicht mehr abwählen, und eine noch leere Brennstufe könnte man nicht
+  // vorwählen.
+  return `<button class="fusion-ring-button element ${output.className}${active ? ' is-active' : ''}${reactionAvailable(state, id) ? '' : ' is-empty'}" type="button" data-action="select-reaction" data-reaction="${id}" data-fusion-ring-button="${id}" style="--ring-cos:${cos};--ring-sin:${sin}" aria-pressed="${active}" aria-label="${definition.title} ${active ? 'abwählen' : 'auswählen'}">${output.symbol}</button>`;
+}
+
+export const fusionRingMarkup = (ids: ReactionId[]): string =>
+  ids.map((id, index) => fusionRingButton(id, index, ids.length)).join('');
 
 export interface UpgradeView {
   id: UpgradeId;

@@ -6,6 +6,7 @@ Ein responsives Browser-Spiel über die Entstehung und Entwicklung eines Sterns 
 
 - Stufenloses, prozentuales Wolkenwachstum ab einer kalibrierten 0,07-Sonnenmassen-Urwolke mit realistischer, einheitlicher Ur-Zusammensetzung
 - Aktive und automatische Akkretion
+- Fusionsring um den Stern: eine ausgewählte Reaktion wird durch Klicks auf den Stern ausgeführt
 - Temperatur- und Druckentwicklung durch gravitative Kontraktion
 - Deuteriumbrennen als zeitlich begrenztes Upgrade sowie eine konfigurationsgetriebene Brennkette von Wasserstoff bis zur Eisengruppe
 - Massenabhängige Entwicklung zu Braunem Zwerg, mehreren Weißer-Zwerg-Typen, Neutronenstern oder Schwarzem Loch

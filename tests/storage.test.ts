@@ -81,6 +81,21 @@ describe('save storage and version 7 migration', () => {
     expect(loaded.pendingPerks.permanentGravity).toBe(2);
   });
 
+  it('keeps a saved fusion selection only while its reaction is unlocked', () => {
+    const state = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
+    state.unlockedReactions = ['hydrogen'];
+    state.activeReaction = 'hydrogen';
+    saveGame(state);
+    expect(loadGame().state.activeReaction).toBe('hydrogen');
+
+    // Eine Auswahl, die dieser Spielstand nicht kennt, fällt auf Akkretion
+    // zurück — genau wie ein älterer Spielstand ohne dieses Feld.
+    expect(normalizeGameState({ ...state, activeReaction: 'silicon' })?.activeReaction).toBeNull();
+    const legacy = { ...state } as Record<string, unknown>;
+    delete legacy.activeReaction;
+    expect(normalizeGameState(legacy)?.activeReaction).toBeNull();
+  });
+
   it('migrates an active legacy deuterium upgrade without retroactive heat', () => {
     const legacy = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
     legacy.star.hydrogen = 5_000;

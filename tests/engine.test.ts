@@ -252,6 +252,29 @@ describe('data-driven stellar engine v0.4', () => {
     expect(state.reactionTotals.hydrogen).toBeGreaterThan(THRESHOLDS.mainSequenceHydrogen);
   });
 
+  it('selects an unlocked reaction as the active fusion and clears it again', () => {
+    const state = reactionState('helium', 1_000);
+    const selected = reduceGame(state, { type: 'SET_ACTIVE_REACTION', reaction: 'helium' });
+    expect(selected.activeReaction).toBe('helium');
+    // Ein Wechsel ersetzt die Auswahl, `null` hebt sie auf.
+    expect(reduceGame(selected, { type: 'SET_ACTIVE_REACTION', reaction: 'hydrogen' }).activeReaction).toBe('hydrogen');
+    expect(reduceGame(selected, { type: 'SET_ACTIVE_REACTION', reaction: null }).activeReaction).toBeNull();
+  });
+
+  it('ignores a fusion selection for a reaction that is not unlocked yet', () => {
+    const state = reactionState('hydrogen', 1_000);
+    expect(state.unlockedReactions).not.toContain('carbon');
+    expect(reduceGame(state, { type: 'SET_ACTIVE_REACTION', reaction: 'carbon' }).activeReaction).toBeNull();
+  });
+
+  it('keeps the active fusion selected even without fuel and starts the next cycle without one', () => {
+    const state = reduceGame(reactionState('hydrogen', 37), { type: 'SET_ACTIVE_REACTION', reaction: 'hydrogen' });
+    const burned = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    expect(reactionCapacity(burned, 'hydrogen')).toBeCloseTo(0, 5);
+    expect(burned.activeReaction).toBe('hydrogen');
+    expect(createInitialState(burned.perks, burned.stardust, burned.run + 1).activeReaction).toBeNull();
+  });
+
   it('allows a final reaction with less fuel than the normal batch', () => {
     const state = reactionState('hydrogen', 37);
     expect(reactionCapacity(state, 'hydrogen')).toBe(37);
