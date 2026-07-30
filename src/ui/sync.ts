@@ -4,8 +4,6 @@ import {
   DISPLAY_MATTER_KEYS,
   INITIAL_TEMPERATURE,
   MATTER_KEYS,
-  PRESTIGE_PERK_ORDER,
-  PRESTIGE_PERKS,
   REACTIONS,
   REACTION_ORDER,
   RESOURCES,
@@ -21,7 +19,6 @@ import {
   cloudMass,
   objectiveFor,
   pressureProgress,
-  prestigePerkCost,
   reactionAvailable,
   starMass,
 } from '../game/engine';
@@ -33,6 +30,7 @@ import { invalidateOverlay, syncOverlay } from './overlay';
 import { app, getActivePanel, getState, isMobileLayout, PANEL_LABELS, PANEL_ORDER, setActivePanel, type Panel } from './store';
 import { invalidateTutorial, syncTutorial } from './tutorial';
 import {
+  activePerksMarkup,
   automationView,
   automationVisible,
   currentOpportunities,
@@ -60,7 +58,6 @@ function dynamicPanelSignature(panel: Panel): string {
   if (panel === 'automation') {
     return `${state.unlockedReactions.join(',')}:${Object.values(state.automation).join(',')}:${AUTOMATION_ORDER.map((kind) => automationView(kind).unlocked).join(',')}`;
   }
-  if (panel === 'perks') return Object.values(state.perks).join(',');
   return '';
 }
 
@@ -96,7 +93,7 @@ const controlCenterMarkup = (): string => `
           <div class="side-content" data-ui="deck-content"></div>
         </aside>`;
 
-// Dock der mobilen Fassung: die vier Kontrollbereiche als Popup-Öffner plus
+// Dock der mobilen Fassung: die drei Kontrollbereiche als Popup-Öffner plus
 // Chronik und Einstellungen, die dieselben Modale wie auf dem Desktop öffnen.
 // Die Bereichsbuttons tragen dasselbe `data-panel` wie die Desktop-Reiter —
 // Auswahlzustand (switchPanel) und Gelegenheits-Indikator (syncNotifications)
@@ -105,8 +102,31 @@ const DOCK_PANEL_ICONS: Record<Panel, string> = {
   reactions: icons.fusion,
   upgrades: icons.buildUp,
   automation: icons.automation,
-  perks: icons.spark,
 };
+
+// Effekte-Ecke unten rechts in der Sternenkammer: alles, was gerade dauerhaft
+// oder akut auf den Stern wirkt. Links bleiben Echtzeitdaten und Urwolke, die
+// den Zustand beschreiben; rechts steht, was ihn verändert. Beide Popover
+// teilen sich die Ecke und schließen einander aus (siehe ui/menus.ts), damit
+// sie sich auf schmalen Bildschirmen nicht überlagern. Der Warnungsbutton
+// erscheint nur bei aktiven Warnungen, der Perk-Button dauerhaft — er zeigt
+// auch mit Stufe 0 an, welche Vermächtnis-Effekte es überhaupt gibt.
+const effectsCornerMarkup = (): string => `
+          <div class="effects-corner" role="group" aria-label="Effekte">
+            <div class="warning-corner" data-ui="warning-corner" hidden>
+              <button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false" aria-haspopup="true">${icons.warning}</button>
+              <div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div>
+            </div>
+            <div class="perk-corner" data-ui="perk-corner">
+              <button class="perk-toggle" data-action="toggle-perks" aria-label="Aktive Perks anzeigen" aria-expanded="false" aria-haspopup="true">${icons.spark}</button>
+              <section class="perk-popover" aria-label="Aktive Perks">
+                <span class="perk-popover-kicker">Dauerhafte Effekte</span>
+                <h2>Aktive Perks</h2>
+                <div class="perk-list" data-ui="perk-list"></div>
+                <p class="perk-popover-note">Neue Stufen wählst du am Ende eines Zyklus in der Zusammenfassung.</p>
+              </section>
+            </div>
+          </div>`;
 
 const dockMarkup = (): string => `
       <nav class="mobile-dock" aria-label="Kontrollbereiche">
@@ -163,7 +183,7 @@ export function renderShell(): void {
               ${realtimeDataMarkup(true)}
             </section>
           </div>
-          <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
+          ${effectsCornerMarkup()}
         </section>
 
         ${mobile ? '' : controlCenterMarkup()}
@@ -299,9 +319,7 @@ function syncActivePanel(): void {
   const activePanel = getActivePanel();
   const panelResource = app.querySelector<HTMLElement>('[data-panel-resource]');
   if (panelResource) {
-    const value = panelResource.dataset.panelResource === 'stardust'
-      ? formatNumber(state.stardust)
-      : formatEnergy(state.energy);
+    const value = formatEnergy(state.energy);
     if (panelResource.textContent !== value) panelResource.textContent = value;
   }
   if (activePanel === 'reactions') syncReactionPanel();
@@ -343,18 +361,6 @@ function syncActivePanel(): void {
       // einen Strukturrebuild aus.
       const cost = app.querySelector<HTMLElement>(`[data-automation-cost="${kind}"]`);
       if (cost && cost.textContent !== view.lockedLabel) cost.textContent = view.lockedLabel;
-    });
-  }
-  if (activePanel === 'perks') {
-    PRESTIGE_PERK_ORDER.forEach((perk) => {
-      const level = state.perks[perk];
-      const definition = PRESTIGE_PERKS[perk];
-      const isMax = level >= definition.maxLevel;
-      const cost = prestigePerkCost(perk, level);
-      const fillPercent = isMax ? 0 : state.stardust / cost * 100;
-      const button = app.querySelector<HTMLButtonElement>(`[data-perk-card="${perk}"] .tile-action-button`);
-      const ariaLabel = isMax ? `${definition.title} voll ausgebaut` : `${definition.title} für ${cost} Sternenstaub – am Zyklusende verfügbar`;
-      syncTileButton(button, isMax, true, level === 0, false, fillPercent, isMax ? '' : `${cost} ✦`, ariaLabel);
     });
   }
 }
@@ -460,6 +466,12 @@ export function updateUI(forcePanel = false): void {
     `<div class="warning-entry"><b>${ACTIVE_WARNINGS[id].title}</b><strong>−${formatRate(ratePerSecond)} ME/s</strong><p>${ACTIVE_WARNINGS[id].text}</p></div>`).join('');
   const warningList = app.querySelector<HTMLElement>('[data-ui="warning-list"]');
   if (warningList && warningList.innerHTML !== warningMarkup) warningList.innerHTML = warningMarkup;
+  // Perkstufen ändern sich nur beim Zyklusstart; der Vergleich hält die Liste
+  // trotzdem ohne eigene Signatur aktuell — sie ist kurz und wird nur beim
+  // tatsächlichen Wechsel neu gebaut.
+  const perkList = app.querySelector<HTMLElement>('[data-ui="perk-list"]');
+  const perkMarkup = activePerksMarkup();
+  if (perkList && perkList.innerHTML !== perkMarkup) perkList.innerHTML = perkMarkup;
   const volumeInput = app.querySelector<HTMLInputElement>('[data-action="set-volume"]'); if (volumeInput && Number(volumeInput.value) !== Math.round(state.volume * 100)) volumeInput.value = String(Math.round(state.volume * 100));
   setText('volume-label', `${Math.round(state.volume * 100)}%`); setText('mute-label', state.soundEnabled ? 'Ton stummschalten' : 'Ton einschalten');
   const currentUpgradeOrder = activePanel === 'upgrades' ? upgradeOrderSignature() : '';

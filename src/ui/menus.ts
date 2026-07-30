@@ -7,6 +7,7 @@ let resetTimer = 0;
 let warningsOpen = false;
 let cloudInfoOpen = false;
 let stellarDataOpen = false;
+let perksOpen = false;
 let prestigeConfirmationArmed = false;
 let prestigeConfirmationTimer = 0;
 
@@ -14,6 +15,7 @@ export const isFullResetArmed = (): boolean => fullResetArmed;
 export const isWarningsOpen = (): boolean => warningsOpen;
 export const isCloudInfoOpen = (): boolean => cloudInfoOpen;
 export const isStellarDataOpen = (): boolean => stellarDataOpen;
+export const isPerksOpen = (): boolean => perksOpen;
 export const isPrestigeConfirmationArmed = (): boolean => prestigeConfirmationArmed;
 
 export function closeResetMenu(): void {
@@ -30,10 +32,12 @@ export function armFullReset(): void {
 }
 
 // Punkt 4: Popover mit allen aktiven Warnungen am Warnsymbol der Star Chamber.
+// Es sitzt zusammen mit den Perks in der Effekte-Ecke unten rechts.
 export function setWarningsOpen(open: boolean): void {
   if (open) {
     setCloudInfoOpen(false);
     setStellarDataOpen(false);
+    setPerksOpen(false);
   }
   warningsOpen = open;
   app.querySelector('.warning-corner')?.classList.toggle('is-open', open);
@@ -47,6 +51,7 @@ export function setCloudInfoOpen(open: boolean): void {
   if (open) {
     setWarningsOpen(false);
     setStellarDataOpen(false);
+    setPerksOpen(false);
   }
   cloudInfoOpen = open;
   app.querySelector('.cloud-corner')?.classList.toggle('is-open', open);
@@ -59,10 +64,25 @@ export function setStellarDataOpen(open: boolean): void {
   if (open) {
     setWarningsOpen(false);
     setCloudInfoOpen(false);
+    setPerksOpen(false);
   }
   stellarDataOpen = open;
   app.querySelector('.stellar-data-corner')?.classList.toggle('is-open', open);
   app.querySelector('[data-action="toggle-stellar-data"]')?.setAttribute('aria-expanded', String(open));
+}
+
+// Perks sind kein Kontrollbereich mehr, sondern eine Statusanzeige in der
+// Effekte-Ecke unten rechts. Das Popover verhält sich exakt wie die übrigen
+// Ecken-Popover und schließt sie mit.
+export function setPerksOpen(open: boolean): void {
+  if (open) {
+    setWarningsOpen(false);
+    setCloudInfoOpen(false);
+    setStellarDataOpen(false);
+  }
+  perksOpen = open;
+  app.querySelector('.perk-corner')?.classList.toggle('is-open', open);
+  app.querySelector('[data-action="toggle-perks"]')?.setAttribute('aria-expanded', String(open));
 }
 
 export function hasAffordableSummaryPerk(): boolean {
