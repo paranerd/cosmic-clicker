@@ -26,12 +26,12 @@ import {
   starMass,
 } from '../game/engine';
 import { syncDebug } from './debug';
-import { formatEnergy, formatMatter, formatNumber, formatRate, formatTemperature, icons, temperatureScale } from './format';
+import { formatChamberValue, formatEnergy, formatMatter, formatNumber, formatRate, formatTemperature, icons, temperatureScale } from './format';
 import { isCloudInfoOpen, isWarningsOpen, setCloudInfoOpen, setWarningsOpen } from './menus';
 import { markOpportunitiesSeen, syncCycleEndNotice, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
-import { syncOverlay } from './overlay';
-import { app, getActivePanel, getState, setActivePanel, type Panel } from './store';
-import { syncTutorial } from './tutorial';
+import { invalidateOverlay, syncOverlay } from './overlay';
+import { app, getActivePanel, getState, isMobileLayout, PANEL_LABELS, PANEL_ORDER, setActivePanel, type Panel } from './store';
+import { invalidateTutorial, syncTutorial } from './tutorial';
 import {
   automationView,
   automationVisible,
@@ -80,7 +80,49 @@ function realtimeDataMarkup(mirror = false): string {
     </section>`;
 }
 
+// Kontrollzentrum der Desktop-Fassung. Auf kleinen Bildschirmen entfällt es
+// ersatzlos; seine Bereiche öffnet dort das Dock (siehe dockMarkup) in einem
+// Popup, das dieselbe `[data-ui="deck-content"]`-Fläche mitbringt.
+const controlCenterMarkup = (): string => `
+        <aside class="action-sidepanel">
+          <div class="sidepanel-heading">
+            <div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div>
+            <div class="sidepanel-tools">
+              <button data-action="open-chronicle" aria-label="Chronik öffnen" aria-haspopup="dialog">${icons.stats}</button>
+              <button class="settings-button" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button>
+            </div>
+          </div>
+          <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${PANEL_ORDER.map((panel) => `<button data-panel="${panel}" role="tab"><span>${PANEL_LABELS[panel]}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</div>
+          <div class="side-content" data-ui="deck-content"></div>
+        </aside>`;
+
+// Dock der mobilen Fassung: die vier Kontrollbereiche als Popup-Öffner plus
+// Chronik und Einstellungen, die dieselben Modale wie auf dem Desktop öffnen.
+// Die Bereichsbuttons tragen dasselbe `data-panel` wie die Desktop-Reiter —
+// Auswahlzustand (switchPanel) und Gelegenheits-Indikator (syncNotifications)
+// funktionieren dadurch unverändert für beide Fassungen.
+const DOCK_PANEL_ICONS: Record<Panel, string> = {
+  reactions: icons.fusion,
+  upgrades: icons.buildUp,
+  automation: icons.automation,
+  perks: icons.spark,
+};
+
+const dockMarkup = (): string => `
+      <nav class="mobile-dock" aria-label="Kontrollbereiche">
+        ${PANEL_ORDER.map((panel) => `<button data-panel="${panel}" aria-haspopup="dialog" aria-label="${PANEL_LABELS[panel]} öffnen"><span class="dock-icon">${DOCK_PANEL_ICONS[panel]}</span><span class="dock-label">${PANEL_LABELS[panel]}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}
+        <button data-action="open-chronicle" aria-haspopup="dialog" aria-label="Chronik öffnen"><span class="dock-icon">${icons.stats}</span><span class="dock-label">Chronik</span></button>
+        <button data-action="open-settings" class="settings-button" aria-haspopup="dialog" aria-label="Einstellungen öffnen"><span class="dock-icon">${icons.settings}</span><span class="dock-label">Settings</span></button>
+      </nav>`;
+
 export function renderShell(): void {
+  // Die Shell ersetzt den kompletten Baum: alle Signaturen, die auf inzwischen
+  // entfernte Knoten zeigen, müssen mit verworfen werden, damit Overlay,
+  // Tutorial und Fusionsring danach wieder aufbauen.
+  invalidateOverlay();
+  invalidateTutorial();
+  lastFusionRingSignature = '';
+  const mobile = isMobileLayout();
   app.innerHTML = `
     <div class="cosmos" aria-hidden="true"><div class="stars stars-a"></div><div class="stars stars-b"></div><div class="nebula-glow"></div></div>
     <main>
@@ -124,21 +166,11 @@ export function renderShell(): void {
           <div class="warning-corner" data-ui="warning-corner" hidden><button class="warning-toggle" data-action="toggle-warnings" aria-label="Aktive Warnungen anzeigen" aria-expanded="false">${icons.warning}</button><div class="warning-popover"><span class="warning-popover-title">Aktive Warnungen</span><div data-ui="warning-list"></div></div></div>
         </section>
 
-        <aside class="action-sidepanel">
-          <div class="sidepanel-heading">
-            <div class="sidepanel-title"><span class="index">02</span><div><small>Kontrollzentrum</small><h2>Sternsysteme</h2></div></div>
-            <div class="sidepanel-tools">
-              <button data-action="open-chronicle" aria-label="Chronik öffnen" aria-haspopup="dialog">${icons.stats}</button>
-              <button class="settings-button" data-action="open-settings" aria-label="Einstellungen öffnen" aria-haspopup="dialog">${icons.settings}</button>
-            </div>
-          </div>
-          <div class="side-tabs" role="tablist" aria-label="Kontrollbereiche">${([['reactions','Reaktionen'],['upgrades','Upgrades'],['automation','Automationen'],['perks','Perks']] as [Panel,string][]).map(([panel,label])=>`<button data-panel="${panel}" role="tab"><span>${label}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}</div>
-          <div class="side-content" data-ui="deck-content"></div>
-        </aside>
+        ${mobile ? '' : controlCenterMarkup()}
       </section>
+      ${mobile ? dockMarkup() : ''}
     </main>
 
-    <footer><span>COSMIC CLICKER · PROTOTYP 0.3</span><p>Wissenschaftlich plausibel · spielerisch komprimiert</p></footer>
     <div data-ui="overlay-root"></div><div data-ui="tutorial-root"></div><div data-ui="achievement-root"></div><div data-ui="cycle-end-root"></div><div data-ui="debug-root"></div><div data-ui="toast-root"></div>`;
 
   switchPanel(getActivePanel(), false);
@@ -216,7 +248,7 @@ function syncFusionRing(): void {
     button.classList.toggle('is-empty', !reactionAvailable(state, id));
     const pressed = String(active);
     if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
-    const ariaLabel = `${REACTIONS[id].title} ${active ? 'abwählen' : 'auswählen'}`;
+    const ariaLabel = `${REACTIONS[id].fullTitle} ${active ? 'abwählen' : 'auswählen'}`;
     if (button.getAttribute('aria-label') !== ariaLabel) button.setAttribute('aria-label', ariaLabel);
   });
 }
@@ -348,16 +380,18 @@ export function updateUI(forcePanel = false): void {
   setWidth('chamber-objective-bar', objective.progress);
   syncObjectiveAchievement(objective);
   setText('temperature', formatTemperature(state.temperature));
-  setText('chamber-temperature', formatTemperature(state.temperature).replace(/ K$/, ''));
+  setText('chamber-temperature', formatChamberValue(state.temperature));
   setText('temperature-max', scale.label);
   app.querySelectorAll<HTMLElement>('[data-ui="temperature-bar"], [data-ui-mirror="temperature-bar"]').forEach((bar) => {
     bar.style.setProperty('clip-path', `inset(0 ${100 - scale.progress}% 0 0)`);
   });
   setText('mass', formatMatter(mass));
-  setText('chamber-mass', formatMatter(mass));
+  setText('chamber-mass', formatChamberValue(Math.round(mass)));
   setText('pressure', formatNumber(pressureProgress(state), 1));
   setText('energy', formatEnergy(state.energy));
-  setText('chamber-energy', formatEnergy(state.energy));
+  // Wie formatEnergy immer abgerundet, damit die große Anzeige im Mittelpanel
+  // nicht früher als die Kachelpreise auf den nächsten Wert springt.
+  setText('chamber-energy', formatChamberValue(Math.floor(Math.max(0, state.energy))));
   setText('accretion-rate', formatMatter(accretionPerSecond(state)));
   DISPLAY_MATTER_KEYS.forEach((key) => {
     setText(`${key}-value`, `${formatMatter(state.star[key])} ME`);
@@ -386,7 +420,7 @@ export function updateUI(forcePanel = false): void {
     if (activeReaction && !state.completed) star.dataset.reaction = activeReaction;
     else delete star.dataset.reaction;
     star.ariaLabel = state.completed ? 'Abgeschlossener Stern'
-      : activeReaction ? `${REACTIONS[activeReaction].title} auslösen`
+      : activeReaction ? `${REACTIONS[activeReaction].fullTitle} auslösen`
         : 'Materie einsammeln';
     star.disabled = !state.completed && (activeReactionView ? !activeReactionView.available : remaining <= 0);
   }

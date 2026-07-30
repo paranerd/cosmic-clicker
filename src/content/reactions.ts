@@ -12,7 +12,17 @@ export interface Warning {
 
 export interface ReactionDefinition {
   id: ReactionId;
+  // Kurzname der Reaktion = Name des hauptsächlich erzeugten Elements. Er
+  // steht in der Fusionskachel und beantwortet die Frage, die den Spieler beim
+  // Auswählen einer Fusion tatsächlich interessiert: „Was kommt dabei heraus?“
+  // Zwei Reaktionen erzeugen Sauerstoff (Alpha-Einfang und Neonfusion); die
+  // spätere trägt deshalb die römische Zwei, unterschieden werden sie
+  // zusätzlich durch ihren Kicker.
   title: string;
+  // Ausgeschriebener Name für alle Stellen außerhalb der Kachel (Chronik,
+  // Statistik, Logbuch, Screenreader-Labels), an denen „Helium“ allein nicht
+  // erkennen ließe, dass eine Fusion gemeint ist.
+  fullTitle: string;
   kicker: string;
   description: string;
   equationInput: string;
@@ -68,7 +78,7 @@ export const CARBON_TO_OXYGEN_RATIO = 4 / 3 * .998;
 
 export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
   hydrogen: {
-    id: 'hydrogen', title: 'Wasserstofffusion', kicker: 'Proton-Proton-Kette',
+    id: 'hydrogen', title: 'Helium', fullTitle: 'Fusion zu Helium', kicker: 'Proton-Proton-Kette',
     description: 'Wasserstoff verschmilzt zu Helium. Ein kleiner Massendefekt wird zu Energie.',
     equationInput: '4 H', equationOutput: 'He + γ',
     manualYield: { baseCost: 200, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 50 },
@@ -90,7 +100,7 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     },
   },
   helium: {
-    id: 'helium', title: 'Heliumfusion', kicker: 'Triple-Alpha',
+    id: 'helium', title: 'Kohlenstoff', fullTitle: 'Fusion zu Kohlenstoff', kicker: 'Triple-Alpha',
     description: 'Drei Heliumkerne verschmelzen zu Kohlenstoff.',
     equationInput: '3 He', equationOutput: 'C + γ',
     manualYield: { baseCost: 300, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 75 },
@@ -103,7 +113,7 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     burnObjective: { title: 'Kohlenstoffkern aufbauen', detail: 'Fusioniere Helium zu Kohlenstoff — der Grundstock für Alpha-Einfang und eine mögliche Kohlenstoffzündung.' },
   },
   alphaCapture: {
-    id: 'alphaCapture', title: 'Alpha-Einfang', kicker: 'Helium + Kohlenstoff',
+    id: 'alphaCapture', title: 'Sauerstoff', fullTitle: 'Fusion zu Sauerstoff', kicker: 'Alpha-Einfang',
     description: 'Ein Kohlenstoffkern fängt Helium ein und wächst zu Sauerstoff.',
     equationInput: 'C + He', equationOutput: 'O + γ',
     manualYield: { baseCost: 180, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 45 },
@@ -119,7 +129,7 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     burnObjective: { title: 'Sauerstoff anreichern', detail: 'Lasse Kohlenstoffkerne Helium einfangen und reichere den Kern mit Sauerstoff für spätere Brennstufen an.' },
   },
   carbon: {
-    id: 'carbon', title: 'Kohlenstofffusion', kicker: 'Schweres Kernbrennen',
+    id: 'carbon', title: 'Neon', fullTitle: 'Fusion zu Neon', kicker: 'Schweres Kernbrennen',
     description: 'Kohlenstoffkerne reagieren und bilden im vereinfachten Netz überwiegend Neon.',
     equationInput: 'C + C', equationOutput: 'Ne + γ',
     manualYield: { baseCost: 150, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 37.5 },
@@ -132,7 +142,7 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     burnObjective: { title: 'Neonkern aufbauen', detail: 'Fusioniere Kohlenstoff zu Neon und bereite damit die nächste Brennstufe des massereichen Sterns vor.' },
   },
   neon: {
-    id: 'neon', title: 'Neonfusion', kicker: 'Schweres Kernbrennen',
+    id: 'neon', title: 'Sauerstoff II', fullTitle: 'Fusion zu Sauerstoff II', kicker: 'Schweres Kernbrennen',
     description: 'Neon wird durch Photodisintegration und Alpha-Einfang überwiegend zu Sauerstoff umgebaut.',
     equationInput: 'Ne', equationOutput: 'O + γ',
     manualYield: { baseCost: 140, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 35 },
@@ -145,7 +155,7 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     burnObjective: { title: 'Sauerstoffkern aufbauen', detail: 'Baue Neon zu Sauerstoff um — der Brennstoff der folgenden Sauerstofffusion.' },
   },
   oxygen: {
-    id: 'oxygen', title: 'Sauerstofffusion', kicker: 'Schweres Kernbrennen',
+    id: 'oxygen', title: 'Silizium', fullTitle: 'Fusion zu Silizium', kicker: 'Schweres Kernbrennen',
     description: 'Sauerstoffkerne verschmelzen im vereinfachten Netz zu Silizium.',
     equationInput: 'O + O', equationOutput: 'Si + γ',
     manualYield: { baseCost: 120, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 30 },
@@ -158,7 +168,7 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     burnObjective: { title: 'Siliziumkern aufbauen', detail: 'Fusioniere Sauerstoff zu Silizium, dem letzten exothermen Brennstoff des Sterns.' },
   },
   silicon: {
-    id: 'silicon', title: 'Siliziumfusion', kicker: 'Letzte exotherme Brennstufe',
+    id: 'silicon', title: 'Eisen', fullTitle: 'Fusion zur Eisengruppe', kicker: 'Letzte exotherme Brennstufe',
     description: 'Eine Folge von Reaktionen baut Silizium bis zur Eisengruppe um.',
     equationInput: 'Si', equationOutput: 'Fe-Gruppe',
     manualYield: { baseCost: 100, growthFactor: 1, quadraticCoefficient: 0, linearCoefficient: 25 },

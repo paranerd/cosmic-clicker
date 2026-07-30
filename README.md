@@ -18,7 +18,7 @@ Ein responsives Browser-Spiel über die Entstehung und Entwicklung eines Sterns 
 - Kurzes, überspringbares Tutorial mit jederzeit möglicher Wiederholung
 - Synthetisierte Soundeffekte mit gespeichertem Lautstärkeregler und Stummschaltung
 - Laufende Statistiken, Rundenauswertung und Chronik der letzten Zyklen
-- Responsive Desktop- und Smartphone-Oberfläche
+- Responsive Oberfläche: Kontrollzentrum auf dem Desktop, auf kleinen Bildschirmen stattdessen eine bildschirmfüllende Sternkammer mit Dock am unteren Rand
 - Installierbare PWA mit vollständigem Offline-Betrieb und bestätigtem Update statt stillem Neuladen
 - Unit-Tests sowie Browser-Tests für Produktions- und Entwicklungsmodus
 

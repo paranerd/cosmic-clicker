@@ -342,7 +342,7 @@ const runReaction = (state: GameState, reaction: ReactionId, requested: number, 
     state.stats.oxygenCreated += oxygen;
     if (automatic) state.stats.automaticOxygenCreated += oxygen;
   }
-  if (state.reactionTotals[reaction] <= amount + .001) log(state, `${definition.title}: ${definition.equationInput} → ${definition.equationOutput}.`, 'fusion');
+  if (state.reactionTotals[reaction] <= amount + .001) log(state, `${definition.fullTitle}: ${definition.equationInput} → ${definition.equationOutput}.`, 'fusion');
   return amount;
 };
 
@@ -373,7 +373,7 @@ const unlockEligibleReactions = (state: GameState): void => {
     const definition = REACTIONS[id];
     if (state.temperature < definition.ignitionTemperature || starMass(state) < definition.minimumMass) return;
     state.unlockedReactions.push(id);
-    if (id !== 'alphaCapture') setStage(state, definition.stageOnUnlock, `${definition.title} bei ${definition.ignitionTemperature.toLocaleString('de-DE')} K freigeschaltet.`);
+    if (id !== 'alphaCapture') setStage(state, definition.stageOnUnlock, `${definition.fullTitle} bei ${definition.ignitionTemperature.toLocaleString('de-DE')} K freigeschaltet.`);
   });
 };
 
@@ -437,7 +437,7 @@ const evaluateEvolution = (state: GameState): void => {
   const definition = REACTIONS[decision.next];
   if (starMass(state) >= definition.minimumMass) {
     if (decision.next === 'helium') setStage(state, 'redGiant', 'Der wasserstoffarme Kern kontrahiert; die Hülle wächst zum Roten Riesen.');
-    else setStage(state, 'massiveStar', `Der Kern kontrahiert in Richtung ${definition.title}.`);
+    else setStage(state, 'massiveStar', `Der Kern kontrahiert in Richtung ${definition.fullTitle}.`);
     return;
   }
   if (decision.next === 'helium') completeRun(state, 'heliumWhiteDwarf');
@@ -674,7 +674,7 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
       next.energy -= cost;
       next.reactionUpgrades[action.reaction] += 1;
       next.stats.upgradesPurchased += 1;
-      log(next, `${REACTIONS[action.reaction].title}: manuelle Fusionsmenge ausgebaut.`, 'fusion');
+      log(next, `${REACTIONS[action.reaction].fullTitle}: manuelle Fusionsmenge ausgebaut.`, 'fusion');
     }
   } else if (action.type === 'BUY_REACTION_AUTOMATION') {
     buyAutomation(next, REACTIONS[action.reaction].automation);
@@ -757,7 +757,7 @@ export const objectiveFor = (state: GameState): { id: string; eyebrow: string; t
     return {
       id: `ignite-${decision.next}`,
       eyebrow: OBJECTIVE_EYEBROWS.contraction,
-      title: OBJECTIVE_TEMPLATES.igniteTitle(reaction.title),
+      title: OBJECTIVE_TEMPLATES.igniteTitle(reaction.fullTitle),
       progress: Math.min(100, state.temperature / reaction.ignitionTemperature * 100),
       detail: OBJECTIVE_TEMPLATES.igniteDetail(reaction.ignitionTemperature, requiredSolarMasses),
     };

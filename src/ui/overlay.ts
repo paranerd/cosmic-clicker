@@ -4,14 +4,15 @@ import { setDebugOpen, syncDebug } from './debug';
 import { disabled, formatDuration, formatMatter, formatSolarMasses, icons } from './format';
 import { clearPrestigeConfirmation, closeResetMenu } from './menus';
 import { clearAchievements, clearToasts } from './notifications';
-import { app, getState } from './store';
-import { historyMarkup, logMarkup, statsEntries, statsGridMarkup, timelineMarkup } from './views';
+import { app, getState, PANEL_LABELS, type Panel } from './store';
+import { historyMarkup, logMarkup, panelMarkup, statsEntries, statsGridMarkup, timelineMarkup } from './views';
 import { invalidateTutorial } from './tutorial';
 
 let chronicleOpen = false;
 let statsOpen = false;
 let settingsOpen = false;
 let objectiveOpen = false;
+let panelPopup: Panel | null = null;
 let knowledgeEntry: KnowledgeId | null = null;
 let overlaySignature = '';
 let summaryAttentionRun = 0;
@@ -21,12 +22,14 @@ export const resetSummaryAttention = (): void => { summaryAttentionRun = 0; };
 export const isKnowledgeOpen = (): boolean => knowledgeEntry !== null;
 export const isSettingsOpen = (): boolean => settingsOpen;
 export const isObjectiveOpen = (): boolean => objectiveOpen;
+export const openPanelPopup = (): Panel | null => panelPopup;
 
 export function setChronicleOpen(open: boolean): void {
   chronicleOpen = open;
   if (open) {
     statsOpen = false;
     objectiveOpen = false;
+    panelPopup = null;
   }
   invalidateOverlay();
   syncOverlay();
@@ -37,6 +40,7 @@ export function setStatsOpen(open: boolean): void {
   if (open) {
     chronicleOpen = false;
     objectiveOpen = false;
+    panelPopup = null;
   }
   invalidateOverlay();
   syncOverlay();
@@ -49,6 +53,7 @@ export function setSettingsOpen(open: boolean): void {
     chronicleOpen = false;
     statsOpen = false;
     objectiveOpen = false;
+    panelPopup = null;
     knowledgeEntry = null;
   }
   invalidateOverlay();
@@ -61,6 +66,25 @@ export function setObjectiveOpen(open: boolean): void {
     chronicleOpen = false;
     statsOpen = false;
     settingsOpen = false;
+    panelPopup = null;
+    knowledgeEntry = null;
+  }
+  invalidateOverlay();
+  syncOverlay();
+}
+
+// Dock-Popup der mobilen Fassung: Es zeigt genau den Kachelbereich, den auf
+// dem Desktop der gleichnamige Reiter des Kontrollzentrums enthält, und bringt
+// dafür dieselbe `[data-ui="deck-content"]`-Fläche mit. Alle laufenden
+// Aktualisierungen (updateUI/syncActivePanel) treffen es deshalb unverändert;
+// gefüllt wird es beim Öffnen von switchPanel().
+export function setPanelPopupOpen(panel: Panel | null): void {
+  panelPopup = panel;
+  if (panel) {
+    chronicleOpen = false;
+    statsOpen = false;
+    settingsOpen = false;
+    objectiveOpen = false;
     knowledgeEntry = null;
   }
   invalidateOverlay();
@@ -95,7 +119,7 @@ export function syncOverlay(): void {
   const root = app.querySelector<HTMLElement>('[data-ui="overlay-root"]');
   if (!root) return;
   const introNeedsDecision = !state.tutorial.introSeen;
-  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !settingsOpen && !objectiveOpen && !introNeedsDecision && !knowledgeEntry) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
+  if (!state.summaryOpen && !chronicleOpen && !statsOpen && !settingsOpen && !objectiveOpen && !panelPopup && !introNeedsDecision && !knowledgeEntry) { if (root.innerHTML) root.innerHTML = ''; overlaySignature = ''; return; }
   if (introNeedsDecision) {
     if (overlaySignature === 'intro') return;
     overlaySignature = 'intro';
@@ -124,6 +148,19 @@ export function syncOverlay(): void {
     overlaySignature = knowledgeSignature;
     const entry = KNOWLEDGE[knowledgeEntry];
     root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="knowledge" role="presentation"><section class="knowledge-modal" role="dialog" aria-modal="true" aria-labelledby="knowledge-title"><div class="chronicle-modal-heading"><div><small>${entry.eyebrow}</small><h2 id="knowledge-title">${entry.title}</h2></div><button data-action="close-knowledge" aria-label="Erklärung schließen">×</button></div><div class="knowledge-body">${entry.paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join('')}<div class="knowledge-ingame"><div class="section-label"><span>Im Spiel</span></div><p>${entry.inGame}</p></div></div></section></div>`;
+    return;
+  }
+  if (panelPopup && !state.summaryOpen) {
+    const panelSignature = `panel:${panelPopup}`;
+    if (panelSignature === overlaySignature) return;
+    overlaySignature = panelSignature;
+    const label = PANEL_LABELS[panelPopup];
+    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="panel" role="presentation">
+      <section class="panel-modal" role="dialog" aria-modal="true" aria-label="${label}">
+        <div class="chronicle-modal-heading"><div><small>KONTROLLZENTRUM</small><h2>${label}</h2></div><button data-action="close-panel" aria-label="${label} schließen">×</button></div>
+        <div class="panel-modal-body" data-ui="deck-content">${panelMarkup(panelPopup)}</div>
+      </section>
+    </div>`;
     return;
   }
   if (settingsOpen && !state.summaryOpen) {
@@ -160,6 +197,10 @@ export function syncOverlay(): void {
           <section class="settings-section settings-tutorial-section">
             <div class="settings-section-copy"><span>Hilfestellung</span><h3>Tutorial</h3><p>Zeige die geführten Hinweise im Spiel. Beim Einschalten wird das Tutorial passend zu deinem Fortschritt fortgesetzt.</p></div>
             <button class="settings-switch ${tutorialEnabled ? 'is-on' : ''}" data-action="toggle-tutorial" role="switch" aria-checked="${String(tutorialEnabled)}" aria-label="Tutorial ${tutorialEnabled ? 'ausschalten' : 'einschalten'}"><span>${tutorialEnabled ? 'Ein' : 'Aus'}</span><i aria-hidden="true"></i></button>
+          </section>
+          <section class="settings-section settings-about-section">
+            <div class="settings-section-copy"><span>Über das Spiel</span><h3>Cosmic Clicker</h3><p>Version und Leitgedanke dieses Prototyps.</p></div>
+            <div class="settings-about"><b>COSMIC CLICKER · PROTOTYP 0.3</b><small>Wissenschaftlich plausibel · spielerisch komprimiert</small></div>
           </section>
         </div>
       </section>
@@ -252,6 +293,7 @@ export function makeSummaryExclusive(): void {
   statsOpen = false;
   settingsOpen = false;
   objectiveOpen = false;
+  panelPopup = null;
   knowledgeEntry = null;
   setDebugOpen(false);
   overlaySignature = '';

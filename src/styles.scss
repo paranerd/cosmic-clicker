@@ -115,10 +115,13 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 // Klickhinweis und Zielbalken springen. `clip` erzeugt keinen Scrollcontainer
 // und verhindert das; ältere Browser ohne `clip` behalten `hidden`.
 .star-chamber { position: relative; overflow: hidden; overflow: clip; min-height: 600px; display: grid; place-items: center; isolation: isolate; background: radial-gradient(circle at center, rgba(83, 70, 51, calc(.08 + var(--temp-scale) * .09)), transparent 48%); }
-.chamber-resources { width: min(500px, calc(100% - 32px)); min-height: 72px; position: absolute; z-index: 4; top: 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+// Breite und Schriftgröße sind auf den längsten Wert ausgelegt, den die
+// Kurzschreibweise erzeugen kann („100,00 Mio“, siehe formatChamberValue) —
+// sonst kürzt die Ellipse genau die Einheit weg, auf die es ankommt.
+.chamber-resources { width: min(620px, calc(100% - 32px)); min-height: 72px; position: absolute; z-index: 4; top: 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .chamber-resource { min-width: 0; padding: 7px 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .chamber-resource span { color: $muted; font-size: 7px; letter-spacing: .1em; text-transform: uppercase; }
-.chamber-resource b { width: 100%; margin-top: 5px; overflow: hidden; color: #f5ede2; font-family: ui-monospace, monospace; font-size: clamp(20px, 2.6vw, 32px); font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -.06em; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+.chamber-resource b { width: 100%; margin-top: 5px; overflow: hidden; color: #f5ede2; font-family: ui-monospace, monospace; font-size: clamp(19px, 2.2vw, 28px); font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -.06em; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
 .chamber-resource small { margin-top: 4px; color: #536176; font-size: 8px; line-height: 1; }
 .stage-label { position: absolute; z-index: 4; top: 108px; text-align: center; }
 .stage-label span { display: block; color: $amber; font-family: Georgia, serif; font-size: 22px; }
@@ -464,13 +467,34 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .log-entry time { display: block; margin-bottom: 2px; color: #58677a; font-size: 7px; letter-spacing: .08em; text-transform: uppercase; }
 .log-entry p { margin: 0; color: #8996a8; font-size: 9px; line-height: 1.5; }
 
-footer { width: min(1460px, calc(100% - 48px)); min-height: 64px; margin: auto; display: flex; align-items: center; gap: 20px; color: #4e5a6a; font-size: 8px; letter-spacing: .1em; }
-footer p { margin: 0; flex: 1; text-align: center; }
-footer button { border: 0; background: none; color: #627086; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; cursor: pointer; }
-footer button:hover { color: $cyan; }
+// Dock der mobilen Fassung. Es steht in der letzten Zeile des Seitenrasters
+// (kein `position: fixed`), damit die Sternkammer exakt den restlichen
+// Viewport einnimmt und nichts unter dem Dock verschwindet. Sichtbar wird es
+// nur unterhalb des Kontrollzentrum-Breakpoints; oberhalb rendert die Shell
+// es gar nicht erst (siehe ui/store.ts, isMobileLayout).
+.mobile-dock { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); padding: 5px 2px calc(5px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid $line; background: rgba(6,10,18,.94); backdrop-filter: blur(14px); }
+.mobile-dock button { min-width: 0; min-height: 54px; padding: 6px 2px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 0; background: transparent; color: $muted; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: color .18s ease; }
+.mobile-dock .dock-icon { display: grid; place-items: center; }
+.mobile-dock svg { width: 19px; height: 19px; }
+.mobile-dock .dock-label { max-width: 100%; overflow: hidden; font-size: 7px; letter-spacing: .04em; line-height: 1; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.mobile-dock button.active { color: $text; }
+.mobile-dock button.active .dock-icon { color: $cyan; }
+// Gelegenheit im Bereich: derselbe Amber-Code wie Reiterindikator und
+// kaufbereiter Eck-Ausbaubutton, hier zusätzlich als Glow am Symbol.
+.mobile-dock button.has-notice { color: $amber; }
+.mobile-dock button.has-notice .dock-icon { filter: drop-shadow(0 0 7px rgba($amber,.55)); }
+.mobile-dock .tab-count { min-width: 13px; height: 13px; position: absolute; top: 4px; left: calc(50% + 5px); display: grid; place-items: center; border: 1px solid rgba($amber,.5); color: #1b1006; background: rgba($amber,.9); font-family: ui-monospace,monospace; font-size: 6px; font-weight: 700; box-shadow: 0 0 9px rgba($amber,.35); }
+.mobile-dock .tab-count[hidden] { display: none; }
+.mobile-dock button.unlock-flash .dock-icon { animation: dockUnlockFlash 1.25s ease-out; }
+
+// Dock-Popup: Kopfzeile und Rahmen wie bei Chronik/Statistik, im Körper die
+// Kacheln des gewählten Bereichs.
+.panel-modal { width: min(680px, 100%); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.panel-modal-body { min-height: 0; padding: 16px; overflow-y: auto; overscroll-behavior: contain; }
+.panel-modal-body .reaction-grid, .panel-modal-body .upgrade-grid { grid-template-columns: 1fr; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(2,5,9,.82); backdrop-filter: blur(12px); }
-.objective-modal, .settings-modal, .stats-modal, .chronicle-modal, .knowledge-modal { max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); display: flex; flex-direction: column; overflow: hidden; }
+.objective-modal, .settings-modal, .stats-modal, .chronicle-modal, .knowledge-modal, .panel-modal { max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); display: flex; flex-direction: column; overflow: hidden; }
 .objective-modal { width: min(560px,100%); border: 1px solid rgba($cyan,.3); background: #0a101a; box-shadow: 0 30px 100px rgba(0,0,0,.55); }
 .objective-modal .chronicle-modal-heading small { color: $cyan; }
 .objective-modal-body { min-height: 0; padding: 22px 28px 26px; overflow-y: auto; overscroll-behavior: contain; }
@@ -500,6 +524,10 @@ footer button:hover { color: $cyan; }
 .settings-danger.is-armed { color: #1b0b09; border-color: #db715f; background: #db715f; }
 .settings-danger.is-armed svg,.settings-danger.is-armed small { color: #36120d; }
 .settings-tutorial-section { min-height: 106px; }
+// Punkt 5: Inhalt der entfallenen Fußzeile.
+.settings-about { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid $line; background: rgba(255,255,255,.015); }
+.settings-about b { color: #9aa7b6; font-family: ui-monospace,monospace; font-size: 9px; font-weight: 400; letter-spacing: .1em; }
+.settings-about small { color: $muted; font-size: 8px; letter-spacing: .06em; }
 .settings-switch { width: 78px; min-height: 34px; justify-self: end; display: flex; align-items: center; justify-content: flex-end; gap: 9px; padding: 0 8px 0 10px; border: 1px solid $line; border-radius: 20px; background: rgba(255,255,255,.018); color: $muted; cursor: pointer; transition: .18s ease; }
 .settings-switch span { font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
 .settings-switch i { width: 16px; height: 16px; border-radius: 50%; background: #596678; box-shadow: 0 0 0 3px rgba(255,255,255,.025); transition: .18s ease; }
@@ -720,6 +748,7 @@ footer button:hover { color: $cyan; }
 @keyframes accreteIn { from { opacity: 0; transform: translate(calc(var(--from-x) - 50%), calc(var(--from-y) - 50%)) scale(.55); } 18% { opacity: 1; } to { opacity: 0; transform: translate(-50%,-50%) scale(.18); } }
 @keyframes gainRise { from { opacity: 0; transform: translate(-50%,0) scale(.75); } 24% { opacity: 1; transform: translate(-50%,-8px) scale(1.06); } to { opacity: 0; transform: translate(-50%,-48px) scale(1); } }
 @keyframes tabUnlockFlash { 0%,100% { color: inherit; text-shadow: none; } 28%,62% { color: $amber; border-bottom-color: $amber; background: rgba($amber,.07); text-shadow: 0 0 12px rgba($amber,.58); } }
+@keyframes dockUnlockFlash { 0%,100% { transform: none; filter: none; } 30%,64% { transform: scale(1.22); filter: drop-shadow(0 0 10px rgba($amber,.75)); } }
 @keyframes perkAttention { 0%,100% { border-color: $line; background: rgba(255,255,255,.018); box-shadow: none; } 30%,68% { border-color: rgba($amber,.7); background: rgba($amber,.09); box-shadow: 0 0 24px rgba($amber,.16), inset 0 0 18px rgba($amber,.04); } }
 @keyframes achievement-timeout { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @keyframes introBackdropIn { from { opacity: 0; } to { opacity: 1; } }
@@ -761,7 +790,6 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .side-content { padding: 10px 12px; }
   .action-sidepanel .action-card, .action-sidepanel .upgrade-card { padding: 10px 11px; }
   .action-sidepanel .level-row { margin: 9px 0; }
-  footer { display: none; }
 }
 
 @media (max-width: 1100px) {
@@ -778,17 +806,19 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
 }
 
 @media (max-width: 780px) {
-  main { width: 100%; }
-  footer { width: min(100% - 24px, 620px); }
-  .stellar-lab { grid-template-columns: 1fr; }
+  // Punkt 7: Die Seite selbst scrollt auf kleinen Bildschirmen nicht mehr.
+  // `main` ist ein Raster aus Sternkammer (nimmt den ganzen verbleibenden
+  // Viewport ein) und Dock darunter; gescrollt wird nur noch innerhalb der
+  // Popups. Das ergibt den Eindruck einer nativen App statt einer langen
+  // Seite mit Stern und Kachelliste untereinander.
+  html, body, #app { height: 100%; overflow: hidden; }
+  main { width: 100%; height: 100vh; height: 100dvh; display: grid; grid-template-rows: minmax(0,1fr) auto; }
+  .stellar-lab { min-height: 0; grid-template-columns: 1fr; border-bottom: 0; }
   .left-panel { display: none; }
-  .star-chamber { min-height: 100svh; min-height: 100dvh; grid-row: 1; }
+  .star-chamber { min-height: 0; height: 100%; grid-row: 1; }
   .stellar-data-corner { display: block; }
   .cloud-corner { bottom: 58px; }
   .warning-corner { bottom: 102px; }
-  .action-sidepanel { min-height: 520px; grid-row: 2; }
-  .sidepanel-heading { padding: 20px 20px 12px; }
-  .side-content { padding: 16px 20px; }
   .data-panel { padding: 25px 20px; }
   .deck-tabs { padding: 0 16px; gap: 18px; overflow-x: auto; }
   .deck-content { padding: 18px 16px 22px; }
@@ -813,13 +843,14 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .timeline::before { min-width: 490px; }
   .timeline-node { min-width: 95px; }
   .future-strip p { display: none; }
-  footer { flex-wrap: wrap; justify-content: center; padding: 18px 0; }
-  footer p { order: 3; width: 100%; flex: auto; }
   .settings-body { padding: 0 20px 6px; }
   .settings-section { grid-template-columns: 1fr; gap: 14px; padding: 18px 0; }
   .settings-switch { justify-self: start; }
-  .tutorial-card { left: 50%; bottom: 16px; transform: translateX(-50%); }
-  .achievement-banner, .cycle-end-banner { bottom: 16px; }
+  .panel-modal-body { padding: 14px; }
+  // Fest positionierte Einblendungen bleiben über dem Dock, statt es zu
+  // verdecken (Dockhöhe: 54px Button + 2 × 5px Innenabstand + 1px Rahmen).
+  .tutorial-card { left: 50%; bottom: calc(81px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); }
+  .achievement-banner, .cycle-end-banner { bottom: calc(81px + env(safe-area-inset-bottom, 0px)); }
   .toast-stack { top: 76px; }
   .debug-panel { width: calc(100% - 24px); right: 12px; top: 74px; }
 }
@@ -828,7 +859,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .chamber-resources { width: calc(100% - 16px); }
   .chamber-resource { padding-right: 3px; padding-left: 3px; }
   .chamber-resource span { font-size: 6px; letter-spacing: .06em; }
-  .chamber-resource b { font-size: 20px; }
+  .chamber-resource b { font-size: 18px; }
   .click-callout { bottom: 62px; }
   .chamber-objective-progress { width: min(180px, calc(100% - 128px)); bottom: 18px; }
   .summary-modal { padding: 32px 20px; }

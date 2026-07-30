@@ -516,13 +516,13 @@ export function timelineNodes(tier: CloudTier = getState().cloudTier): TimelineN
   const nodes: TimelineNode[] = [['nebula', 'Urwolke', definition.shortName]];
   if (state.stats.peakTemperature >= THRESHOLDS.protostarTemperature) nodes.push(['protostar', 'Protostern', '100.000 K']);
   if (state.stats.peakTemperature >= THRESHOLDS.deuteriumTemperature) nodes.push(['deuterium', 'D-Brennen', '1 Mio. K']);
-  if (unlocked('hydrogen')) nodes.push(['hydrogen', REACTIONS.hydrogen.title, formatTemperature(REACTIONS.hydrogen.ignitionTemperature)]);
+  if (unlocked('hydrogen')) nodes.push(['hydrogen', REACTIONS.hydrogen.fullTitle, formatTemperature(REACTIONS.hydrogen.ignitionTemperature)]);
   if (state.reactionTotals.hydrogen >= THRESHOLDS.mainSequenceHydrogen) nodes.push(['mainSequence', 'Hauptreihe', 'H bleibt aktiv']);
   if (state.stage === 'redGiant' || unlocked('helium')) nodes.push(['redGiant', 'Roter Riese', 'Kernkontraktion']);
-  if (unlocked('helium')) nodes.push(['helium', REACTIONS.helium.title, formatTemperature(REACTIONS.helium.ignitionTemperature)]);
+  if (unlocked('helium')) nodes.push(['helium', REACTIONS.helium.fullTitle, formatTemperature(REACTIONS.helium.ignitionTemperature)]);
   const heavyIds = (['carbon', 'neon', 'oxygen', 'silicon'] as const).filter(unlocked);
   if (state.stage === 'massiveStar' || heavyIds.length) nodes.push(['massiveStar', 'Massereicher Stern', 'Späte Brennphasen']);
-  heavyIds.forEach((id) => nodes.push([REACTIONS[id].stageOnUnlock, REACTIONS[id].title, formatTemperature(REACTIONS[id].ignitionTemperature)]));
+  heavyIds.forEach((id) => nodes.push([REACTIONS[id].stageOnUnlock, REACTIONS[id].fullTitle, formatTemperature(REACTIONS[id].ignitionTemperature)]));
   if (state.stage === 'ironCore' || state.outcome === 'neutronStar' || state.outcome === 'blackHole') nodes.push(['ironCore', 'Eisenkern', 'Fusion endet']);
   if (state.outcome === 'neutronStar' || state.outcome === 'blackHole') nodes.push(['supernova', 'Supernova', 'Kernkollaps']);
   if (state.completed && state.outcome) {
@@ -617,7 +617,7 @@ export function statsEntries(): [string, string, string][] {
   const stats = state.stats;
   const heavyReactions: [string, string, string][] = (['carbon', 'neon', 'oxygen', 'silicon'] as const)
     .filter((id) => state.unlockedReactions.includes(id) || state.reactionTotals[id] > 0)
-    .map((id) => [`reaction-${id}`, `${REACTIONS[id].title}: Brennstoff`, `${formatMatter(state.reactionTotals[id])} ${RESOURCES[REACTIONS[id].primaryInput].symbol}`]);
+    .map((id) => [`reaction-${id}`, `${REACTIONS[id].fullTitle}: Brennstoff`, `${formatMatter(state.reactionTotals[id])} ${RESOURCES[REACTIONS[id].primaryInput].symbol}`]);
   return [
     ['matter', 'Eingesammelte Materie', `${formatMatter(stats.matterAccreted)} ME`],
     ['energy', 'Erzeugte Energie', formatCompact(stats.energyGenerated)],
