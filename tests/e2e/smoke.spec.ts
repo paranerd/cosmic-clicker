@@ -1753,6 +1753,7 @@ test('mobile fills the viewport with the star chamber and replaces the control c
     const chamberIcon = document.querySelector('.dock-chamber .dock-icon')!;
     const chamberRect = chamberIcon.getBoundingClientRect();
     const style = getComputedStyle(chamberIcon);
+    const labelTops = [...document.querySelectorAll('.mobile-dock .dock-label')].map((label) => label.getBoundingClientRect().top);
     return {
       index: icons.findIndex((icon) => icon.x === chamberRect.x),
       total: icons.length,
@@ -1760,6 +1761,7 @@ test('mobile fills the viewport with the star chamber and replaces the control c
       widestOther: Math.max(...icons.filter((icon) => icon.x !== chamberRect.x).map((icon) => icon.width)),
       liftAboveDock: dockRect.top - chamberRect.top,
       borderRadius: style.borderRadius,
+      distinctLabelTops: [...new Set(labelTops.map((top) => Math.round(top)))],
     };
   });
   expect(chamberProminence.index).toBe(2);
@@ -1767,6 +1769,9 @@ test('mobile fills the viewport with the star chamber and replaces the control c
   expect(chamberProminence.width).toBeGreaterThan(chamberProminence.widestOther);
   expect(chamberProminence.liftAboveDock).toBeGreaterThan(0);
   expect(chamberProminence.borderRadius).toBe('50%');
+  // Hinausragen darf allein das Symbolfeld: Alle Beschriftungen stehen weiterhin
+  // auf derselben Linie, auch die der Sternkammer.
+  expect(chamberProminence.distinctLabelTops).toHaveLength(1);
 
   const geometry = await page.evaluate(() => {
     const chamber = document.querySelector('.star-chamber')!.getBoundingClientRect();

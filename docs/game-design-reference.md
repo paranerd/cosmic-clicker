@@ -991,7 +991,9 @@ Intro) bleiben dagegen bildschirmfüllend und decken das Dock ab.
 Die Sternkammer in der Mitte ist der Ausgangszustand des Docks und das einzige
 Element, das nichts öffnet, sondern alles schließt. Sie tritt deshalb als
 einziges Feld plastisch hervor: ein größeres, rundes Symbolfeld, das ein Stück
-über die Dockkante hinausragt. Die Hervorhebung ist bewusst rein plastisch —
+über die Dockkante hinausragt. Hinausragen darf dabei allein das Symbolfeld —
+es belegt dieselbe Layouthöhe wie ein gewöhnliches Docksymbol, sodass alle fünf
+Beschriftungen weiterhin auf einer Linie stehen. Die Hervorhebung ist bewusst rein plastisch —
 Farbe bleibt im Dock durchgehend die Sprache des Zustands, sodass immer genau
 ein Feld als aktiv zu erkennen ist. Im Ruhezustand ist das Kammerfeld deshalb
 genauso gedämpft wie die übrigen Symbole.

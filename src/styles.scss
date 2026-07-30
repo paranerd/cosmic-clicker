@@ -22,6 +22,18 @@ $dock-padding-bottom: 18px;
 $dock-height: $dock-button-height + $dock-padding-top + $dock-padding-bottom + 1px;
 $dock-overlay-offset: $dock-height + 16px;
 
+// Deckende Farben des erhöhten Sternkammer-Felds im Dock. Sie entsprechen der
+// über dem Seitenhintergrund aufgelösten Dockfläche, müssen aber vollständig
+// opak sein: Das Feld liegt auf der oberen Dockkante, deren 1-px-Linie sonst
+// hindurchscheint.
+// Luftraum zwischen der oberen Dockkante und allem, was am unteren Rand der
+// Sternkammer sitzt (Fortschrittsanzeige, Urwolke, Echtzeitdaten, Effekte).
+$chamber-dock-clearance: 32px;
+
+$dock-puck-base: #0a111c;
+$dock-puck-highlight: #1b2331;
+$dock-puck-shell: #060a11;
+
 * { box-sizing: border-box; }
 
 :root {
@@ -542,10 +554,16 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 // deshalb genauso gedämpft wie die übrigen Symbole und wird erst cyan, wenn
 // die Sternkammer tatsächlich zu sehen ist — sonst leuchteten bei geöffneten
 // Einstellungen zwei Felder gleichzeitig.
-.mobile-dock .dock-chamber .dock-icon { width: 48px; height: 48px; margin-top: -24px; border: 1px solid $line; border-radius: 50%; background: radial-gradient(circle at 50% 38%, rgba(148,175,201,.12), rgba(10,17,28,.97) 68%); box-shadow: 0 0 0 4px rgba(6,10,18,.94), 0 8px 20px rgba(0,0,0,.5); transition: color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+// Die Negativ-Margins sind bewusst so gewählt, dass das 48-px-Feld exakt
+// dieselbe Layouthöhe beisteuert wie ein gewöhnliches 23-px-Docksymbol
+// (-30 + 48 + 5 = 23). Die Beschriftung steht dadurch auf derselben Linie wie
+// alle anderen; hinausragen tut allein das Symbolfeld selbst.
+// Füllung und Trennring sind bewusst vollständig deckend: Das Feld liegt auf
+// der oberen Dockkante, und schon wenige Prozent Transparenz ließen deren
+// 1-px-Linie quer durch das Symbolfeld hindurchscheinen.
+.mobile-dock .dock-chamber .dock-icon { width: 48px; height: 48px; margin: -30px 0 5px; border: 1px solid $line; border-radius: 50%; background: radial-gradient(circle at 50% 38%, $dock-puck-highlight, $dock-puck-base 68%); box-shadow: 0 0 0 4px $dock-puck-shell, 0 8px 20px rgba(0,0,0,.5); transition: color .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .mobile-dock .dock-chamber svg { width: 26px; height: 26px; }
-.mobile-dock .dock-chamber .dock-label { margin-top: -10px; }
-.mobile-dock .dock-chamber.active .dock-icon { border-color: rgba($cyan,.6); background: radial-gradient(circle at 50% 38%, rgba($cyan,.26), rgba(10,17,28,.96) 68%); box-shadow: 0 0 0 4px rgba(6,10,18,.94), 0 8px 20px rgba(0,0,0,.5), 0 0 22px rgba($cyan,.42); }
+.mobile-dock .dock-chamber.active .dock-icon { border-color: rgba($cyan,.6); background: radial-gradient(circle at 50% 38%, color.mix($cyan, $dock-puck-base, 26%), $dock-puck-base 68%); box-shadow: 0 0 0 4px $dock-puck-shell, 0 8px 20px rgba(0,0,0,.5), 0 0 22px rgba($cyan,.42); }
 
 // Dock-Blatt: Kopfzeile und Rahmen wie bei Chronik/Statistik, im Körper die
 // Kacheln des gewählten Bereichs.
@@ -876,8 +894,16 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .stellar-lab { min-height: 0; grid-template-columns: 1fr; border-bottom: 0; }
   .left-panel { display: none; }
   .star-chamber { min-height: 0; height: 100%; grid-row: 1; }
-  .stellar-data-corner { display: block; }
-  .cloud-corner { bottom: 58px; }
+  // Die Kammer endet auf kleinen Bildschirmen unmittelbar an der Dockkante,
+  // über die zusätzlich das Sternkammer-Feld hinausragt. Alles, was am unteren
+  // Kammerrand sitzt, rückt deshalb um $chamber-dock-clearance nach oben —
+  // ohne diesen Luftraum drängen sich Fortschrittsanzeige und Eck-Buttons
+  // direkt an der Linie.
+  .stellar-data-corner { display: block; bottom: $chamber-dock-clearance; }
+  .effects-corner { bottom: $chamber-dock-clearance; }
+  .cloud-corner { bottom: $chamber-dock-clearance + 44px; }
+  .click-callout { bottom: 70px + $chamber-dock-clearance - 14px; }
+  .chamber-objective-progress { bottom: 20px + $chamber-dock-clearance - 14px; }
   .data-panel { padding: 25px 20px; }
   .deck-tabs { padding: 0 16px; gap: 18px; overflow-x: auto; }
   .deck-content { padding: 18px 16px 22px; }
@@ -927,8 +953,8 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .chamber-resource { padding-right: 3px; padding-left: 3px; }
   .chamber-resource span { font-size: 6px; letter-spacing: .06em; }
   .chamber-resource b { font-size: 18px; }
-  .click-callout { bottom: 62px; }
-  .chamber-objective-progress { width: min(180px, calc(100% - 128px)); bottom: 18px; }
+  .click-callout { bottom: 62px + $chamber-dock-clearance - 14px; }
+  .chamber-objective-progress { width: min(180px, calc(100% - 128px)); bottom: 18px + $chamber-dock-clearance - 14px; }
   .summary-modal { padding: 32px 20px; }
   .summary-modal h2 { font-size: 28px; }
   .summary-heading { grid-template-columns: 1fr; text-align: center; }
