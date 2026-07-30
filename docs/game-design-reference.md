@@ -981,7 +981,8 @@ Das Dock trägt fünf Symbole:
 | 5 | Settings | Blatt mit den Einstellungen |
 
 Alle vom Dock geöffneten Flächen enden **oberhalb** des Docks, statt es zu
-verdecken. Das Dock bleibt dadurch durchgehend sichtbar und bedienbar: Der
+verdecken — genauer: oberhalb des Überstands, mit dem das Sternkammer-Feld über
+die Dockkante hinausragt, damit sie es nicht oben anschneiden. Das Dock bleibt dadurch durchgehend sichtbar und bedienbar: Der
 Wechsel zwischen zwei Zielen — etwa von den Einstellungen zurück in die
 Sternkammer — ist immer genau ein Klick, ohne vorheriges Schließen. Ein
 erneuter Klick auf ein bereits geöffnetes Dock-Element schließt es wieder.

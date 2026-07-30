@@ -1880,8 +1880,14 @@ test('dock sheets end above the dock so switching between areas takes a single t
   const sheetGeometry = async () => page.evaluate(() => {
     const backdrop = document.querySelector('.modal-backdrop')!.getBoundingClientRect();
     const dockRect = document.querySelector('.mobile-dock')!.getBoundingClientRect();
+    const chamberIcon = document.querySelector('.dock-chamber .dock-icon')!.getBoundingClientRect();
     const topmostAtDock = document.elementFromPoint(dockRect.x + dockRect.width / 2, dockRect.top + dockRect.height / 2);
-    return { sheetBottom: backdrop.bottom, dockTop: dockRect.top, dockIsOnTop: Boolean(topmostAtDock?.closest('.mobile-dock')) };
+    return {
+      sheetBottom: backdrop.bottom,
+      dockTop: dockRect.top,
+      chamberIconTop: chamberIcon.top,
+      dockIsOnTop: Boolean(topmostAtDock?.closest('.mobile-dock')),
+    };
   });
 
   // Einstellungen öffnen: Das Blatt endet über dem Dock, das Dock bleibt oben.
@@ -1890,6 +1896,9 @@ test('dock sheets end above the dock so switching between areas takes a single t
   let geometry = await sheetGeometry();
   expect(geometry.sheetBottom).toBeLessThanOrEqual(geometry.dockTop);
   expect(geometry.dockIsOnTop).toBe(true);
+  // Das Blatt endet oberhalb des Überstands, sonst schnitte es das erhöhte
+  // Sternkammer-Feld oben an.
+  expect(geometry.sheetBottom).toBeLessThanOrEqual(geometry.chamberIconTop);
   await expect(dock.getByRole('button', { name: 'Einstellungen öffnen' })).toHaveClass(/active/);
   await expect(chamber).not.toHaveClass(/active/);
 

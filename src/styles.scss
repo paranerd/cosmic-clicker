@@ -30,6 +30,11 @@ $dock-overlay-offset: $dock-height + 16px;
 // Sternkammer sitzt (Fortschrittsanzeige, Urwolke, Echtzeitdaten, Effekte).
 $chamber-dock-clearance: 32px;
 
+// Wie weit das erhöhte Sternkammer-Feld über die obere Dockkante hinausragt,
+// inklusive seines 4-px-Trennrings. Dock-Blätter enden um diesen Betrag höher,
+// damit sie das Feld nicht oben anschneiden.
+$dock-puck-overhang: 16px;
+
 $dock-puck-base: #0a111c;
 $dock-puck-highlight: #1b2331;
 $dock-puck-shell: #060a11;
@@ -938,7 +943,7 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   // z. B. von den Einstellungen zurück in die Sternkammer ist ein einziger
   // Klick, ohne vorheriges Schließen. Overlays ohne Dock-Gegenpart (Ziel,
   // Wissenseintrag, Zusammenfassung, Intro) bleiben bildschirmfüllend.
-  .modal-backdrop.dock-sheet { bottom: calc(#{$dock-height} + env(safe-area-inset-bottom, 0px)); padding: 10px; place-items: stretch; }
+  .modal-backdrop.dock-sheet { bottom: calc(#{$dock-height + $dock-puck-overhang} + env(safe-area-inset-bottom, 0px)); padding: 10px 10px 0; place-items: stretch; }
   .dock-sheet > section { width: 100%; height: 100%; max-height: 100%; }
   // Fest positionierte Einblendungen bleiben über dem Dock, statt es zu
   // verdecken (Dockhöhe siehe $dock-height oben).
