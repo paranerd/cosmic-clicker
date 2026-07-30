@@ -67,7 +67,7 @@ aber ein vollständig erzählter einzelner Sternzyklus.
 2. Dadurch Sternmasse und Energie gewinnen.
 3. Energie in Gravitation, Reaktionsausbau und Automationen investieren.
 4. Temperatur- und Druckschwellen erreichen.
-5. Verfügbare Kernreaktionen manuell ausführen.
+5. Eine verfügbare Kernreaktion im Fusionsring wählen und am Stern ausführen.
 6. Den unmittelbaren Effekt in Kernzusammensetzung, Energie und Visualisierung
    beobachten.
 
@@ -158,6 +158,7 @@ astronomische Schwellen, ohne permanent extrem große Zahlen anzeigen zu müssen
 | Gravitation | Stufe 0 |
 | Automationen | alle Stufe 0 |
 | Reaktionen | keine freigeschaltet |
+| Ausgewählte Fusion | keine (Stern akkretiert) |
 | Sound | an |
 | Lautstärke | 35 % |
 
@@ -407,6 +408,26 @@ Temperatur und gesamte Sternmasse.
 - Das Kontrollzentrum zeigt alle freigeschalteten Prozesse und genau die
   unmittelbar nächste gesperrte Reaktion. Spätere Stufen werden nicht auf
   einmal vorweggenommen.
+
+### Auswahl und Auslösung
+
+Manuelle Reaktionen werden zweistufig bedient: Der Fusionsring in der Star
+Chamber wählt die Reaktion, der Stern führt sie aus.
+
+- Für jede freigeschaltete Reaktion steht genau ein runder Ringbutton bereit;
+  gesperrte Reaktionen haben keinen.
+- Genau eine Reaktion ist gleichzeitig ausgewählt. Ein Klick auf einen anderen
+  Ringbutton wechselt, ein Klick auf den ausgewählten hebt die Auswahl auf.
+- Solange eine Reaktion ausgewählt ist, löst jeder Klick auf den Stern diese
+  Reaktion aus; Akkretion pausiert dafür. Ohne Auswahl sammelt der Stern wie
+  gewohnt Materie ein.
+- Fehlender Brennstoff hebt die Auswahl nicht auf: Der Ringbutton bleibt
+  ausgewählt (gedämpft dargestellt) und der Stern ist deaktiviert, bis wieder
+  Brennstoff vorhanden ist oder abgewählt wird.
+- Eine Reaktion darf auch vorgewählt werden, bevor ihr Brennstoff existiert.
+- Die Auswahl ist Teil des Spielstands und übersteht einen Neustart. Ein neuer
+  Zyklus beginnt ohne Auswahl, also mit Akkretion. Ein abgeschlossener Zyklus
+  blendet den Ring aus.
 
 ### Reaktionswerte
 
@@ -853,7 +874,7 @@ Referenzbreiten:
 
 - **Linkes Panel:** Temperatur, Masse, Druck, Energie, Rate und
   Zusammensetzungen
-- **Star Chamber:** Hauptaktion, Entwicklungsstadium, Warnungen,
+- **Star Chamber:** Hauptaktion, Fusionsring, Entwicklungsstadium, Warnungen,
   Aktionsfeedback und Fortschrittsbalken
 - **Kontrollzentrum:** Reaktionen, Upgrades und Automationen
 - **Chronik-Dock:** Entwicklungsweg und jüngste Logeinträge; die geöffnete
@@ -905,10 +926,33 @@ Die Füllung hat je Zustand eine andere Bedeutung:
 - bezahlbar: gefüllter Fortschritt plus Amber-Puls;
 - vollständig: keine Füllung.
 
-Reaktionskarten übernehmen dieselbe Grundstruktur und ergänzen nur Kicker,
-Gleichung und den vollbreiten Fusionsbutton. Zwischen Beschreibung und Pips
+Reaktionskarten übernehmen dieselbe Grundstruktur und ergänzen nur den Kicker
+(Reaktionskette) über der Titelzeile. Sie enthalten keinen eigenen
+Aktionsbutton: Ausgelöst wird die Reaktion über den Fusionsring am Stern, in
+der Karte steckt allein der Eck-Ausbaubutton. Zwischen Beschreibung und Pips
 gibt es keinen zusätzlichen Abschnitt oder Trennstrich. Der Ausbaupreis steht
 genau einmal im Eckbutton.
+
+### Fusionsring
+
+- Position: ringförmig um die untere Hälfte des Sterns, ein runder Button je
+  freigeschaltete Reaktion, in Kettenreihenfolge von links nach rechts;
+- Bogen: symmetrisch um die Senkrechte unter dem Stern, 26° Abstand je Button
+  bis maximal 150° Gesamtbreite; ein einzelner Button steht genau mittig;
+- Radius: fest, unabhängig von der Sterngröße (die über den Zyklus wächst und
+  beim Roten Riesen fest auf Maximum steht), auf schmalen Bildschirmen an die
+  Kammerbreite gebunden;
+- Größe: 40 px, Inhalt ist das Elementsymbol des Haupterzeugnisses in dessen
+  Elementfarbe — dieselbe Darstellung wie im Kartenicon und in der
+  Kernzusammensetzung;
+- ausgewählt: Amberrahmen, leichte Vergrößerung und derselbe Amber-Puls wie ein
+  kaufbereiter Eckbutton;
+- ohne Brennstoff: gedämpft, aber bedienbar (sonst ließe sich eine
+  leergebrannte Auswahl nicht mehr abwählen).
+
+Der Hinweis unter dem Stern beschreibt immer die Aktion des nächsten
+Sternklicks: ohne Auswahl den Materiegewinn, mit Auswahl die dynamische
+Reaktionsgleichung samt Energieertrag und ohne Brennstoff den Sperrgrund.
 
 Wertänderungen aktualisieren vorhandene Karten gezielt. Sie werden nicht bei
 jedem Tick neu aufgebaut, damit Hover, Fokus und laufende Interaktion nicht
@@ -1174,11 +1218,13 @@ Bei `prefers-reduced-motion: reduce`:
 ### Fusion
 
 - zeigt die tatsächlich gewonnene Energie statt einer redundanten
-  Reaktionsgleichung;
-- startet an der Klickposition, bei Tastaturbedienung am Buttonzentrum;
-- Kartenblitz: 650 ms;
-- Buttonimpuls: 220 ms;
-- Sternaufhellung: 520 ms.
+  Reaktionsgleichung (die steht ohnehin unter dem Stern);
+- entsteht wie das Akkretionsfeedback in der Star Chamber an der Klickposition,
+  bei Tastaturbedienung in der Sternmitte;
+- Sternimpuls: 220 ms;
+- Sternaufhellung: 520 ms;
+- Aufhellung des zugehörigen Ringbuttons: 420 ms (nur Helligkeit, damit die
+  Animation den Button nicht aus dem Ring schiebt).
 
 ### Automatische Akkretion
 
@@ -1404,6 +1450,8 @@ durch eine weitere ID-Verzweigung in Engine und UI. Beispiele:
 - Dialoge verwenden `role="dialog"` und `aria-modal="true"`.
 - Statusmeldungen nutzen Live-Regionen.
 - Deaktivierte Aktionen erklären ihren Zustand textlich.
+- Auswahlbuttons wie der Fusionsring melden ihren Zustand über `aria-pressed`
+  und ein Label, das die nächste Wirkung nennt („… auswählen“/„… abwählen“).
 - Die App funktioniert ab 320 px Breite.
 - Reduzierte Bewegung wird systemweit respektiert.
 - Audio ist optional und blockiert niemals Gameplay.
@@ -1440,7 +1488,9 @@ Abzusichern sind:
 - Import, Export und beide Resetarten;
 - reduzierte Bewegung;
 - Audio- und Lautstärkebedienung;
-- Aktionsfeedback an Maus- und Tastaturposition.
+- Aktionsfeedback an Maus- und Tastaturposition;
+- Fusionsring: Anordnung um den Stern, Auswahl, Wechsel und Abwahl sowie die
+  daraus folgende Aktion des Sternklicks.
 
 ### Grundsatz
 

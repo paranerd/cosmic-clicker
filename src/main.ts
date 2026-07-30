@@ -133,6 +133,14 @@ app.addEventListener('click', (event) => {
     return;
   }
   if (action.startsWith('buy-perk-') || action.startsWith('remove-perk-')) clearPrestigeConfirmation();
+  // Fusionsring: Ein Klick wählt die Reaktion aus, ein erneuter Klick auf
+  // denselben Ringbutton hebt die Auswahl wieder auf (zurück zur Akkretion).
+  if (action === 'select-reaction' && button.dataset.reaction) {
+    const reaction = button.dataset.reaction as ReactionId;
+    dispatch({ type: 'SET_ACTIVE_REACTION', reaction: getState().activeReaction === reaction ? null : reaction });
+    playActionFeedback(action, event as MouseEvent);
+    return;
+  }
   if (action === 'run-reaction' && button.dataset.reaction) {
     // Punkt 8: Energiedifferenz messen, damit das Klick-Feedback die
     // tatsächlich gewonnene Energie aufsteigen lassen kann.

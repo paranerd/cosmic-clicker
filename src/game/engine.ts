@@ -482,7 +482,8 @@ export const createInitialState = (
     cloud: cloudMatterForLevel(cloudTier), star: { ...EMPTY_MATTER }, radiatedMass: 0,
     energy: 0, temperature: INITIAL_TEMPERATURE, heatBonus: 0, contractionHeat: 0,
     deuteriumIgnitionCompression: null, unlockedReactions: [], reactionTotals: emptyReactionTotals(),
-    automaticReactionTotals: emptyReactionTotals(), reactionUpgrades: emptyReactionTotals(), fusedHydrogen: 0, fusedHelium: 0,
+    automaticReactionTotals: emptyReactionTotals(), reactionUpgrades: emptyReactionTotals(), activeReaction: null,
+    fusedHydrogen: 0, fusedHelium: 0,
     manualFusions: 0, manualHeliumFusions: 0,
     automation: { accretion: 0, fusion: 0, heliumFusion: 0, oxygenSynthesis: 0, carbonFusion: 0, neonFusion: 0, oxygenFusion: 0, siliconFusion: 0 },
     upgrades: emptyUpgradeLevels(), stardust, perks,
@@ -650,6 +651,14 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
     return next;
   }
   if (next.completed) return next;
+  // Auswahl der aktiven Fusion (Fusionsring): nur freigeschaltete Reaktionen
+  // sind wählbar, alles andere fällt auf Akkretion zurück. Der verfügbare
+  // Brennstoff spielt hier bewusst keine Rolle — eine Reaktion darf schon
+  // vorgewählt werden, bevor ihr Kern gefüllt ist.
+  if (action.type === 'SET_ACTIVE_REACTION') {
+    next.activeReaction = action.reaction !== null && next.unlockedReactions.includes(action.reaction) ? action.reaction : null;
+    return next;
+  }
 
   if (action.type === 'ACCRETE') {
     const moved = transferMatter(next, accretionPerClick(next));

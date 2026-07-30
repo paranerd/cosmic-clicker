@@ -108,7 +108,13 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .matter-elements strong { margin-top: 2px; font-family: ui-monospace,monospace; font-size: 9px; font-weight: 400; }
 [data-matter][hidden], [data-cloud-matter][hidden] { display: none; }
 
-.star-chamber { position: relative; overflow: hidden; min-height: 600px; display: grid; place-items: center; isolation: isolate; background: radial-gradient(circle at center, rgba(83, 70, 51, calc(.08 + var(--temp-scale) * .09)), transparent 48%); }
+// `overflow: clip` zusätzlich zu `hidden`: Klick-Partikel und Gewinnanzeigen
+// ragen während ihrer Animation kurz über die Kammer hinaus und machen sie mit
+// `hidden` programmatisch scrollbar. Ein `scrollIntoView` (Tutorial-Highlight)
+// verschiebt dann alles absolut Positionierte darin — Fusionsring,
+// Klickhinweis und Zielbalken springen. `clip` erzeugt keinen Scrollcontainer
+// und verhindert das; ältere Browser ohne `clip` behalten `hidden`.
+.star-chamber { position: relative; overflow: hidden; overflow: clip; min-height: 600px; display: grid; place-items: center; isolation: isolate; background: radial-gradient(circle at center, rgba(83, 70, 51, calc(.08 + var(--temp-scale) * .09)), transparent 48%); }
 .chamber-resources { width: min(500px, calc(100% - 32px)); min-height: 72px; position: absolute; z-index: 4; top: 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .chamber-resource { min-width: 0; padding: 7px 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .chamber-resource span { color: $muted; font-size: 7px; letter-spacing: .1em; text-transform: uppercase; }
@@ -149,7 +155,10 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .stage-blackHole .star-core { opacity: 0; }
 .star-core { width: 28%; height: 28%; left: 36%; top: 36%; background: rgba(255,248,196,.8); filter: blur(12px); mix-blend-mode: screen; opacity: calc(.15 + var(--temp-scale) * .8); }
 .star-noise { inset: 5%; opacity: .26; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); animation: rotate 28s linear infinite; }
-.click-callout { position: absolute; bottom: 70px; z-index: 5; padding: 0; border: 0; background: transparent; text-align: center; pointer-events: none; }
+// Die Breitenbegrenzung hält die längste Anzeige — die Reaktionsgleichung bei
+// ausgewählter Fusion (siehe ui/sync.ts) — auch auf schmalen Bildschirmen
+// innerhalb der Kammer.
+.click-callout { width: min(330px, calc(100% - 28px)); position: absolute; bottom: 70px; z-index: 5; padding: 0; border: 0; background: transparent; text-align: center; pointer-events: none; }
 .click-callout:not(:disabled) { pointer-events: auto; cursor: pointer; }
 .click-callout:not(:disabled):hover span, .click-callout:not(:disabled):focus-visible span { color: #ffd193; text-shadow: 0 0 12px rgba($orange,.5); }
 .click-callout:focus-visible { outline: 1px solid rgba($amber,.55); outline-offset: 7px; }
@@ -198,6 +207,30 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .chamber-objective-progress b { margin-top: 6px; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 500; line-height: 1; text-align: center; }
 .chamber-objective-progress:hover .chamber-progress-track, .chamber-objective-progress:focus-visible .chamber-progress-track { background: rgba($cyan,.14); }
 .chamber-objective-progress:focus-visible { outline: 1px solid rgba($cyan,.55); outline-offset: 4px; }
+// Fusionsring: je freigeschaltete Reaktion ein runder Button, ringförmig um die
+// untere Hälfte des Sterns angeordnet (Verteilung der Winkel in
+// views.ts/fusionRingMarkup, hier nur der Radius). Er ersetzt den früheren
+// Fusionsbutton in der Reaktionskachel: Der ausgewählte Button (.is-active)
+// macht den Stern selbst zum Auslöser seiner Reaktion.
+//
+// Der Radius ist bewusst fest und nicht an --star-scale gekoppelt: Die
+// Sterngröße wächst über den Zyklus und der Rote Riese setzt sie sogar hart auf
+// 1 — ein mitskalierender Ring könnte dadurch in den Stern hineinwandern. Auf
+// schmalen Bildschirmen begrenzt der vw-Anteil den Ring auf die Kammerbreite.
+.fusion-ring { --ring-x: min(172px, 40vw); --ring-y: min(160px, 38vw); position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.fusion-ring[hidden] { display: none; }
+// Die Positionierung steckt vollständig im transform (Faktor × Radius), damit
+// derselbe Button ohne Neuberechnung auf jeder Bildschirmbreite sitzt.
+.fusion-ring-button { width: 40px; height: 40px; margin: -20px 0 0 -20px; position: absolute; left: 50%; top: 50%; font-size: 13px; pointer-events: auto; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.45); transition: filter .18s ease, transform .18s ease, opacity .18s ease; transform: translate(calc(var(--ring-cos) * var(--ring-x)), calc(var(--ring-sin) * var(--ring-y))) scale(var(--ring-scale,1)); }
+.fusion-ring-button:hover, .fusion-ring-button:focus-visible { --ring-scale: 1.08; filter: brightness(1.22); }
+.fusion-ring-button:focus-visible { outline: 1px solid rgba($cyan,.55); outline-offset: 3px; }
+// Ausgewählte Fusion: Amber steht im ganzen Spiel für „jetzt aktiv/verfügbar“ —
+// derselbe Puls wie beim kaufbereiten Eck-Ausbaubutton und beim Warnsymbol.
+.fusion-ring-button.is-active { --ring-scale: 1.12; border-color: rgba($amber,.85); box-shadow: 0 0 0 1px rgba($amber,.3), 0 0 16px rgba($amber,.45); animation: warning-pulse 2.6s ease-in-out infinite; }
+// Ohne Brennstoff nur gedämpft, nicht deaktiviert (siehe fusionRingButton).
+.fusion-ring-button.is-empty { opacity: .42; }
+.fusion-ring-button.is-empty.is-active { opacity: .7; animation: none; }
+@media (prefers-reduced-motion: reduce) { .fusion-ring-button.is-active { animation: none; } }
 
 .cloud-gauge { display: flex; gap: 17px; align-items: center; padding-bottom: 25px; border-bottom: 1px solid $line; }
 .gauge-ring { width: 84px; height: 84px; flex: 0 0 auto; padding: 4px; border-radius: 50%; background: conic-gradient($cyan var(--remaining), rgba(255,255,255,.06) 0); transform: rotate(-90deg); }
@@ -274,17 +307,8 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .reaction-symbol.evolution { color: $cyan; border-color: rgba($cyan,.45); }
 .evolution-action { background: linear-gradient(90deg, rgba($cyan,.04), transparent 56%); }
 .primary-action, .secondary-action { min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba($amber,.55); background: linear-gradient(135deg, rgba($amber,.95), rgba($orange,.94)); color: #1b110a; cursor: pointer; transition: .2s; touch-action: manipulation; }
-// Punkt 4: Der Fusionsbutton hat bei Automations-/Upgradekarten keine
-// Entsprechung; Abstand zur Gleichung/Beschreibung sowie die volle
-// Kartenbreite (wie beim Zyklus-Ende-Modal, siehe .summary-modal
-// .primary-action) daher hier gesetzt statt an der geteilten
-// .primary-action-Basisregel (die auch im Zyklus-Ende-Modal verwendet wird,
-// wo das eigene .summary-actions-Gap bereits reicht und keine volle Breite
-// pro Button gebraucht wird).
-.action-card .primary-action { width: 100%; margin-top: 12px; }
 .primary-action:hover:not(:disabled), .secondary-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 8px 24px rgba($orange,.16); }
 .primary-action span, .secondary-action span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-.primary-action .reaction-conversion { font-family: ui-monospace, monospace; font-size: 9px; text-transform: none; letter-spacing: .02em; white-space: nowrap; }
 .primary-action small, .secondary-action small { margin-top: 3px; font-size: 8px; opacity: .65; }
 .primary-action small:empty, .secondary-action small:empty { display: none; }
 .secondary-action { border-color: rgba(#9e8fe5,.4); color: #c5bced; background: rgba(#9e8fe5,.06); }

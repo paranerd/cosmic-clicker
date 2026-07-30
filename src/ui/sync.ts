@@ -6,6 +6,7 @@ import {
   MATTER_KEYS,
   PRESTIGE_PERK_ORDER,
   PRESTIGE_PERKS,
+  REACTIONS,
   REACTION_ORDER,
   RESOURCES,
   STAGES,
@@ -21,6 +22,7 @@ import {
   objectiveFor,
   pressureProgress,
   prestigePerkCost,
+  reactionAvailable,
   starMass,
 } from '../game/engine';
 import { syncDebug } from './debug';
@@ -34,17 +36,20 @@ import {
   automationView,
   automationVisible,
   currentOpportunities,
+  fusionRingMarkup,
   knowledgeButton,
   orderedUpgradeCards,
   panelMarkup,
   reactionView,
   tileButtonInner,
+  unlockedReactionIds,
   upgradeOrderSignature,
 } from './views';
 
 let lastStage = getState().stage;
 let lastUpgradeOrderSignature = '';
 let lastDynamicPanelSignature = '';
+let lastFusionRingSignature = '';
 const uiElements = new Map<string, HTMLElement>();
 
 function dynamicPanelSignature(panel: Panel): string {
@@ -93,6 +98,7 @@ export function renderShell(): void {
           <div class="stage-label"><span data-ui="stage"></span><b data-ui="stage-detail"></b></div>
           <div class="automation-particles" aria-hidden="true">${Array.from({ length: 8 }, (_, index) => `<i data-auto-particle="${index}">${index % 5 !== 4 ? 'H' : 'He'}</i>`).join('')}</div>
           <button class="star-button" data-action="accrete" data-tutorial="star" aria-label="Materie einsammeln"><span class="star-corona"></span><span class="star-surface"></span><span class="star-core"></span><span class="star-noise"></span></button>
+          <div class="fusion-ring" data-ui="fusion-ring" role="group" aria-label="Fusionen" hidden></div>
           <button class="click-callout" type="button" disabled><span data-ui="click-yield"></span><small data-ui="click-detail"></small></button>
           <button class="chamber-objective-progress" type="button" data-action="open-objective" data-tutorial="objective-progress" aria-label="Aktuelles Ziel öffnen" aria-haspopup="dialog">
             <span class="chamber-progress-track"><i data-ui="chamber-objective-bar"></i></span>
@@ -171,14 +177,6 @@ function syncReactionPanel(): void {
     if (!card) return;
     const view = reactionView(id);
     card.classList.toggle('is-ready', view.available);
-    const button = card.querySelector<HTMLButtonElement>('[data-action="run-reaction"]');
-    if (button) {
-      button.disabled = !view.available;
-      const label = button.querySelector('[data-button-label]');
-      if (label && label.textContent !== view.label) label.textContent = view.label;
-      const detail = button.querySelector('[data-button-detail]');
-      if (detail && detail.textContent !== view.detail) detail.textContent = view.detail;
-    }
     const upgradeButton = card.querySelector<HTMLButtonElement>('[data-action="buy-reaction-upgrade"]');
     if (upgradeButton) {
       // Der Ausbaupreis ändert sich nur mit der Ausbaustufe, und die ist Teil
@@ -191,6 +189,35 @@ function syncReactionPanel(): void {
       // Reaktionen zeigen von Anfang an den Doppel-Caret, nie ein Schloss.
       syncTileButton(upgradeButton, view.upgradeMax, true, false, view.upgradeAffordable, fillPercent, costText, ariaLabel);
     }
+  });
+}
+
+// Fusionsring unter dem Stern: Die Buttons selbst werden nur neu gebaut, wenn
+// eine weitere Reaktion freigeschaltet wird (dann ändert sich die Ringgeometrie
+// aller Buttons). Auswahl- und Brennstoffzustand wechseln dagegen laufend und
+// werden deshalb in-place an den bestehenden Buttons aktualisiert — genau wie
+// bei den Kacheln, damit Hover und Fokus erhalten bleiben.
+function syncFusionRing(): void {
+  const state = getState();
+  const ring = uiElement('fusion-ring');
+  if (!ring) return;
+  const ids = unlockedReactionIds();
+  ring.hidden = ids.length === 0 || state.completed;
+  const signature = ids.join(',');
+  if (signature !== lastFusionRingSignature) {
+    ring.innerHTML = fusionRingMarkup(ids);
+    lastFusionRingSignature = signature;
+  }
+  ids.forEach((id) => {
+    const button = ring.querySelector<HTMLButtonElement>(`[data-fusion-ring-button="${id}"]`);
+    if (!button) return;
+    const active = state.activeReaction === id;
+    button.classList.toggle('is-active', active);
+    button.classList.toggle('is-empty', !reactionAvailable(state, id));
+    const pressed = String(active);
+    if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
+    const ariaLabel = `${REACTIONS[id].title} ${active ? 'abwählen' : 'auswählen'}`;
+    if (button.getAttribute('aria-label') !== ariaLabel) button.setAttribute('aria-label', ariaLabel);
   });
 }
 
@@ -342,13 +369,26 @@ export function updateUI(forcePanel = false): void {
     if (cloudElement) cloudElement.hidden = currentCloudDefinition.matter[key] <= 0;
   });
   setText('stage', STAGE_LABELS[state.stage]); setText('stage-detail', STAGES[state.stage].detail); setText('cloud-name', currentCloudDefinition.name);
+  // Der Stern ist die einzige Ausführungsstelle für Fusionen: Solange über den
+  // Fusionsring eine Reaktion ausgewählt ist, löst ein Klick auf den Stern
+  // genau diese Reaktion aus statt zu akkretieren. Fehlt der Brennstoff, bleibt
+  // die Auswahl bestehen und der Stern ist deaktiviert (statt still auf
+  // Akkretion zurückzufallen) — der Callout darunter nennt den Grund.
+  const activeReaction = state.activeReaction !== null && state.unlockedReactions.includes(state.activeReaction)
+    ? state.activeReaction
+    : null;
+  const activeReactionView = activeReaction ? reactionView(activeReaction) : null;
   const star = app.querySelector<HTMLButtonElement>('.star-button');
   if (star) {
     star.className = `star-button stage-${state.stage}${state.completed ? ' is-complete' : ''}`;
     if (state.completed) delete star.dataset.action;
-    else star.dataset.action = 'accrete';
-    star.ariaLabel = state.completed ? 'Abgeschlossener Stern' : 'Materie einsammeln';
-    star.disabled = !state.completed && remaining <= 0;
+    else star.dataset.action = activeReaction ? 'run-reaction' : 'accrete';
+    if (activeReaction && !state.completed) star.dataset.reaction = activeReaction;
+    else delete star.dataset.reaction;
+    star.ariaLabel = state.completed ? 'Abgeschlossener Stern'
+      : activeReaction ? `${REACTIONS[activeReaction].title} auslösen`
+        : 'Materie einsammeln';
+    star.disabled = !state.completed && (activeReactionView ? !activeReactionView.available : remaining <= 0);
   }
   const clickCallout = app.querySelector<HTMLButtonElement>('.click-callout');
   if (clickCallout) {
@@ -361,7 +401,17 @@ export function updateUI(forcePanel = false): void {
   chamber?.style.setProperty('--star-scale', String(Math.min(1, Math.max(.1, mass / Math.max(1, initialCloud))))); chamber?.style.setProperty('--temp-scale', String(Math.min(1, state.temperature / THRESHOLDS.siliconTemperature)));
   chamber?.style.setProperty('--auto-accretion-duration', `${Math.max(1.45, 3.2 - state.automation.accretion * .2)}s`);
   chamber?.classList.toggle('has-auto-accretion', state.automation.accretion > 0 && !state.completed && remaining > 0);
-  setText('click-yield', state.completed ? 'ZUSAMMENFASSUNG' : remaining <= 0 ? 'WOLKE ERSCHÖPFT' : `+${formatNumber(accretionPerClick(state))} ME`); setText('click-detail', state.completed ? 'Hier klicken zum Öffnen' : remaining <= 0 ? 'Entwicklung über Reaktionen fortsetzen' : 'Klicken, um Materie einzusammeln');
+  // Der Hinweis unter dem Stern beschreibt immer genau die Aktion, die ein
+  // Klick auf den Stern gerade auslöst. Bei ausgewählter Fusion übernimmt er
+  // damit auch die dynamische Reaktionsgleichung, die vorher im Fusionsbutton
+  // der Kachel stand.
+  const [clickYield, clickDetail] = state.completed ? ['ZUSAMMENFASSUNG', 'Hier klicken zum Öffnen']
+    : activeReactionView ? activeReactionView.available
+      ? [activeReactionView.detail, 'Klicken, um zu fusionieren']
+      : ['KEIN BRENNSTOFF', 'Andere Fusion wählen oder Brennstoff aufbauen']
+      : remaining <= 0 ? ['WOLKE ERSCHÖPFT', unlockedReactionIds().length ? 'Fusion unter dem Stern auswählen' : 'Entwicklung über Reaktionen fortsetzen']
+        : [`+${formatNumber(accretionPerClick(state))} ME`, 'Klicken, um Materie einzusammeln'];
+  setText('click-yield', clickYield); setText('click-detail', clickDetail);
   const cloudPercent = remaining / initialCloud * 100; setText('cloud-percent', `${formatNumber(cloudPercent, 1)}%`); setText('cloud-mass', `${formatMatter(remaining)} ME`); setText('cloud-initial', `von ${formatMatter(initialCloud)} ME`); app.querySelector<HTMLElement>('.cloud-gauge-ring')?.style.setProperty('--remaining', `${cloudPercent / 100 * 360}deg`);
   // Punkt 4: Warnsymbol links unten in der Star Chamber, sobald mindestens
   // eine Warnung aktiv ist; das Popover listet alle aktiven Warnungen samt
@@ -391,7 +441,7 @@ export function updateUI(forcePanel = false): void {
   const currentDynamicPanelSignature = dynamicPanelSignature(activePanel);
   const dynamicPanelChanged = currentDynamicPanelSignature !== lastDynamicPanelSignature;
   if (forcePanel || stageChanged || upgradeOrderChanged || dynamicPanelChanged) { const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(activePanel); lastStage = state.stage; lastUpgradeOrderSignature = currentUpgradeOrder; lastDynamicPanelSignature = currentDynamicPanelSignature; }
-  syncNotifications(); syncActivePanel(); syncOverlay(); syncCycleEndNotice(); syncTutorial(); syncToast();
+  syncFusionRing(); syncNotifications(); syncActivePanel(); syncOverlay(); syncCycleEndNotice(); syncTutorial(); syncToast();
   if (import.meta.hot) syncDebug();
 }
 

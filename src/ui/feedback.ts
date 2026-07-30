@@ -1,6 +1,5 @@
 import { playSound, type SoundEffect } from '../audio';
 import { accretionPerClick } from '../game/engine';
-import type { ReactionId } from '../game/types';
 import { formatCompact, formatNumber } from './format';
 import { app, getState } from './store';
 
@@ -15,14 +14,28 @@ function createActionFeedback(container: HTMLElement, text: string, kind: string
   feedback.addEventListener('animationend', () => feedback.remove(), { once: true });
 }
 
-function playAccretionFeedback(event: MouseEvent): void {
-  const state = getState();
+// Kammerrelative Position des Klicks. Tastatur-Auslösung liefert
+// clientX/clientY = 0 — dann wird stattdessen die Mitte des Sterns verwendet,
+// damit das Feedback nicht in der Ecke der Kammer erscheint.
+function chamberClickPosition(event: MouseEvent): { chamber: HTMLElement; star: HTMLElement; x: number; y: number } | null {
   const chamber = app.querySelector<HTMLElement>('.star-chamber'); const star = app.querySelector<HTMLElement>('.star-button');
-  if (!chamber || !star) return;
+  if (!chamber || !star) return null;
   const chamberRect = chamber.getBoundingClientRect(); const starRect = star.getBoundingClientRect();
   const keyboardTriggered = event.detail === 0 || event.clientX === 0 && event.clientY === 0;
-  const targetX = keyboardTriggered ? starRect.left + starRect.width / 2 - chamberRect.left : event.clientX - chamberRect.left;
-  const targetY = keyboardTriggered ? starRect.top + starRect.height / 2 - chamberRect.top : event.clientY - chamberRect.top;
+  return {
+    chamber,
+    star,
+    x: keyboardTriggered ? starRect.left + starRect.width / 2 - chamberRect.left : event.clientX - chamberRect.left,
+    y: keyboardTriggered ? starRect.top + starRect.height / 2 - chamberRect.top : event.clientY - chamberRect.top,
+  };
+}
+
+function playAccretionFeedback(event: MouseEvent): void {
+  const state = getState();
+  const position = chamberClickPosition(event);
+  if (!position) return;
+  const { chamber, star, x: targetX, y: targetY } = position;
+  const chamberRect = chamber.getBoundingClientRect();
   const count = 5 + Math.floor(Math.random() * 3);
   for (let index = 0; index < count; index += 1) {
     const angle = Math.random() * Math.PI * 2; const radius = Math.max(chamberRect.width, chamberRect.height) * (.32 + Math.random() * .24);
@@ -37,36 +50,38 @@ function playAccretionFeedback(event: MouseEvent): void {
 }
 
 // Punkt 8: Beim Fusionieren steigt die tatsächlich gewonnene Energie auf
-// (statt der Reaktionsgleichung, die ohnehin dauerhaft auf der Karte steht).
+// (statt der Reaktionsgleichung, die ohnehin unter dem Stern steht).
 // main.ts misst die Energiedifferenz des Spielzustands rund um den Dispatch
 // und reicht sie als context.energyGained herein.
 export interface ActionFeedbackContext { energyGained?: number }
 
+// Fusionen werden am Stern selbst ausgelöst, ihr Feedback entsteht deshalb —
+// wie das der Akkretion — in der Star Chamber an der Klickposition, nicht mehr
+// in der Reaktionskachel. Zusätzlich pulsiert der zugehörige Ringbutton, damit
+// erkennbar bleibt, welche der ringförmig angeordneten Fusionen gelaufen ist.
+function playFusionFeedback(event: MouseEvent, context: ActionFeedbackContext): void {
+  const position = chamberClickPosition(event);
+  if (!position) return;
+  const { chamber, star, x, y } = position;
+  const feedbackText = context.energyGained !== undefined && context.energyGained > 0
+    ? `+${formatCompact(context.energyGained)} Energie`
+    : 'Fusion + Energie';
+  createActionFeedback(chamber, feedbackText, 'fusion', x + (Math.random() - .5) * 36, y - 20 - Math.random() * 22);
+  const pulse = [{ transform: 'scale(1)' }, { transform: 'scale(.97)' }, { transform: 'scale(1)' }];
+  star.animate(pulse, { duration: 220, easing: 'ease-out' });
+  app.querySelector<HTMLElement>('.star-surface')?.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.7)' }, { filter: 'brightness(1)' }], { duration: 520, easing: 'ease-out' });
+  const reaction = getState().activeReaction;
+  // Der Ringbutton trägt seine Position in einem eigenen transform (siehe
+  // styles.scss) — deshalb wird hier nur die Helligkeit animiert, damit die
+  // Animation den Button nicht aus dem Ring schiebt.
+  if (reaction) app.querySelector<HTMLElement>(`[data-fusion-ring-button="${reaction}"]`)?.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.8)' }, { filter: 'brightness(1)' }], { duration: 420, easing: 'ease-out' });
+}
+
 export function playActionFeedback(action: string, event: MouseEvent, context: ActionFeedbackContext = {}): void {
   const state = getState();
-  const sounds: Partial<Record<string, SoundEffect>> = { accrete: 'accrete', 'buy-deuterium': 'deuterium', 'run-reaction': 'fusion', 'buy-gravity': 'purchase', 'buy-accretion': 'purchase', 'buy-reaction-automation': 'purchase', 'buy-reaction-upgrade': 'purchase', 'buy-perk-cloud': 'purchase', 'buy-perk-gravity': 'purchase', 'buy-perk-fusion': 'purchase' };
+  const sounds: Partial<Record<string, SoundEffect>> = { accrete: 'accrete', 'buy-deuterium': 'deuterium', 'run-reaction': 'fusion', 'select-reaction': 'unlock', 'buy-gravity': 'purchase', 'buy-accretion': 'purchase', 'buy-reaction-automation': 'purchase', 'buy-reaction-upgrade': 'purchase', 'buy-perk-cloud': 'purchase', 'buy-perk-gravity': 'purchase', 'buy-perk-fusion': 'purchase' };
   if (sounds[action]) playSound(sounds[action], state.soundEnabled, state.volume);
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (action === 'accrete') playAccretionFeedback(event);
-  if (action === 'run-reaction') {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-reaction]');
-    const reaction = button?.dataset.reaction as ReactionId | undefined;
-    const card = reaction ? app.querySelector<HTMLElement>(`[data-reaction-card="${reaction}"]`) : null;
-    const feedbackText = context.energyGained !== undefined && context.energyGained > 0
-      ? `+${formatCompact(context.energyGained)} Energie`
-      : 'Fusion + Energie';
-    if (card) {
-      const cardRect = card.getBoundingClientRect();
-      // Tastatur-Auslösung liefert clientX/clientY = 0 — dann vom Button aus
-      // starten statt aus der Kartenecke (0,0), genau wie beim Stern-Klick.
-      const keyboardTriggered = event.detail === 0 || (event.clientX === 0 && event.clientY === 0);
-      const anchorRect = (button ?? card).getBoundingClientRect();
-      const baseX = keyboardTriggered ? anchorRect.left + anchorRect.width / 2 - cardRect.left : event.clientX - cardRect.left;
-      const baseY = keyboardTriggered ? anchorRect.top + anchorRect.height / 2 - cardRect.top : event.clientY - cardRect.top;
-      createActionFeedback(card, feedbackText, 'fusion', baseX + (Math.random() - .5) * 36, baseY - 18 - Math.random() * 18);
-    }
-    card?.animate([{ borderColor: 'rgba(242,168,75,.25)' }, { borderColor: 'rgba(242,168,75,.9)', filter: 'brightness(1.35)' }, { borderColor: 'rgba(242,168,75,.25)', filter: 'brightness(1)' }], { duration: 650, easing: 'ease-out' });
-    button?.animate([{ transform: 'scale(1)' }, { transform: 'scale(.97)' }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });
-    app.querySelector<HTMLElement>('.star-surface')?.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.7)' }, { filter: 'brightness(1)' }], { duration: 520, easing: 'ease-out' });
-  }
+  if (action === 'run-reaction') playFusionFeedback(event, context);
 }

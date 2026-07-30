@@ -133,6 +133,13 @@ export interface GameState {
   automaticReactionTotals: Record<ReactionId, number>;
   // Punkt 2: Ausbaustufen der manuellen Fusionsmenge je Reaktion.
   reactionUpgrades: Record<ReactionId, number>;
+  // Ausgewählte Fusion (Fusionsring unter dem Stern). Solange sie gesetzt ist,
+  // führt ein Klick auf den Stern diese Reaktion aus statt zu akkretieren;
+  // `null` bedeutet Akkretion. Die Auswahl bleibt bestehen, bis sie über
+  // denselben Ringbutton wieder abgewählt oder gewechselt wird — auch dann,
+  // wenn der Brennstoff der Reaktion vorübergehend erschöpft ist (der Stern
+  // ist dann nicht klickbar, siehe ui/sync.ts).
+  activeReaction: ReactionId | null;
   fusedHydrogen: number;
   fusedHelium: number;
   manualFusions: number;
@@ -159,6 +166,7 @@ export interface GameState {
 export type GameAction =
   | { type: 'ACCRETE' }
   | { type: 'RUN_REACTION'; reaction: ReactionId }
+  | { type: 'SET_ACTIVE_REACTION'; reaction: ReactionId | null }
   | { type: 'BUY_REACTION_AUTOMATION'; reaction: ReactionId }
   | { type: 'BUY_REACTION_UPGRADE'; reaction: ReactionId }
   | { type: 'BUY_UPGRADE'; upgrade: keyof UpgradeState }

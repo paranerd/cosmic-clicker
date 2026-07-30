@@ -25,6 +25,19 @@ async function gotoGame(page: Page): Promise<void> {
   if (await acknowledgement.isVisible()) await acknowledgement.click();
 }
 
+// Fusionen werden über den Fusionsring in der Star Chamber ausgewählt und
+// anschließend am Stern ausgelöst. Der Ring sitzt über dem Stern und wird bei
+// manchen Seeds jeden Frame aktualisiert — der Klick wird deshalb synchron im
+// Dokument ausgelöst, statt Playwrights Scroll-und-Klick-Ablauf gegen ein
+// Re-Render laufen zu lassen.
+async function selectFusion(page: Page, reaction: string): Promise<Locator> {
+  const button = page.locator(`[data-fusion-ring-button="${reaction}"]`);
+  await expect(button).toBeVisible();
+  await button.evaluate((element) => (element as HTMLButtonElement).click());
+  await expect(button).toHaveClass(/is-active/);
+  return button;
+}
+
 async function openSettings(page: Page): Promise<Locator> {
   await page.getByRole('button', { name: 'Einstellungen öffnen' }).click();
   const settings = page.getByRole('dialog', { name: 'Einstellungen' });
@@ -228,15 +241,16 @@ test('hydrogen burning remains usable after the main-sequence milestone', async 
   await page.goto('/');
 
   // Structural main-sequence hydrogen burn (Punkt 6) keeps this seed's star
-  // mass changing every animation frame, so the reaction panel re-renders
-  // continuously. Dispatch the click synchronously in-page instead of
-  // Playwright's normal scroll-then-click flow, which can race a re-render.
-  const hydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
-  await expect(hydrogenCard.getByRole('button', { name: /Fusionieren 200 H → 199 He \+ 68 γ/ })).toBeVisible();
-  await expect(hydrogenCard.locator('.reaction-equation')).toHaveCount(0);
-  await hydrogenCard.getByRole('button', { name: /H → .*He \+ .*γ/ }).evaluate((element) => (element as HTMLButtonElement).click());
-  await expect(hydrogenCard).toBeVisible();
-  await expect(hydrogenCard.getByRole('button', { name: /H → .*He \+ .*γ/ })).toBeEnabled();
+  // mass changing every animation frame. Dispatch the clicks synchronously
+  // in-page instead of Playwright's normal scroll-then-click flow, which can
+  // race a re-render.
+  await selectFusion(page, 'hydrogen');
+  await expect(page.locator('[data-ui="click-yield"]')).toHaveText('200 H → 199 He + 68 γ');
+  const star = page.locator('.star-button');
+  await star.evaluate((element) => (element as HTMLButtonElement).click());
+  await expect(page.locator('[data-reaction-card="hydrogen"]')).toBeVisible();
+  await expect(star).toBeEnabled();
+  await expect(star).toHaveAttribute('aria-label', 'Wasserstofffusion auslösen');
   await expect(page.getByText('Hauptreihe verlassen', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Phase abgeschlossen', { exact: true })).toHaveCount(0);
 });
@@ -1066,7 +1080,8 @@ test('tabs count unseen opportunities, flash on unlock and clear when opened', a
   await upgradeTab.hover();
   await expect.poll(() => upgradeTab.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(restingBackground);
 
-  await page.getByRole('button', { name: /Fusionieren 200 H → 199 He \+ 68 γ/ }).click();
+  await selectFusion(page, 'hydrogen');
+  await page.locator('.star-button').click();
   const unlockedAutomationTab = page.getByRole('tab', { name: 'Automationen 2' });
   await expect(unlockedAutomationTab).toHaveClass(/unlock-flash/);
   await expect(unlockedAutomationTab.locator('.tab-count')).toHaveText('2');
@@ -1095,8 +1110,11 @@ test('upgrade and automation cards use compact heading rows with the rate moved 
   await gotoGame(page);
   const lockedHydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
   await expect(lockedHydrogenCard).toContainText('Wasserstofffusion');
-  await expect(lockedHydrogenCard.locator('[data-button-detail]')).toHaveText('');
-  await expect(lockedHydrogenCard.locator('[data-button-detail]')).toBeHidden();
+  // Die noch gesperrte Reaktion zeigt wie eine gesperrte Automation ein "-"
+  // unter "Aktuell" und den Sperrgrund als Kostenzeile — und keinen eigenen
+  // Aktionsbutton in der Kachel.
+  await expect(lockedHydrogenCard.locator('.tile-rate div').first().locator('b')).toHaveText('-');
+  await expect(lockedHydrogenCard.locator('[data-reaction-cost="hydrogen"]')).toHaveText('Ab 10 Mio. K');
   await expect(lockedHydrogenCard.locator('.reaction-symbol.element.he')).toHaveText('He');
   await expect(page.getByRole('button', { name: /Zünden/ })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Upgrades' }).click();
@@ -1227,7 +1245,7 @@ test('locked and not-yet-affordable upgrades/automations show a fractional progr
   await expect(accretionCard.locator('.tile-rate div').first().locator('b')).toHaveText('-');
 });
 
-test('unlocked reaction cards drop the redundant cost line below the pips and give the fusion button the full card width', async ({ page }) => {
+test('unlocked reaction cards drop the redundant cost line below the pips and hold no fusion button at all', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 4, run: 2, stage: 'helium', cloudTier: 1, nextCloudTier: 1,
     cloud: { hydrogen: 10_000, helium: 4_000, deuterium: 20, carbon: 0, oxygen: 0 },
@@ -1246,21 +1264,21 @@ test('unlocked reaction cards drop the redundant cost line below the pips and gi
   await expect(hydrogenCard.locator('.tile-cost')).toHaveCount(0);
   await expect(hydrogenCard.locator('[data-action="buy-reaction-upgrade"] [data-tile-price]')).toBeVisible();
 
-  // Punkt 2: Der Fusionsbutton nimmt jetzt die volle Kartenbreite ein (Breite
-  // der Karte minus deren eigenes Padding), statt sich auf seinen Inhalt zu
-  // schrumpfen.
-  const fusionButton = hydrogenCard.locator('[data-action="run-reaction"]');
-  const cardBox = await hydrogenCard.boundingBox();
-  const buttonBox = await fusionButton.boundingBox();
-  const cardInset = await hydrogenCard.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
-      + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
-  });
-  expect(Math.abs(buttonBox!.width - (cardBox!.width - cardInset))).toBeLessThanOrEqual(1);
+  // Die Fusion selbst wird nicht mehr in der Kachel ausgelöst: Der einzige
+  // Button der Kachel ist der Eck-Ausbaubutton, ausgelöst wird über den
+  // Fusionsring am Stern.
+  await expect(hydrogenCard.locator('button')).toHaveCount(1);
+  await expect(hydrogenCard.locator('.primary-action')).toHaveCount(0);
+  await expect(hydrogenCard.locator('[data-action="run-reaction"]')).toHaveCount(0);
+  // Die Kachel trägt damit dieselbe Zeilenfolge wie eine Automationskachel;
+  // der Kicker (Reaktionskette) bleibt die einzige reaktionsspezifische Zeile.
+  const cardRows = await hydrogenCard.evaluate((card) => [...card.children]
+    .map((child) => child.className.split(' ')[0] || child.tagName.toLowerCase())
+    .filter((name) => name !== 'tile-action-button'));
+  expect(cardRows).toEqual(['card-kicker', 'upgrade-heading', 'tile-rate', 'p', 'level-row']);
 });
 
-test('reaction button processes remaining fuel and disables only when none is available', async ({ page }) => {
+test('the star processes remaining fuel and is disabled only when none is available', async ({ page }) => {
   await seedLegacyGame(page, {
     version: 7, run: 2, stage: 'hydrogen', cloudTier: 1, nextCloudTier: 1,
     cloud: { hydrogen: 1_000, helium: 0, deuterium: 0 },
@@ -1272,12 +1290,21 @@ test('reaction button processes remaining fuel and disables only when none is av
   });
   await page.goto('/');
 
-  const button = page.locator('[data-reaction-card="hydrogen"] [data-action="run-reaction"]');
-  await expect(button).toBeEnabled();
-  await expect(button.locator('[data-button-detail]')).toContainText('37 H');
-  await button.click();
-  await expect(button).toBeDisabled();
-  await expect(button.locator('[data-button-label]')).toHaveText('Kein Brennstoff verfügbar.');
+  const ringButton = await selectFusion(page, 'hydrogen');
+  const star = page.locator('.star-button');
+  await expect(star).toBeEnabled();
+  // Der Hinweis unter dem Stern zeigt die Restmenge, die dieser Klick umsetzt.
+  await expect(page.locator('[data-ui="click-yield"]')).toContainText('37 H');
+  await star.click();
+  // Die Auswahl bleibt bestehen (nur gedämpft), der Stern ist ohne Brennstoff
+  // deaktiviert — abwählen bleibt jederzeit möglich.
+  await expect(star).toBeDisabled();
+  await expect(ringButton).toHaveClass(/is-active/);
+  await expect(ringButton).toHaveClass(/is-empty/);
+  await expect(page.locator('[data-ui="click-yield"]')).toHaveText('KEIN BRENNSTOFF');
+  await ringButton.click();
+  await expect(ringButton).not.toHaveClass(/is-active/);
+  await expect(star).toHaveAttribute('aria-label', 'Materie einsammeln');
 });
 
 test('gravity upgrade expires when the primordial cloud is exhausted', async ({ page }) => {
@@ -1316,43 +1343,36 @@ test('fusion click feedback rises from the actual click position, not a fixed sp
   // wird (siehe der analoge Kommentar beim Akkretions-Test oben).
   await page.addStyleTag({ content: '.action-feedback { animation-duration: 120s !important; }' });
 
-  const hydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
-  const fusionButton = hydrogenCard.locator('[data-action="run-reaction"]');
-  const buttonBox = await fusionButton.boundingBox();
-  const cardBox = await hydrogenCard.boundingBox();
+  await selectFusion(page, 'hydrogen');
+  const star = page.locator('.star-button');
+  const chamber = page.locator('.star-chamber');
+  const starBox = (await star.boundingBox())!;
+  const chamberBox = (await chamber.boundingBox())!;
 
-  // Punkt 9: Genau wie beim Materiegewinn am Stern steigt "+X Energie" aus
-  // der Region des tatsächlichen Klickpunkts auf (mit demselben Zufalls-
-  // Versatz), statt immer von derselben festen Stelle in der Karte — zwei
-  // weit auseinanderliegende Klicks auf denselben Button erzeugen deshalb
-  // deutlich unterschiedliche Positionen. Jeder Dispatch rendert die
-  // Reaktionskarte komplett neu (eigenes Verhalten, nicht Teil dieser
-  // Änderung), daher existiert je Klick nur eine Feedback-Anzeige gleich-
-  // zeitig — die Position wird direkt nach jedem einzelnen Klick ausgelesen,
-  // statt beide am Ende gemeinsam zu erwarten.
-  await fusionButton.click({ position: { x: 10, y: 8 } });
-  const firstFeedback = hydrogenCard.locator('.action-feedback.fusion');
-  await expect(firstFeedback).toBeVisible();
-  const firstLeft = await firstFeedback.evaluate((element) => Number.parseFloat((element as HTMLElement).style.left));
+  // Punkt 9: Genau wie beim Materiegewinn steigt "+X Energie" aus der Region
+  // des tatsächlichen Klickpunkts auf (mit demselben Zufalls-Versatz), statt
+  // von einer festen Stelle — zwei weit auseinanderliegende Klicks auf den
+  // Stern erzeugen deshalb deutlich unterschiedliche Positionen. Das Feedback
+  // hängt jetzt in der Star Chamber, weil die Fusion dort ausgelöst wird.
+  const feedback = chamber.locator('.action-feedback.fusion');
+  await star.click({ position: { x: 20, y: starBox.height / 2 } });
+  await expect(feedback).toBeVisible();
+  const firstLeft = await feedback.first().evaluate((element) => Number.parseFloat((element as HTMLElement).style.left));
 
-  await fusionButton.click({ position: { x: buttonBox!.width - 10, y: 8 } });
-  const secondFeedback = hydrogenCard.locator('.action-feedback.fusion');
-  await expect(secondFeedback).toBeVisible();
-  await expect(secondFeedback).toHaveCount(1);
-  const secondLeft = await secondFeedback.evaluate((element) => Number.parseFloat((element as HTMLElement).style.left));
+  await star.click({ position: { x: starBox.width - 20, y: starBox.height / 2 } });
+  await expect(feedback).toHaveCount(2);
+  const secondLeft = await feedback.nth(1).evaluate((element) => Number.parseFloat((element as HTMLElement).style.left));
 
   // Der Zufalls-Versatz allein deckt maximal ±18px ab (siehe feedback.ts) —
   // ein Unterschied deutlich darüber kann nur vom unterschiedlichen
   // Klickpunkt selbst stammen, nicht vom Zufall.
   expect(secondLeft - firstLeft).toBeGreaterThan(30);
 
-  // Beide Positionen liegen erkennbar im Bereich des Buttons (kartenrelativ),
-  // nicht an einer festen, vom Button unabhängigen Stelle wie zuvor
-  // (".action-card .action-feedback { right: 22px; top: 28%; }").
-  const buttonLeftInCard = buttonBox!.x - cardBox!.x;
-  const buttonRightInCard = buttonBox!.x + buttonBox!.width - cardBox!.x;
-  expect(firstLeft).toBeGreaterThan(buttonLeftInCard - 30);
-  expect(firstLeft).toBeLessThan(buttonRightInCard + 30);
+  // Beide Positionen liegen erkennbar im Bereich des Sterns (kammerrelativ).
+  const starLeftInChamber = starBox.x - chamberBox.x;
+  const starRightInChamber = starBox.x + starBox.width - chamberBox.x;
+  expect(firstLeft).toBeGreaterThan(starLeftInChamber - 30);
+  expect(secondLeft).toBeLessThan(starRightInChamber + 30);
 });
 
 test('reaction cards mirror the upgrade/automation card layout with no separating divider', async ({ page }) => {
@@ -1375,6 +1395,113 @@ test('reaction cards mirror the upgrade/automation card layout with no separatin
   expect(kickerBeforeHeading).toBe(true);
   const iconSize = await hydrogenCard.locator('.upgrade-icon').evaluate((element) => Math.round(element.getBoundingClientRect().width));
   expect(iconSize).toBe(32);
+});
+
+test('the fusion ring arranges one round button per unlocked reaction around the star', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 7, run: 2, stage: 'helium', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 10_000, helium: 4_000, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 20_000, helium: 8_000, deuterium: 30, carbon: 1_000, oxygen: 0 },
+    temperature: 100_000_000, energy: 1_000,
+    unlockedReactions: ['hydrogen', 'helium', 'alphaCapture'], activeReaction: 'helium',
+    reactionTotals: { hydrogen: 15_000, helium: 1_000, alphaCapture: 0, carbon: 0, neon: 0, oxygen: 0, silicon: 0 },
+    stats: { hydrogenFused: 15_000, heliumFused: 1_000, oxygenCreated: 0, peakTemperature: 100_000_000 },
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+
+  const ring = page.getByRole('group', { name: 'Fusionen' });
+  const buttons = ring.locator('.fusion-ring-button');
+  await expect(buttons).toHaveCount(3);
+  // Jeder Button zeigt das Elementsymbol seines Haupterzeugnisses, in
+  // Kettenreihenfolge von links nach rechts.
+  await expect(buttons).toHaveText(['He', 'C', 'O']);
+  // Die gespeicherte Auswahl wird beim Laden wiederhergestellt.
+  await expect(page.locator('[data-fusion-ring-button="helium"]')).toHaveClass(/is-active/);
+  await expect(page.locator('.star-button')).toHaveAttribute('aria-label', 'Heliumfusion auslösen');
+  const geometry = await page.evaluate(() => {
+    const star = document.querySelector('.star-button')!.getBoundingClientRect();
+    const center = { x: star.left + star.width / 2, y: star.top + star.height / 2 };
+    return [...document.querySelectorAll<HTMLElement>('.fusion-ring-button')].map((button) => {
+      const box = button.getBoundingClientRect();
+      return {
+        round: getComputedStyle(button).borderRadius,
+        // offsetWidth statt Rechteckbreite: Der ausgewählte Button ist leicht
+        // vergrößert (transform), seine Layoutgröße bleibt aber die des Rings.
+        size: button.offsetWidth,
+        offsetX: box.left + box.width / 2 - center.x,
+        distance: Math.hypot(box.left + box.width / 2 - center.x, box.top + box.height / 2 - center.y),
+        starRadius: star.width / 2,
+      };
+    });
+  });
+  for (const button of geometry) {
+    expect(button.round).toBe('50%');
+    expect(button.size).toBeGreaterThanOrEqual(38);
+    // Ringförmig um den Stern: gleicher Abstand zur Sternmitte (±12 px durch
+    // die etwas flachere Ellipse) und vollständig außerhalb der Sternfläche.
+    expect(Math.abs(button.distance - geometry[0].distance)).toBeLessThanOrEqual(12);
+    expect(button.distance - button.size / 2).toBeGreaterThan(button.starRadius);
+  }
+  // Unten um den Stern angeordnet: links, mittig, rechts.
+  expect(geometry[0].offsetX).toBeLessThan(-20);
+  expect(Math.abs(geometry[1].offsetX)).toBeLessThan(2);
+  expect(geometry[2].offsetX).toBeGreaterThan(20);
+});
+
+test('the fusion ring routes star clicks to the selected reaction and back to accretion', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 7, run: 2, stage: 'helium', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 10_000, helium: 4_000, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 20_000, helium: 8_000, deuterium: 30, carbon: 1_000, oxygen: 0 },
+    temperature: 100_000_000, energy: 1_000,
+    unlockedReactions: ['hydrogen', 'helium', 'alphaCapture'],
+    reactionTotals: { hydrogen: 15_000, helium: 1_000, alphaCapture: 0, carbon: 0, neon: 0, oxygen: 0, silicon: 0 },
+    stats: { hydrogenFused: 15_000, heliumFused: 1_000, oxygenCreated: 0, peakTemperature: 100_000_000 },
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+
+  const star = page.locator('.star-button');
+  const hydrogenButton = page.locator('[data-fusion-ring-button="hydrogen"]');
+  const heliumButton = page.locator('[data-fusion-ring-button="helium"]');
+  await expect(star).toHaveAttribute('aria-label', 'Materie einsammeln');
+  await expect(hydrogenButton).toHaveAttribute('aria-pressed', 'false');
+
+  // Auswahl: Der Stern führt ab jetzt genau diese Fusion aus.
+  await hydrogenButton.click();
+  await expect(hydrogenButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(hydrogenButton).toHaveAttribute('aria-label', 'Wasserstofffusion abwählen');
+  await expect(star).toHaveAttribute('aria-label', 'Wasserstofffusion auslösen');
+  await expect(page.locator('[data-ui="click-detail"]')).toHaveText('Klicken, um zu fusionieren');
+
+  const heliumBefore = await page.locator('[data-ui="helium-value"]').textContent();
+  await star.click();
+  await expect(page.locator('[data-ui="helium-value"]')).not.toHaveText(heliumBefore!);
+
+  // Wechsel: Es ist immer nur eine Fusion ausgewählt.
+  await heliumButton.click();
+  await expect(heliumButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(hydrogenButton).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.fusion-ring-button.is-active')).toHaveCount(1);
+  await expect(page.locator('[data-ui="click-yield"]')).toHaveText(/He → .*C \+ .*γ/);
+
+  // Die Auswahl liegt im Spielstand und übersteht damit einen Neustart. Der
+  // Seed dieses Tests wird bei jeder Navigation neu gesetzt (addInitScript),
+  // geprüft wird deshalb der gespeicherte Zustand statt eines Reloads — das
+  // Zurücklesen deckt der Ring-Geometrietest oben ab.
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').activeReaction)).toBe('helium');
+
+  // Abwahl: Der Stern akkretiert wieder.
+  await heliumButton.click();
+  await expect(page.locator('.fusion-ring-button.is-active')).toHaveCount(0);
+  await expect(star).toHaveAttribute('aria-label', 'Materie einsammeln');
+  await expect(page.locator('[data-ui="click-detail"]')).toHaveText('Klicken, um Materie einzusammeln');
+  const massBefore = await page.locator('[data-ui="chamber-mass"]').textContent();
+  await star.click();
+  await expect(page.locator('[data-ui="chamber-mass"]')).not.toHaveText(massBefore!);
 });
 
 test('available upgrades are ordered before upgrades that are still locked', async ({ page }) => {
@@ -1468,7 +1595,11 @@ test('helium burning keeps earlier reactions, previews carbon and reveals matchi
   await expect(reactionPanel.getByRole('heading', { name: 'Heliumfusion' })).toBeVisible();
   await expect(reactionPanel.getByRole('heading', { name: 'Alpha-Einfang' })).toBeVisible();
   await expect(reactionPanel.getByRole('heading', { name: 'Kohlenstofffusion' })).toBeVisible();
-  await expect(page.locator('[data-reaction-card="carbon"] [data-action="run-reaction"]')).toBeDisabled();
+  // Die noch gesperrte Kohlenstofffusion hat keinen Ringbutton; für die drei
+  // gezündeten Reaktionen steht je einer unter dem Stern.
+  await expect(page.locator('[data-fusion-ring-button]')).toHaveCount(3);
+  await expect(page.locator('[data-fusion-ring-button="carbon"]')).toHaveCount(0);
+  await expect(page.locator('[data-fusion-ring-button="alphaCapture"]')).toHaveText('O');
 
   await page.getByRole('tab', { name: /Automationen/ }).click();
   await expect(page.locator('[data-automation-card="fusion"]')).toBeVisible();
@@ -1803,12 +1934,13 @@ test('the full ordered reaction path keeps available fuel visible and previews c
   await expect(page.locator('[data-reaction-card="helium"] .reaction-symbol.element.c')).toHaveText('C');
   await expect(page.locator('[data-reaction-card="alphaCapture"] .reaction-symbol.element.o')).toHaveText('O');
   await expect(page.locator('[data-reaction-card="carbon"] .reaction-symbol.element.ne')).toHaveText('Ne');
-  await expect(page.locator('[data-reaction-card="carbon"] [data-action="run-reaction"]')).toBeDisabled();
+  await expect(page.locator('[data-fusion-ring-button="carbon"]')).toHaveCount(0);
   // The carbonOxygen stage now carries the Punkt-6 shell wind, which keeps
-  // the H/He envelope (and thus the reaction panel) changing every frame.
-  // Dispatch the click synchronously in-page rather than racing Playwright's
+  // the H/He envelope (and thus the star chamber) changing every frame.
+  // Dispatch the clicks synchronously in-page rather than racing Playwright's
   // scroll-then-click flow against the next re-render.
-  await page.locator('[data-reaction-card="alphaCapture"] [data-action="run-reaction"]').evaluate((element) => (element as HTMLButtonElement).click());
+  await selectFusion(page, 'alphaCapture');
+  await page.locator('.star-button').evaluate((element) => (element as HTMLButtonElement).click());
   await expect(page.locator('.left-panel [data-matter="oxygen"]')).toBeVisible();
   await expect(page.locator('[data-ui="oxygen-value"]')).not.toHaveText('0%');
 

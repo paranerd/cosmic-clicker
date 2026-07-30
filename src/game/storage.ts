@@ -113,6 +113,12 @@ export const normalizeGameState = (value: unknown): GameState | null => {
   const unlockedReactions = Array.isArray(parsed.unlockedReactions)
     ? parsed.unlockedReactions.filter((id): id is keyof typeof REACTIONS => id in REACTIONS)
     : REACTION_ORDER.filter((id) => (parsed.temperature ?? fallback.temperature) >= REACTIONS[id].ignitionTemperature);
+  // Die gespeicherte Fusionsauswahl gilt nur, solange die Reaktion in diesem
+  // Spielstand überhaupt freigeschaltet ist. Ältere Spielstände (ohne Feld)
+  // starten wie ein neuer Zyklus mit Akkretion.
+  const activeReaction = parsed.activeReaction && parsed.activeReaction in REACTIONS && unlockedReactions.includes(parsed.activeReaction)
+    ? parsed.activeReaction
+    : null;
   const reactionTotals = { ...fallback.reactionTotals, ...parsed.reactionTotals };
   reactionTotals.hydrogen = Math.max(reactionTotals.hydrogen, stats.hydrogenFused);
   reactionTotals.helium = Math.max(reactionTotals.helium, stats.heliumFused);
@@ -168,6 +174,7 @@ export const normalizeGameState = (value: unknown): GameState | null => {
     reactionTotals,
     automaticReactionTotals: { ...fallback.automaticReactionTotals, ...parsed.automaticReactionTotals },
     reactionUpgrades: { ...fallback.reactionUpgrades, ...parsed.reactionUpgrades },
+    activeReaction,
     history,
     outcome,
     discoveredOutcomes,
