@@ -901,14 +901,36 @@ Referenzbreiten:
 
 - **Linkes Panel:** Temperatur, Masse, Druck, Energie, Rate und
   Zusammensetzungen
-- **Star Chamber:** Hauptaktion, Fusionsring, Entwicklungsstadium, Warnungen,
-  Aktionsfeedback und Fortschrittsbalken
-- **Kontrollzentrum:** Fusionen, Upgrades, Automationen und Perks
+- **Star Chamber:** Hauptaktion, Fusionsring, Entwicklungsstadium,
+  Aktionsfeedback und Fortschrittsbalken; unten links Urwolke und (mobil)
+  Echtzeitdaten, unten rechts die Effekte-Ecke
+- **Kontrollzentrum:** Fusionen, Upgrades und Automationen
 - **Chronik-Dock:** Entwicklungsweg und jüngste Logeinträge; die geöffnete
   Chronik zeigt zusätzlich die aktuelle Laufzeit
 
 Eine Fußzeile gibt es nicht mehr; Version und Leitgedanke stehen als eigener
 Abschnitt am Ende der Einstellungen.
+
+### Ecken der Star Chamber
+
+Die Kammer trennt Zustand und Einwirkung räumlich:
+
+| Ecke | Inhalt | Sichtbarkeit |
+| --- | --- | --- |
+| unten links | Urwolke (Restmaterie, Zusammensetzung) | bis die Wolke leer ist |
+| unten links | Echtzeitdaten des Kerns | nur unterhalb von 780 px |
+| unten rechts | Aktive Warnungen mit Verlustrate | solange eine Warnung aktiv ist |
+| unten rechts | Aktive Perks | immer |
+
+Unten rechts entsteht damit die Sektion „Effekte“: alles, was gerade dauerhaft
+oder akut auf den Stern wirkt. Alle Ecken-Popover schließen einander aus, damit
+sie sich auf schmalen Bildschirmen nicht überlagern.
+
+Das Perk-Popover ist eine reine Statusanzeige — Titel, aktueller Multiplikator
+und Stufe je Perk. Noch nicht gekaufte Perks bleiben gedämpft sichtbar, damit
+von Anfang an erkennbar ist, welche dauerhaften Effekte es gibt. Gekauft werden
+Perks weiterhin ausschließlich in der Zyklus-Zusammenfassung; das Popover weist
+darauf hin.
 
 ### Mobile Struktur
 
@@ -918,20 +940,29 @@ nicht mehr — gescrollt wird ausschließlich innerhalb der Popups. Das Dock ste
 in der letzten Rasterzeile der Seite (nicht `fixed`), damit nichts darunter
 verschwindet.
 
-Das Dock trägt sechs Symbole:
+Das Dock trägt fünf Symbole:
 
 | Position | Ziel | Verhalten |
 | --- | --- | --- |
 | 1 | Fusionen | Popup mit den Kacheln des Bereichs |
 | 2 | Upgrades | Popup mit den Kacheln des Bereichs |
 | 3 | Automationen | Popup mit den Kacheln des Bereichs |
-| 4 | Perks | Popup mit den Kacheln des Bereichs |
-| 5 | Chronik | bestehendes Chronik-Modal |
-| 6 | Settings | bestehendes Einstellungs-Modal |
+| 4 | Chronik | bestehendes Chronik-Modal |
+| 5 | Settings | bestehendes Einstellungs-Modal |
+
+Da die Perks in die Effekte-Ecke der Star Chamber gezogen sind, verteilt sich
+der frei gewordene Platz auf die verbleibenden Felder: größere Symbole,
+größere Beschriftung und eine höhere Trefferfläche. Dasselbe gilt für die drei
+Reiter des Desktop-Kontrollzentrums.
+
+Unter den Dock-Buttons bleibt ein Fußabstand von 18 px frei, seitlich mindestens
+6 px — jeweils zusätzlich zur Safe-Area des Geräts. Auf Telefonen mit
+Home-Indikator liegt direkt darunter die System-Geste für Home und Siri, und die
+abgerundeten Displayecken schneiden den unteren Rand diagonal an; ohne diesen
+Puffer säßen Beschriftung und Trefferfläche der äußeren Felder genau dort.
 
 Die ersten drei zeigen Gelegenheiten wie die Desktop-Reiter: Amber-Glow am
-Symbol plus Zähler der ungesehenen Gelegenheiten. Perks kennen keine
-Gelegenheiten und bleiben deshalb ruhig. Das Popup bringt dieselbe Kachelfläche
+Symbol plus Zähler der ungesehenen Gelegenheiten. Das Popup bringt dieselbe Kachelfläche
 mit wie das Kontrollzentrum, sodass alle laufenden Aktualisierungen unverändert
 greifen; entsprechend steht immer nur eine der beiden Fassungen im DOM.
 

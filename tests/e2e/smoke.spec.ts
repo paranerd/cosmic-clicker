@@ -205,7 +205,7 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await page.waitForTimeout(4_800);
   await expect(achievement).toBeVisible();
   await expect(achievement).toHaveCount(0);
-  // Aktive Warnungen stehen über dem Urwolken-Ring in der linken Ecke der
+  // Aktive Warnungen stehen jetzt in der Effekte-Ecke rechts unten in der
   // Star Chamber und öffnen weiterhin ihr eigenes Popover.
   const warningCorner = page.locator('[data-ui="warning-corner"]');
   await expect(warningCorner).toBeVisible();
@@ -221,8 +221,15 @@ test('reaching an objective uses a non-blocking achievement banner and warns abo
   await expect(warningPopover).toContainText('ME/s');
   const warningBox = (await warningCorner.boundingBox())!;
   const chamberBox = (await page.locator('.star-chamber').boundingBox())!;
-  expect(warningBox.x - chamberBox.x).toBe(14);
+  expect(chamberBox.x + chamberBox.width - (warningBox.x + warningBox.width)).toBe(14);
   expect(warningBox.y).toBeGreaterThan(chamberBox.y);
+  // Darunter steht der Perk-Button derselben Sektion, ebenfalls rechtsbündig.
+  const perkBox = (await page.locator('.perk-toggle').boundingBox())!;
+  expect(chamberBox.x + chamberBox.width - (perkBox.x + perkBox.width)).toBe(14);
+  expect(perkBox.y).toBeGreaterThan(warningBox.y);
+  // Die Urwolke bleibt in der linken Ecke.
+  const cloudBox = (await page.locator('.cloud-toggle').boundingBox())!;
+  expect(cloudBox.x - chamberBox.x).toBe(14);
   await page.locator('.star-button').click({ position: { x: 10, y: 10 }, force: true });
   await expect(warningPopover).not.toBeVisible();
 });
@@ -262,8 +269,10 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await expect(page.getByRole('tab', { name: 'Fusionen' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Upgrades' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Automationen' })).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'Perks' })).toBeVisible();
-  await expect(page.getByRole('tab')).toHaveCount(4);
+  // Perks sind kein Kontrollbereich mehr, sondern stehen im Effekte-Popover
+  // unten rechts in der Sternenkammer.
+  await expect(page.getByRole('tab', { name: 'Perks' })).toHaveCount(0);
+  await expect(page.getByRole('tab')).toHaveCount(3);
   await expect(page.locator('.action-sidepanel')).toContainText('Kontrollzentrum');
   // Punkt 5/6: Die Fußzeile ist ersatzlos entfallen, das Dock bleibt der
   // mobilen Fassung vorbehalten.
@@ -1033,43 +1042,45 @@ test('round statistics are integrated into the chronicle and production exposes 
   expect(await page.evaluate(() => typeof (window as unknown as Record<string, unknown>).cosmicDebug)).toBe('undefined');
 });
 
-test('perks tab shows every permanent perk in the upgrade card style', async ({ page }) => {
+test('the effects corner lists every permanent perk with its current level', async ({ page }) => {
   await seedLegacyGame(page, {
     stardust: 4,
-    perks: { largerCloud: 2, permanentGravity: 1, fusionMemory: 3 },
+    perks: { largerCloud: 2, permanentGravity: 1, fusionMemory: 0 },
   });
   await gotoGame(page);
 
-  await page.getByRole('tab', { name: 'Perks' }).click();
-  await expect(page.getByRole('tab', { name: 'Perks' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('status', { name: 'Verfügbarer Sternenstaub' })).toContainText('4');
-  await expect(page.getByRole('status', { name: 'Verfügbarer Sternenstaub' })).toContainText('✦');
+  const popover = page.locator('.perk-popover');
+  await expect(popover).not.toBeVisible();
+  await page.getByRole('button', { name: 'Aktive Perks anzeigen' }).click();
+  await expect(popover).toBeVisible();
 
-  const cards = page.locator('[data-perk-card]');
-  await expect(cards).toHaveCount(3);
-  await expect(cards).toHaveClass([/upgrade-card/, /upgrade-card/, /upgrade-card/]);
-  await expect(cards.locator('.tile-action-button')).toHaveCount(3);
-  for (const button of await cards.locator('.tile-action-button').all()) await expect(button).toBeDisabled();
-
-  const cloudPerk = page.locator('[data-perk-card="largerCloud"]');
+  const entries = popover.locator('.perk-entry');
+  await expect(entries).toHaveCount(3);
+  const cloudPerk = popover.locator('[data-perk-entry="largerCloud"]');
   await expect(cloudPerk).toContainText('Wolkenmasse');
   await expect(cloudPerk).toContainText('Stufe 2 von 24');
-  await expect(cloudPerk.locator('.tile-rate')).toContainText('×4');
-  await expect(cloudPerk.locator('.tile-rate')).toContainText('×8');
-  const cloudUpgrade = cloudPerk.getByRole('button', { name: /Wolkenmasse für 8 Sternenstaub/ });
-  await expect(cloudUpgrade).toContainText('8 ✦');
-  expect(parseFloat(await cloudUpgrade.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--tile-fill')))).toBeCloseTo(50, 5);
-  expect(await cloudUpgrade.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
+  await expect(cloudPerk.locator('strong')).toHaveText('×4');
+  await expect(popover.locator('[data-perk-entry="permanentGravity"]')).toContainText('Gravitatives Gedächtnis');
+  await expect(popover.locator('[data-perk-entry="permanentGravity"]')).toContainText('Stufe 1 von 10');
 
-  await expect(page.locator('[data-perk-card="permanentGravity"]')).toContainText('Gravitatives Gedächtnis');
-  await expect(page.locator('[data-perk-card="fusionMemory"]')).toContainText('Fusionsgedächtnis');
-  await expect(cards.first().getByText('Neue Stufen können am Zyklusende gekauft werden.')).toBeVisible();
+  // Ein noch nicht gekaufter Perk bleibt sichtbar, tritt aber zurück.
+  const fusionPerk = popover.locator('[data-perk-entry="fusionMemory"]');
+  await expect(fusionPerk).toHaveClass(/is-inactive/);
+  await expect(fusionPerk).toContainText('Stufe 0 von 5');
+  await expect(fusionPerk.locator('strong')).toHaveText('×1');
+
+  // Gekauft wird weiterhin ausschließlich in der Zyklus-Zusammenfassung.
+  await expect(popover.getByRole('button')).toHaveCount(0);
+  await expect(popover).toContainText('am Ende eines Zyklus');
+
+  // Ein Klick daneben schließt das Popover wieder.
+  await page.locator('.star-button').click({ position: { x: 10, y: 10 }, force: true });
+  await expect(popover).not.toBeVisible();
 });
 
-test('upgrade, automation and perk tabs show their current purchase resource once', async ({ page }) => {
+test('upgrade and automation tabs show their current purchase resource once', async ({ page }) => {
   await seedLegacyGame(page, {
     energy: 123,
-    stardust: 4,
     perks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
   });
   await gotoGame(page);
@@ -1083,11 +1094,6 @@ test('upgrade, automation and perk tabs show their current purchase resource onc
   await page.getByRole('tab', { name: 'Automationen' }).click();
   await expect(sideContent.getByRole('status', { name: 'Verfügbare Energie' })).toHaveCount(1);
   await expect(sideContent.getByRole('status', { name: 'Verfügbare Energie' })).toContainText('123');
-
-  await page.getByRole('tab', { name: 'Perks' }).click();
-  await expect(sideContent.getByRole('status', { name: 'Verfügbarer Sternenstaub' })).toHaveCount(1);
-  await expect(sideContent.getByRole('status', { name: 'Verfügbarer Sternenstaub' })).toContainText('4');
-  await expect(sideContent.getByRole('status', { name: 'Verfügbarer Sternenstaub' })).toContainText('✦');
 });
 
 test('tabs count unseen opportunities, flash on unlock and clear when opened', async ({ page }) => {
@@ -1723,20 +1729,29 @@ test('mobile fills the viewport with the star chamber and replaces the control c
 
   const dock = page.getByRole('navigation', { name: 'Kontrollbereiche' });
   await expect(dock).toBeVisible();
-  await expect(dock.getByRole('button')).toHaveCount(6);
+  await expect(dock.getByRole('button')).toHaveCount(5);
   await expect(dock.getByRole('button')).toHaveText([
-    'Fusionen', 'Upgrades', 'Automationen', 'Perks', 'Chronik', 'Settings',
+    'Fusionen', 'Upgrades', 'Automationen', 'Chronik', 'Settings',
   ]);
+  // Der durch den entfallenen Perks-Bereich frei gewordene Platz geht in
+  // größere Symbole und Beschriftungen.
+  await expect(dock.getByRole('button').first().locator('svg')).toHaveCSS('width', '23px');
+  await expect(dock.getByRole('button').first().locator('.dock-label')).toHaveCSS('font-size', '8px');
 
   const geometry = await page.evaluate(() => {
     const chamber = document.querySelector('.star-chamber')!.getBoundingClientRect();
     const star = document.querySelector('.star-button')!.getBoundingClientRect();
     const dockRect = document.querySelector('.mobile-dock')!.getBoundingClientRect();
+    const buttons = [...document.querySelectorAll('.mobile-dock button')].map((button) => button.getBoundingClientRect());
+    const labels = [...document.querySelectorAll('.mobile-dock .dock-label')].map((label) => label.getBoundingClientRect());
     return {
       chamber: { x: chamber.x, y: chamber.y, width: chamber.width, height: chamber.height },
       starCenterY: star.y + star.height / 2,
       dockTop: dockRect.top,
       dockBottom: dockRect.bottom,
+      lowestButtonBottom: Math.max(...buttons.map((button) => button.bottom)),
+      lowestLabelBottom: Math.max(...labels.map((label) => label.bottom)),
+      outerLabelInset: Math.min(labels[0].left, window.innerWidth - labels[labels.length - 1].right),
       documentHeight: document.documentElement.scrollHeight,
       documentWidth: document.documentElement.scrollWidth,
       viewportHeight: window.innerHeight,
@@ -1750,6 +1765,13 @@ test('mobile fills the viewport with the star chamber and replaces the control c
   expect(Math.abs(geometry.chamber.y + geometry.chamber.height - geometry.dockTop)).toBeLessThanOrEqual(1);
   expect(Math.abs(geometry.dockBottom - geometry.viewportHeight)).toBeLessThanOrEqual(1);
   expect(Math.abs(geometry.starCenterY - (geometry.chamber.y + geometry.chamber.height / 2))).toBeLessThanOrEqual(1);
+  // Unterhalb der Dock-Buttons bleibt ein Fußabstand frei, damit Beschriftung
+  // und Trefferfläche weder in die System-Geste am unteren Rand (Home/Siri)
+  // noch in die abgerundeten Displayecken laufen. Der Abstand kommt zusätzlich
+  // zu einer eventuellen Safe-Area, die es im Testbrowser nicht gibt.
+  expect(geometry.viewportHeight - geometry.lowestButtonBottom).toBeGreaterThanOrEqual(18);
+  expect(geometry.viewportHeight - geometry.lowestLabelBottom).toBeGreaterThanOrEqual(18);
+  expect(geometry.outerLabelInset).toBeGreaterThanOrEqual(6);
   // Kein Scrollen mehr — weder vertikal noch horizontal.
   expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewportHeight);
   expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
@@ -1770,12 +1792,11 @@ test('the dock opens each control area as a titled popup and keeps the tiles liv
   await page.goto('/');
   const dock = page.getByRole('navigation', { name: 'Kontrollbereiche' });
 
-  // Die ersten vier Symbole öffnen ihren Bereich als Popup mit passendem Titel.
+  // Die ersten drei Symbole öffnen ihren Bereich als Popup mit passendem Titel.
   for (const [name, cardSelector] of [
     ['Fusionen', '[data-reaction-card="hydrogen"]'],
     ['Upgrades', '[data-upgrade-card="gravity"]'],
     ['Automationen', '[data-automation-card="accretion"]'],
-    ['Perks', '[data-perk-card="largerCloud"]'],
   ] as const) {
     await dock.getByRole('button', { name: `${name} öffnen` }).click();
     const popup = page.getByRole('dialog', { name });
@@ -1797,9 +1818,9 @@ test('the dock opens each control area as a titled popup and keeps the tiles liv
   // Schließen geht auch über den Hintergrund und Escape.
   await page.locator('[data-overlay-dismiss="panel"]').click({ position: { x: 5, y: 5 } });
   await expect(page.getByRole('dialog', { name: 'Upgrades' })).toHaveCount(0);
-  await dock.getByRole('button', { name: 'Perks öffnen' }).click();
+  await dock.getByRole('button', { name: 'Automationen öffnen' }).click();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Perks' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Automationen' })).toHaveCount(0);
 
   // Die letzten beiden Symbole öffnen unverändert ihre bekannten Modale.
   await dock.getByRole('button', { name: 'Chronik öffnen' }).click();
@@ -1820,15 +1841,15 @@ test('the dock marks control areas with an opportunity through glow and a counte
   await gotoGame(page);
   const dock = page.getByRole('navigation', { name: 'Kontrollbereiche' });
   const upgrades = dock.getByRole('button', { name: 'Upgrades öffnen' });
-  const perks = dock.getByRole('button', { name: 'Perks öffnen' });
+  const reactions = dock.getByRole('button', { name: 'Fusionen öffnen' });
 
   await expect(upgrades).toHaveClass(/has-notice/);
   await expect(upgrades.locator('.tab-count')).toHaveText('1');
   await expect(upgrades).toHaveCSS('color', 'rgb(242, 168, 75)');
   expect(await upgrades.locator('.dock-icon').evaluate((element) => getComputedStyle(element).filter)).toContain('drop-shadow');
-  // Perks kennen keine Gelegenheiten und bleiben deshalb ruhig.
-  await expect(perks).not.toHaveClass(/has-notice/);
-  await expect(perks.locator('.tab-count')).toBeHidden();
+  // Der geöffnete Bereich selbst zeigt keine offene Gelegenheit an.
+  await expect(reactions).not.toHaveClass(/has-notice/);
+  await expect(reactions.locator('.tab-count')).toBeHidden();
 
   // Das Öffnen des Bereichs quittiert die Gelegenheit.
   await upgrades.click();

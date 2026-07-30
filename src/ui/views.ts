@@ -37,7 +37,6 @@ import {
   reactionManualAmount,
   reactionManualAmountAtLevel,
   reactionUpgradeCost,
-  prestigePerkCost,
   starMass,
   upgradeSupplyExhausted,
   upgradeCost,
@@ -123,8 +122,7 @@ export function currentOpportunities(): Record<Panel, string[]> {
   const reactions: string[] = [];
   const upgrades: string[] = [];
   const automation: string[] = [];
-  const perks: string[] = [];
-  if (state.completed) return { reactions, upgrades, automation, perks };
+  if (state.completed) return { reactions, upgrades, automation };
   REACTION_ORDER.forEach((id) => {
     if (reactionAvailable(state, id)) reactions.push(`reaction:${id}`);
   });
@@ -140,7 +138,7 @@ export function currentOpportunities(): Record<Panel, string[]> {
     const price = automationCost(kind, level);
     if (automationVisible(kind) && level < definition.maxLevel && automationMastery(kind) >= definition.mastery.threshold && state.energy >= price && !automationSupplyExhausted(state, kind)) automation.push(`${kind}:${level}`);
   });
-  return { reactions, upgrades, automation, perks };
+  return { reactions, upgrades, automation };
 }
 
 export interface ReactionView {
@@ -470,34 +468,20 @@ function automationCard(kind: AutomationKind): string {
     </article>`;
 }
 
-function perkCard(perk: (typeof PRESTIGE_PERK_ORDER)[number]): string {
+// Perks im Effekte-Popover unten rechts in der Sternenkammer (siehe
+// effectsCornerMarkup in ui/sync.ts). Sie sind dort bewusst eine reine
+// Statusanzeige ohne Kaufbutton: Neue Stufen wählt der Spieler ausschließlich
+// in der Zyklus-Zusammenfassung. Perks ohne gekaufte Stufe bleiben sichtbar,
+// aber gedämpft — so sieht der Spieler von Anfang an, welche dauerhaften
+// Effekte es überhaupt gibt.
+export function activePerksMarkup(): string {
   const state = getState();
-  const definition = PRESTIGE_PERKS[perk];
-  const level = state.perks[perk];
-  const isMax = level >= definition.maxLevel;
-  const cost = prestigePerkCost(perk, level);
-  const fillPercent = isMax ? 0 : state.stardust / cost * 100;
-  const currentValue = `×${formatNumber(prestigePerkValue(perk, level), 2)}`;
-  const nextValue = isMax ? 'Voll ausgebaut' : `×${formatNumber(prestigePerkValue(perk, level + 1), 2)}`;
-  return `
-    <article class="upgrade-card perk-overview-card" data-perk-card="${perk}">
-      ${tileActionButton({
-        action: 'preview-perk-upgrade',
-        dataset: { perk },
-        complete: isMax,
-        unlocked: true,
-        showLock: level === 0,
-        affordable: false,
-        fillPercent,
-        costText: isMax ? '' : `${cost} ✦`,
-        ariaLabel: isMax ? `${definition.title} voll ausgebaut` : `${definition.title} für ${cost} Sternenstaub – am Zyklusende verfügbar`,
-      })}
-      <div class="upgrade-heading"><span class="upgrade-icon">${definition.icon}</span><h3>${definition.title}</h3></div>
-      <div class="tile-rate"><div><span>Aktuell</span><b>${currentValue}</b></div><div><span>Nächste Stufe:</span> <b>${nextValue}</b></div></div>
-      <p>${definition.description}<strong>Stufe ${level} von ${definition.maxLevel}</strong></p>
-      <div class="level-row">${levelPips(level, definition.maxLevel)}</div>
-      <div class="tile-cost">Neue Stufen können am Zyklusende gekauft werden.</div>
-    </article>`;
+  return PRESTIGE_PERK_ORDER.map((perk) => {
+    const definition = PRESTIGE_PERKS[perk];
+    const level = state.perks[perk];
+    const value = `×${formatNumber(prestigePerkValue(perk, level), 2)}`;
+    return `<div class="perk-entry ${level ? '' : 'is-inactive'}" data-perk-entry="${perk}"><b>${definition.title}</b><strong>${value}</strong><p>Stufe ${level} von ${definition.maxLevel} · ${definition.effectLabel}</p></div>`;
+  }).join('');
 }
 
 // Punkt 3: Die Stellare Entwicklung zeigt nur noch den tatsächlich
@@ -590,12 +574,13 @@ export const upgradeOrderSignature = (): string => orderedUpgradeCards()
   .map(({ view }) => `${view.id}:${view.priority}:${view.level}:${view.expired}:${view.exhausted}`)
   .join('|');
 
-function panelResourceBalance(resource: 'energy' | 'stardust'): string {
-  const state = getState();
-  const isStardust = resource === 'stardust';
-  return `<div class="panel-resource-balance" role="status" aria-label="${isStardust ? 'Verfügbarer Sternenstaub' : 'Verfügbare Energie'}">
-    <span>${isStardust ? 'Verfügbarer Sternenstaub' : 'Verfügbare Energie'}</span>
-    <strong><b data-panel-resource="${resource}">${isStardust ? formatNumber(state.stardust) : formatEnergy(state.energy)}</b><small>${isStardust ? '✦' : 'MeV'}</small></strong>
+// Seit die Perks aus den Kontrollbereichen ausgezogen sind, wird in jedem
+// Panel ausschließlich mit Energie bezahlt — der Kontostand darüber zeigt
+// deshalb nur noch sie.
+function panelEnergyBalance(): string {
+  return `<div class="panel-resource-balance" role="status" aria-label="Verfügbare Energie">
+    <span>Verfügbare Energie</span>
+    <strong><b data-panel-resource="energy">${formatEnergy(getState().energy)}</b><small>MeV</small></strong>
   </div>`;
 }
 
@@ -603,13 +588,10 @@ export function panelMarkup(panel: Panel): string {
   if (panel === 'reactions') return renderReactionPanel();
   if (panel === 'upgrades') {
     const cards = orderedUpgradeCards();
-    return `${panelResourceBalance('energy')}<div class="upgrade-grid ${cards.length === 1 ? 'single-upgrade' : ''}">${cards.map((card) => card.markup).join('')}</div>`;
-  }
-  if (panel === 'perks') {
-    return `${panelResourceBalance('stardust')}<div class="upgrade-grid perk-grid">${PRESTIGE_PERK_ORDER.map(perkCard).join('')}</div>`;
+    return `${panelEnergyBalance()}<div class="upgrade-grid ${cards.length === 1 ? 'single-upgrade' : ''}">${cards.map((card) => card.markup).join('')}</div>`;
   }
   const automations = AUTOMATION_ORDER.filter(automationVisible);
-  return `${panelResourceBalance('energy')}<div class="upgrade-grid automation-grid ${automations.length === 1 ? 'single-upgrade' : ''}">${automations.map(automationCard).join('')}</div>`;
+  return `${panelEnergyBalance()}<div class="upgrade-grid automation-grid ${automations.length === 1 ? 'single-upgrade' : ''}">${automations.map(automationCard).join('')}</div>`;
 }
 
 export function statsEntries(): [string, string, string][] {

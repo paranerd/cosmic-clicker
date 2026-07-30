@@ -9,6 +9,19 @@ $cyan: #78d7df;
 $amber: #f2a84b;
 $orange: #e77034;
 
+// Maße des mobilen Docks an einer Stelle. Der Fußabstand ist bewusst deutlich
+// größer als der Kopfabstand und kommt ZUSÄTZLICH zur Safe-Area: Auf Geräten
+// mit Home-Indikator (iPhone) liegt direkt unter dem Dock die System-Geste für
+// Home/Siri, und die abgerundeten Displayecken schneiden den unteren Rand
+// diagonal an. Ohne diesen Puffer säßen Beschriftung und Trefferfläche der
+// äußeren Felder genau dort. Fest positionierte Einblendungen (Tutorialkarte,
+// Banner) rechnen mit derselben Höhe weiter.
+$dock-button-height: 60px;
+$dock-padding-top: 6px;
+$dock-padding-bottom: 18px;
+$dock-height: $dock-button-height + $dock-padding-top + $dock-padding-bottom + 1px;
+$dock-overlay-offset: $dock-height + 16px;
+
 * { box-sizing: border-box; }
 
 :root {
@@ -188,13 +201,19 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .stellar-data-popover .primary-reading { margin-bottom: 18px; }
 .stellar-data-popover .primary-reading > b { font-size: 28px; }
 .stellar-data-popover .metric-grid { margin-bottom: 18px; }
-.warning-corner { position: absolute; left: 14px; bottom: 58px; z-index: 30; }
+// Effekte-Ecke unten rechts: Warnungen und Perks stehen als eine Sektion
+// untereinander, gegenüber von Echtzeitdaten und Urwolke links. Die Ecke
+// selbst ist der einzige positionierte Anker; die beiden Karten stapeln sich
+// darin von unten nach oben, sodass der Perk-Button auch dann in der Ecke
+// bleibt, wenn keine Warnung aktiv ist.
+.effects-corner { position: absolute; right: 14px; bottom: 14px; z-index: 30; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.warning-corner, .perk-corner { position: relative; }
 .warning-toggle { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba($amber,.45); border-radius: 50%; background: rgba($amber,.09); color: $amber; cursor: pointer; transition: .2s; animation: warning-pulse 2.6s ease-in-out infinite; }
 .warning-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .warning-toggle:hover { background: rgba($amber,.16); border-color: rgba($amber,.7); }
 @keyframes warning-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba($amber,.25); } 50% { box-shadow: 0 0 0 7px rgba($amber,0); } }
 @media (prefers-reduced-motion: reduce) { .warning-toggle { animation: none; } }
-.warning-popover { width: 265px; padding: 14px; position: absolute; z-index: 40; left: 0; bottom: 44px; visibility: hidden; opacity: 0; transform: translateY(5px); border: 1px solid rgba($amber,.28); background: rgba(8,13,22,.98); box-shadow: 0 18px 45px rgba(0,0,0,.45); transition: .18s ease; text-align: left; }
+.warning-popover { width: min(265px, calc(100vw - 28px)); padding: 14px; position: absolute; z-index: 40; right: 0; bottom: 44px; visibility: hidden; opacity: 0; transform: translateY(5px); border: 1px solid rgba($amber,.28); background: rgba(8,13,22,.98); box-shadow: 0 18px 45px rgba(0,0,0,.45); transition: .18s ease; text-align: left; }
 .warning-corner.is-open .warning-popover { visibility: visible; opacity: 1; transform: translateY(0); }
 .warning-popover-title { display: block; color: $amber; font-size: 7px; letter-spacing: .14em; text-transform: uppercase; }
 .warning-entry { margin-top: 11px; display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; align-items: baseline; }
@@ -202,6 +221,25 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .warning-entry b { font-size: 9px; font-weight: 500; color: $amber; }
 .warning-entry strong { color: #d8b06c; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 400; }
 .warning-entry p { grid-column: 1 / -1; margin: 0; color: $muted; font-size: 8px; line-height: 1.5; }
+// Perk-Popover derselben Ecke: reine Statusanzeige der dauerhaften Effekte,
+// optisch an das Urwolken-Popover angelehnt (Cyan statt Amber, weil hier
+// nichts akut ist), gekauft wird weiterhin nur in der Zusammenfassung.
+.perk-toggle { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid rgba($cyan,.34); border-radius: 50%; background: rgba(8,13,22,.84); color: #b7dfe2; cursor: pointer; transition: background .2s ease, border-color .2s ease, filter .2s ease; }
+.perk-toggle svg { width: 16px; height: 16px; }
+.perk-toggle:hover, .perk-toggle:focus-visible { border-color: rgba($cyan,.58); background: rgba($cyan,.08); filter: brightness(1.18); }
+.perk-popover { width: min(265px, calc(100vw - 28px)); padding: 14px; position: absolute; z-index: 40; right: 0; bottom: 44px; visibility: hidden; opacity: 0; transform: translateY(5px); border: 1px solid rgba($cyan,.28); background: rgba(8,13,22,.98); box-shadow: 0 18px 45px rgba(0,0,0,.45); transition: .18s ease; text-align: left; }
+.perk-corner.is-open .perk-popover { visibility: visible; opacity: 1; transform: translateY(0); }
+.perk-popover-kicker { display: block; color: $cyan; font-size: 7px; letter-spacing: .14em; text-transform: uppercase; }
+.perk-popover h2 { margin: 3px 0 0; font-family: Georgia,serif; font-size: 18px; font-weight: 400; }
+.perk-list { margin-top: 4px; }
+.perk-entry { margin-top: 11px; padding-top: 10px; display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; align-items: baseline; border-top: 1px solid $line; }
+.perk-entry b { font-size: 9px; font-weight: 500; }
+.perk-entry strong { color: $cyan; font-family: ui-monospace,monospace; font-size: 10px; font-weight: 400; }
+.perk-entry p { grid-column: 1 / -1; margin: 0; color: $muted; font-size: 8px; line-height: 1.5; }
+// Noch nicht gekaufte Perks bleiben sichtbar, treten aber zurück.
+.perk-entry.is-inactive { opacity: .5; }
+.perk-entry.is-inactive strong { color: $muted; }
+.perk-popover-note { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid $line; color: #6d7b8e; font-size: 7px; line-height: 1.5; }
 .click-callout span { display: block; color: $amber; font-family: ui-monospace, monospace; font-size: 13px; }
 .click-callout small { display: block; margin-top: 5px; color: $muted; font-size: 8px; letter-spacing: .14em; text-transform: uppercase; }
 .chamber-objective-progress { width: min(220px, calc(100% - 150px)); min-width: 120px; padding: 7px 0 0; position: absolute; z-index: 4; bottom: 20px; display: flex; flex-direction: column; align-items: stretch; border: 0; background: transparent; color: $cyan; cursor: pointer; touch-action: manipulation; }
@@ -273,11 +311,14 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .sidepanel-tools button:hover, .sidepanel-tools button:focus-visible { color: $text; border-color: rgba($cyan,.5); background: rgba($cyan,.075); }
 .sidepanel-tools svg { width: 14px; height: 14px; }
 .sidepanel-tools .tutorial-settings-access { z-index: 46; pointer-events: auto; }
-.side-tabs { height: 44px; display: grid; grid-template-columns: repeat(4,1fr); padding: 0 14px; border-top: 1px solid $line; border-bottom: 1px solid $line; }
-.side-tabs button { min-width: 0; position: relative; display: flex; gap: 4px; align-items: center; justify-content: center; border: 0; border-bottom: 2px solid transparent; background: transparent; color: $muted; font-size: 7px; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; transition: color .18s ease, border-color .18s ease, background-color .18s ease; }
+// Nur noch drei Kontrollbereiche (Perks sind in die Effekte-Ecke der
+// Sternenkammer gezogen) — der frei gewordene Platz geht in Reiterhöhe und
+// Schriftgröße.
+.side-tabs { height: 48px; display: grid; grid-template-columns: repeat(3,1fr); padding: 0 14px; border-top: 1px solid $line; border-bottom: 1px solid $line; }
+.side-tabs button { min-width: 0; position: relative; display: flex; gap: 5px; align-items: center; justify-content: center; border: 0; border-bottom: 2px solid transparent; background: transparent; color: $muted; font-size: 9px; text-transform: uppercase; letter-spacing: .07em; cursor: pointer; transition: color .18s ease, border-color .18s ease, background-color .18s ease; }
 .side-tabs button.active { color: $text; border-bottom-color: $cyan; }
 .side-tabs button:hover:not(.active) { color: rgba($text,.78); border-bottom-color: rgba($cyan,.3); background: rgba($cyan,.035); }
-.side-tabs .tab-count { min-width: 13px; height: 13px; display: grid; place-items: center; border: 1px solid rgba($amber,.5); color: #1b1006; background: rgba($amber,.9); font-family: ui-monospace,monospace; font-size: 6px; font-weight: 700; box-shadow: 0 0 9px rgba($amber,.2); }
+.side-tabs .tab-count { min-width: 15px; height: 15px; display: grid; place-items: center; border: 1px solid rgba($amber,.5); color: #1b1006; background: rgba($amber,.9); font-family: ui-monospace,monospace; font-size: 7px; font-weight: 700; box-shadow: 0 0 9px rgba($amber,.2); }
 .side-tabs .tab-count[hidden] { display: none; }
 .side-tabs button.unlock-flash { animation: tabUnlockFlash 1.25s ease-out; }
 .side-content { min-height: 0; padding: 14px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba($cyan,.25) transparent; }
@@ -340,7 +381,6 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 .upgrade-heading h3 { margin: 0; font-family: Georgia,serif; font-size: 17px; font-weight: 400; }
 .upgrade-card p, .action-card p { min-height: 42px; margin: 10px 0 0; color: $muted; font-size: 9px; line-height: 1.5; }
 .upgrade-card p strong { display: block; margin-top: 4px; color: #91cdd1; font-family: ui-monospace,monospace; font-size: 8px; font-weight: 400; }
-.perk-overview-card .tile-cost { text-align: left; color: $muted; }
 .level-row { display: flex; gap: 5px; margin: 15px 0; }
 .level-pip { height: 3px; flex: 1; background: rgba(255,255,255,.08); }
 .level-pip.is-filled { background: $cyan; box-shadow: 0 0 6px rgba($cyan,.5); }
@@ -472,18 +512,21 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 // Viewport einnimmt und nichts unter dem Dock verschwindet. Sichtbar wird es
 // nur unterhalb des Kontrollzentrum-Breakpoints; oberhalb rendert die Shell
 // es gar nicht erst (siehe ui/store.ts, isMobileLayout).
-.mobile-dock { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); padding: 5px 2px calc(5px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid $line; background: rgba(6,10,18,.94); backdrop-filter: blur(14px); }
-.mobile-dock button { min-width: 0; min-height: 54px; padding: 6px 2px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 0; background: transparent; color: $muted; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: color .18s ease; }
+// Seit die Perks in die Effekte-Ecke der Sternenkammer gezogen sind, hat das
+// Dock nur noch fünf statt sechs Feldern — Symbole, Beschriftung und
+// Trefferfläche wachsen entsprechend mit ($dock-button-height oben).
+.mobile-dock { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); padding: $dock-padding-top max(6px, env(safe-area-inset-right, 0px)) calc(#{$dock-padding-bottom} + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); border-top: 1px solid $line; background: rgba(6,10,18,.94); backdrop-filter: blur(14px); }
+.mobile-dock button { min-width: 0; min-height: $dock-button-height; padding: 7px 3px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 0; background: transparent; color: $muted; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: color .18s ease; }
 .mobile-dock .dock-icon { display: grid; place-items: center; }
-.mobile-dock svg { width: 19px; height: 19px; }
-.mobile-dock .dock-label { max-width: 100%; overflow: hidden; font-size: 7px; letter-spacing: .04em; line-height: 1; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.mobile-dock svg { width: 23px; height: 23px; }
+.mobile-dock .dock-label { max-width: 100%; overflow: hidden; font-size: 8px; letter-spacing: .05em; line-height: 1; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .mobile-dock button.active { color: $text; }
 .mobile-dock button.active .dock-icon { color: $cyan; }
 // Gelegenheit im Bereich: derselbe Amber-Code wie Reiterindikator und
 // kaufbereiter Eck-Ausbaubutton, hier zusätzlich als Glow am Symbol.
 .mobile-dock button.has-notice { color: $amber; }
 .mobile-dock button.has-notice .dock-icon { filter: drop-shadow(0 0 7px rgba($amber,.55)); }
-.mobile-dock .tab-count { min-width: 13px; height: 13px; position: absolute; top: 4px; left: calc(50% + 5px); display: grid; place-items: center; border: 1px solid rgba($amber,.5); color: #1b1006; background: rgba($amber,.9); font-family: ui-monospace,monospace; font-size: 6px; font-weight: 700; box-shadow: 0 0 9px rgba($amber,.35); }
+.mobile-dock .tab-count { min-width: 15px; height: 15px; position: absolute; top: 4px; left: calc(50% + 6px); display: grid; place-items: center; border: 1px solid rgba($amber,.5); color: #1b1006; background: rgba($amber,.9); font-family: ui-monospace,monospace; font-size: 7px; font-weight: 700; box-shadow: 0 0 9px rgba($amber,.35); }
 .mobile-dock .tab-count[hidden] { display: none; }
 .mobile-dock button.unlock-flash .dock-icon { animation: dockUnlockFlash 1.25s ease-out; }
 
@@ -818,7 +861,6 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .star-chamber { min-height: 0; height: 100%; grid-row: 1; }
   .stellar-data-corner { display: block; }
   .cloud-corner { bottom: 58px; }
-  .warning-corner { bottom: 102px; }
   .data-panel { padding: 25px 20px; }
   .deck-tabs { padding: 0 16px; gap: 18px; overflow-x: auto; }
   .deck-content { padding: 18px 16px 22px; }
@@ -848,9 +890,9 @@ html.is-paused *, html.is-paused *::before, html.is-paused *::after { animation-
   .settings-switch { justify-self: start; }
   .panel-modal-body { padding: 14px; }
   // Fest positionierte Einblendungen bleiben über dem Dock, statt es zu
-  // verdecken (Dockhöhe: 54px Button + 2 × 5px Innenabstand + 1px Rahmen).
-  .tutorial-card { left: 50%; bottom: calc(81px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); }
-  .achievement-banner, .cycle-end-banner { bottom: calc(81px + env(safe-area-inset-bottom, 0px)); }
+  // verdecken (Dockhöhe siehe $dock-height oben).
+  .tutorial-card { left: 50%; bottom: calc(#{$dock-overlay-offset} + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); }
+  .achievement-banner, .cycle-end-banner { bottom: calc(#{$dock-overlay-offset} + env(safe-area-inset-bottom, 0px)); }
   .toast-stack { top: 76px; }
   .debug-panel { width: calc(100% - 24px); right: 12px; top: 74px; }
 }

@@ -1,7 +1,12 @@
 import { loadGame } from '../game/storage';
 import type { GameState } from '../game/types';
 
-export type Panel = 'reactions' | 'upgrades' | 'automation' | 'perks';
+// Perks stehen bewusst NICHT mehr als Kontrollbereich hier: Sie sind nichts,
+// was im laufenden Zyklus gekauft wird (das passiert ausschließlich in der
+// Zyklus-Zusammenfassung), sondern eine reine Statusanzeige. Sie leben deshalb
+// im Effekte-Popover unten rechts in der Sternenkammer (siehe ui/sync.ts,
+// effectsCornerMarkup) statt in Dock und Reitern.
+export type Panel = 'reactions' | 'upgrades' | 'automation';
 
 // Beschriftung der Kontrollbereiche an einer Stelle: Sie steht auf dem
 // Desktop-Reiter, im mobilen Dock und als Titel des Dock-Popups.
@@ -9,10 +14,9 @@ export const PANEL_LABELS: Record<Panel, string> = {
   reactions: 'Fusionen',
   upgrades: 'Upgrades',
   automation: 'Automationen',
-  perks: 'Perks',
 };
 
-export const PANEL_ORDER = ['reactions', 'upgrades', 'automation', 'perks'] as const satisfies readonly Panel[];
+export const PANEL_ORDER = ['reactions', 'upgrades', 'automation'] as const satisfies readonly Panel[];
 
 // Auf kleinen Bildschirmen entfällt das Kontrollzentrum vollständig; seine
 // Bereiche erreicht man stattdessen über das Dock am unteren Rand, das sie in
