@@ -1742,11 +1742,16 @@ test('mobile fills the viewport with the star chamber and replaces the control c
     const chamber = document.querySelector('.star-chamber')!.getBoundingClientRect();
     const star = document.querySelector('.star-button')!.getBoundingClientRect();
     const dockRect = document.querySelector('.mobile-dock')!.getBoundingClientRect();
+    const buttons = [...document.querySelectorAll('.mobile-dock button')].map((button) => button.getBoundingClientRect());
+    const labels = [...document.querySelectorAll('.mobile-dock .dock-label')].map((label) => label.getBoundingClientRect());
     return {
       chamber: { x: chamber.x, y: chamber.y, width: chamber.width, height: chamber.height },
       starCenterY: star.y + star.height / 2,
       dockTop: dockRect.top,
       dockBottom: dockRect.bottom,
+      lowestButtonBottom: Math.max(...buttons.map((button) => button.bottom)),
+      lowestLabelBottom: Math.max(...labels.map((label) => label.bottom)),
+      outerLabelInset: Math.min(labels[0].left, window.innerWidth - labels[labels.length - 1].right),
       documentHeight: document.documentElement.scrollHeight,
       documentWidth: document.documentElement.scrollWidth,
       viewportHeight: window.innerHeight,
@@ -1760,6 +1765,13 @@ test('mobile fills the viewport with the star chamber and replaces the control c
   expect(Math.abs(geometry.chamber.y + geometry.chamber.height - geometry.dockTop)).toBeLessThanOrEqual(1);
   expect(Math.abs(geometry.dockBottom - geometry.viewportHeight)).toBeLessThanOrEqual(1);
   expect(Math.abs(geometry.starCenterY - (geometry.chamber.y + geometry.chamber.height / 2))).toBeLessThanOrEqual(1);
+  // Unterhalb der Dock-Buttons bleibt ein Fußabstand frei, damit Beschriftung
+  // und Trefferfläche weder in die System-Geste am unteren Rand (Home/Siri)
+  // noch in die abgerundeten Displayecken laufen. Der Abstand kommt zusätzlich
+  // zu einer eventuellen Safe-Area, die es im Testbrowser nicht gibt.
+  expect(geometry.viewportHeight - geometry.lowestButtonBottom).toBeGreaterThanOrEqual(18);
+  expect(geometry.viewportHeight - geometry.lowestLabelBottom).toBeGreaterThanOrEqual(18);
+  expect(geometry.outerLabelInset).toBeGreaterThanOrEqual(6);
   // Kein Scrollen mehr — weder vertikal noch horizontal.
   expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewportHeight);
   expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);

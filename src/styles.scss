@@ -9,12 +9,17 @@ $cyan: #78d7df;
 $amber: #f2a84b;
 $orange: #e77034;
 
-// Höhe des mobilen Docks an einer Stelle: Buttonhöhe + 2 × 5px Innenabstand +
-// 1px Rahmen. Fest positionierte Einblendungen (Tutorialkarte, Banner) halten
-// darüber ihren Abstand, ohne dass die Zahl bei jeder Dock-Anpassung an
-// mehreren Stellen nachgezogen werden muss.
+// Maße des mobilen Docks an einer Stelle. Der Fußabstand ist bewusst deutlich
+// größer als der Kopfabstand und kommt ZUSÄTZLICH zur Safe-Area: Auf Geräten
+// mit Home-Indikator (iPhone) liegt direkt unter dem Dock die System-Geste für
+// Home/Siri, und die abgerundeten Displayecken schneiden den unteren Rand
+// diagonal an. Ohne diesen Puffer säßen Beschriftung und Trefferfläche der
+// äußeren Felder genau dort. Fest positionierte Einblendungen (Tutorialkarte,
+// Banner) rechnen mit derselben Höhe weiter.
 $dock-button-height: 60px;
-$dock-height: $dock-button-height + 11px;
+$dock-padding-top: 6px;
+$dock-padding-bottom: 18px;
+$dock-height: $dock-button-height + $dock-padding-top + $dock-padding-bottom + 1px;
 $dock-overlay-offset: $dock-height + 16px;
 
 * { box-sizing: border-box; }
@@ -510,7 +515,7 @@ main { --action-panel-width: clamp(280px,24vw,345px); width: min(1460px, calc(10
 // Seit die Perks in die Effekte-Ecke der Sternenkammer gezogen sind, hat das
 // Dock nur noch fünf statt sechs Feldern — Symbole, Beschriftung und
 // Trefferfläche wachsen entsprechend mit ($dock-button-height oben).
-.mobile-dock { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); padding: 5px 2px calc(5px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid $line; background: rgba(6,10,18,.94); backdrop-filter: blur(14px); }
+.mobile-dock { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); padding: $dock-padding-top max(6px, env(safe-area-inset-right, 0px)) calc(#{$dock-padding-bottom} + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); border-top: 1px solid $line; background: rgba(6,10,18,.94); backdrop-filter: blur(14px); }
 .mobile-dock button { min-width: 0; min-height: $dock-button-height; padding: 7px 3px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 0; background: transparent; color: $muted; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: color .18s ease; }
 .mobile-dock .dock-icon { display: grid; place-items: center; }
 .mobile-dock svg { width: 23px; height: 23px; }

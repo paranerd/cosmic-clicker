@@ -955,6 +955,12 @@ der frei gewordene Platz auf die verbleibenden Felder: größere Symbole,
 größere Beschriftung und eine höhere Trefferfläche. Dasselbe gilt für die drei
 Reiter des Desktop-Kontrollzentrums.
 
+Unter den Dock-Buttons bleibt ein Fußabstand von 18 px frei, seitlich mindestens
+6 px — jeweils zusätzlich zur Safe-Area des Geräts. Auf Telefonen mit
+Home-Indikator liegt direkt darunter die System-Geste für Home und Siri, und die
+abgerundeten Displayecken schneiden den unteren Rand diagonal an; ohne diesen
+Puffer säßen Beschriftung und Trefferfläche der äußeren Felder genau dort.
+
 Die ersten drei zeigen Gelegenheiten wie die Desktop-Reiter: Amber-Glow am
 Symbol plus Zähler der ungesehenen Gelegenheiten. Das Popup bringt dieselbe Kachelfläche
 mit wie das Kontrollzentrum, sodass alle laufenden Aktualisierungen unverändert
