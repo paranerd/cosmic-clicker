@@ -367,14 +367,37 @@ const completeRun = (state: GameState, outcome: Exclude<StellarOutcome, 'legacyM
   log(state, `${OUTCOMES[outcome].title} +${award} Sternenstaub`, 'discovery');
 };
 
-const unlockEligibleReactions = (state: GameState): void => {
-  REACTION_ORDER.forEach((id) => {
-    if (state.unlockedReactions.includes(id)) return;
-    const definition = REACTIONS[id];
-    if (state.temperature < definition.ignitionTemperature || starMass(state) < definition.minimumMass) return;
-    state.unlockedReactions.push(id);
-    if (id !== 'alphaCapture') setStage(state, definition.stageOnUnlock, `${definition.fullTitle} bei ${definition.ignitionTemperature.toLocaleString('de-DE')} K freigeschaltet.`);
-  });
+// Eine Fusion schaltet sich NICHT mehr von selbst frei, sobald Temperatur und
+// Mindestmasse erreicht sind: Sie wird dann lediglich freischaltbar und wartet
+// auf eine bewusste (kostenlose) Handlung des Spielers — genau wie jedes
+// andere Upgrade, zwischen denen ihre Kachel jetzt steht. Bis zum Klick bleibt
+// der Stern in seinem aktuellen Stadium stehen; Stadienwechsel,
+// Temperaturuntergrenze und die Kontraktion zur nächsten Brennstufe hängen
+// alle an `unlockedReactions` und rühren sich deshalb erst danach.
+export const reactionUnlockable = (state: GameState, reaction: ReactionId): boolean => {
+  if (state.completed || state.unlockedReactions.includes(reaction)) return false;
+  const definition = REACTIONS[reaction];
+  return state.temperature >= definition.ignitionTemperature && starMass(state) >= definition.minimumMass;
+};
+
+// Fortschritt Richtung Freischaltung (0..1) für den Fill des Eck-Buttons:
+// die am wenigsten erfüllte der beiden Bedingungen limitiert, exakt wie bei
+// Upgrades mit mehreren Voraussetzungen.
+export const reactionUnlockProgress = (state: GameState, reaction: ReactionId): number => {
+  const definition = REACTIONS[reaction];
+  return Math.min(
+    1,
+    state.temperature / definition.ignitionTemperature,
+    starMass(state) / definition.minimumMass,
+  );
+};
+
+const unlockReaction = (state: GameState, reaction: ReactionId): void => {
+  if (!reactionUnlockable(state, reaction)) return;
+  const definition = REACTIONS[reaction];
+  state.unlockedReactions.push(reaction);
+  if (reaction !== 'alphaCapture') setStage(state, definition.stageOnUnlock, `${definition.fullTitle} bei ${definition.ignitionTemperature.toLocaleString('de-DE')} K freigeschaltet.`);
+  else log(state, `${definition.fullTitle} freigeschaltet.`, 'fusion');
 };
 
 const updateFormationStage = (state: GameState): void => {
@@ -417,8 +440,11 @@ const contractionDecision = (state: GameState): ContractionDecision => {
 const evaluateEvolution = (state: GameState): void => {
   if (state.completed) return;
   updateTemperature(state);
-  unlockEligibleReactions(state);
-  if (!state.unlockedReactions.includes('hydrogen') && cloudMass(state) <= .001) {
+  // Eine leergeräumte Wolke beendet den Zyklus nur, solange die
+  // Wasserstofffusion tatsächlich unerreichbar bleibt. Ist sie bereits
+  // freischaltbar und wartet nur noch auf den Klick, wäre ein Brauner Zwerg
+  // eine Falle: Der Stern hätte Masse und Temperatur zum Zünden.
+  if (!state.unlockedReactions.includes('hydrogen') && cloudMass(state) <= .001 && !reactionUnlockable(state, 'hydrogen')) {
     completeRun(state, 'brownDwarf');
     return;
   }
@@ -518,7 +544,6 @@ export const tick = (state: GameState, seconds: number): GameState => {
   next.stats.energyGenerated += accreted * ACCRETION.energyPerMatter;
   updateTemperature(next);
   updateFormationStage(next);
-  unlockEligibleReactions(next);
   AUTOMATION_ORDER.forEach((kind) => {
     const definition = AUTOMATIONS[kind];
     if (!definition.reaction || next.automation[kind] <= 0) return;
@@ -676,13 +701,14 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
       next.stats.upgradesPurchased += 1;
       log(next, `${REACTIONS[action.reaction].fullTitle}: manuelle Fusionsmenge ausgebaut.`, 'fusion');
     }
+  } else if (action.type === 'UNLOCK_REACTION') {
+    unlockReaction(next, action.reaction);
   } else if (action.type === 'BUY_REACTION_AUTOMATION') {
     buyAutomation(next, REACTIONS[action.reaction].automation);
   } else if (action.type === 'BUY_ACCRETION') buyAutomation(next, 'accretion');
 
   updateTemperature(next);
   updateFormationStage(next);
-  unlockEligibleReactions(next);
   evaluateEvolution(next);
   return next;
 };

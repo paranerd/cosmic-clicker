@@ -7,6 +7,7 @@ Ein responsives Browser-Spiel über die Entstehung und Entwicklung eines Sterns 
 - Stufenloses, prozentuales Wolkenwachstum ab einer kalibrierten 0,07-Sonnenmassen-Urwolke mit realistischer, einheitlicher Ur-Zusammensetzung
 - Aktive und automatische Akkretion
 - Fusionsring um den Stern: eine ausgewählte Reaktion wird durch Klicks auf den Stern ausgeführt
+- Fusionen als Teil der Upgrades: eine zündbereite Fusion wird kostenlos, aber bewusst freigeschaltet
 - Temperatur- und Druckentwicklung durch gravitative Kontraktion
 - Deuteriumbrennen als zeitlich begrenztes Upgrade sowie eine konfigurationsgetriebene Brennkette von Wasserstoff bis zur Eisengruppe
 - Massenabhängige Entwicklung zu Braunem Zwerg, mehreren Weißer-Zwerg-Typen, Neutronenstern oder Schwarzem Loch
@@ -18,7 +19,7 @@ Ein responsives Browser-Spiel über die Entstehung und Entwicklung eines Sterns 
 - Kurzes, überspringbares Tutorial mit jederzeit möglicher Wiederholung
 - Synthetisierte Soundeffekte mit gespeichertem Lautstärkeregler und Stummschaltung
 - Laufende Statistiken, Rundenauswertung und Chronik der letzten Zyklen
-- Responsive Oberfläche: Kontrollzentrum auf dem Desktop, auf kleinen Bildschirmen stattdessen eine bildschirmfüllende Sternkammer mit Dock am unteren Rand
+- Responsive Oberfläche: Kontrollzentrum auf dem Desktop, auf kleinen Bildschirmen stattdessen eine bildschirmfüllende Sternkammer mit Dock am unteren Rand, das beim Öffnen eines Bereichs sichtbar bleibt
 - Installierbare PWA mit vollständigem Offline-Betrieb und bestätigtem Update statt stillem Neuladen
 - Unit-Tests sowie Browser-Tests für Produktions- und Entwicklungsmodus
 

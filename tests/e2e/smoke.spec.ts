@@ -266,13 +266,14 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await page.setViewportSize({ width: 1280, height: 800 });
   await gotoGame(page);
 
-  await expect(page.getByRole('tab', { name: 'Fusionen' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Upgrades' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Automationen' })).toBeVisible();
   // Perks sind kein Kontrollbereich mehr, sondern stehen im Effekte-Popover
-  // unten rechts in der Sternenkammer.
+  // unten rechts in der Sternenkammer; Fusionen sind in die Upgrades
+  // eingegliedert und haben deshalb ebenfalls keinen eigenen Reiter mehr.
   await expect(page.getByRole('tab', { name: 'Perks' })).toHaveCount(0);
-  await expect(page.getByRole('tab')).toHaveCount(3);
+  await expect(page.getByRole('tab', { name: 'Fusionen' })).toHaveCount(0);
+  await expect(page.getByRole('tab')).toHaveCount(2);
   await expect(page.locator('.action-sidepanel')).toContainText('Kontrollzentrum');
   // Punkt 5/6: Die Fußzeile ist ersatzlos entfallen, das Dock bleibt der
   // mobilen Fassung vorbehalten.
@@ -647,7 +648,7 @@ test('new players can complete and resume the interactive tutorial', async ({ pa
   await expect(page.getByRole('dialog', { name: 'Aktuelles Ziel' })).toContainText('Erzeuge 1 MeV Energie');
   await page.getByRole('button', { name: 'Ziel schließen' }).click();
   await expect(page.getByRole('dialog', { name: 'Protostern bilden' })).toHaveCount(0);
-  await expect(page.getByRole('tab', { name: 'Fusionen' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Upgrades' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Ein neuer Kosmos beginnt.', { exact: true })).toBeVisible();
   let settings = await openSettings(page);
   await settings.getByRole('switch', { name: 'Tutorial ausschalten' }).click();
@@ -890,14 +891,14 @@ test('rapid onboarding toasts stack, shift and disappear independently', async (
 
   const skipped = page.getByText('Tutorial beendet. In den Einstellungen kannst du es wieder einschalten.', { exact: true });
   const cosmos = page.getByText('Ein neuer Kosmos beginnt.', { exact: true });
-  await expect(page.getByRole('status')).toHaveCount(2);
+  await expect(page.locator('[data-ui="toast-root"]').getByRole('status')).toHaveCount(2);
   await expect(skipped).toBeVisible();
   await expect(cosmos).toBeVisible();
   await expect.poll(async () => {
     const skippedBox = await skipped.boundingBox(); const cosmosBox = await cosmos.boundingBox();
     return skippedBox!.y < cosmosBox!.y;
   }).toBe(true);
-  await expect(page.getByRole('status')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.locator('[data-ui="toast-root"]').getByRole('status')).toHaveCount(0, { timeout: 5_000 });
 });
 
 test('audio settings persist volume and mute state', async ({ page }) => {
@@ -1105,14 +1106,17 @@ test('tabs count unseen opportunities, flash on unlock and clear when opened', a
   });
   await gotoGame(page);
 
-  const upgradeTab = page.getByRole('tab', { name: 'Upgrades 1' });
+  // Der aktive Reiter meldet nie eine offene Gelegenheit — seine Kacheln
+  // liegen bereits vor dem Spieler. Gezählt wird deshalb auf dem anderen.
+  const upgradeTab = page.getByRole('tab', { name: /^Upgrades/ });
+  await expect(upgradeTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('[data-tab-count="upgrades"]')).toBeHidden();
   const automationTab = page.getByRole('tab', { name: 'Automationen 1' });
-  await expect(upgradeTab).toBeVisible();
   await expect(automationTab).toBeVisible();
 
-  const restingBackground = await upgradeTab.evaluate((element) => getComputedStyle(element).backgroundColor);
-  await upgradeTab.hover();
-  await expect.poll(() => upgradeTab.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(restingBackground);
+  const restingBackground = await automationTab.evaluate((element) => getComputedStyle(element).backgroundColor);
+  await automationTab.hover();
+  await expect.poll(() => automationTab.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(restingBackground);
 
   await selectFusion(page, 'hydrogen');
   await page.locator('.star-button').click();
@@ -1600,11 +1604,12 @@ test('stable hydrogen burning is hidden before ignition and then tracks created 
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
   });
   await gotoGame(page);
-  const reactionPanel = page.locator('.reaction-grid');
+  // Fusionskacheln stehen gemeinsam mit den übrigen Upgrades in einem Raster.
+  const reactionPanel = page.locator('.upgrade-grid');
   await expect(reactionPanel.getByRole('heading', { name: 'Helium', exact: true })).toBeVisible();
   await expect(reactionPanel.getByRole('heading', { name: 'Kohlenstoff', exact: true })).toBeVisible();
   await expect(reactionPanel.locator('[data-reaction-card="alphaCapture"]')).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Automationen 1' }).click();
+  await page.getByRole('tab', { name: /Automationen/ }).click();
 
   const fusionAutomation = page.locator('[data-automation-card="fusion"]');
   await expect(fusionAutomation).toBeVisible();
@@ -1625,7 +1630,7 @@ test('helium burning keeps earlier reactions, previews carbon and reveals matchi
   });
   await page.goto('/');
 
-  const reactionPanel = page.locator('.reaction-grid');
+  const reactionPanel = page.locator('.upgrade-grid');
   // Punkt 2: Die Kachel trägt den Namen des Hauptprodukts, der Kicker nennt
   // den Prozess — bei Alpha-Einfang unterscheidet er die Sauerstoffquelle.
   await expect(reactionPanel.getByRole('heading', { name: 'Helium', exact: true })).toBeVisible();
@@ -1689,7 +1694,7 @@ test('an affordable next automation level uses an expansion toast', async ({ pag
   await page.goto('/');
   await page.getByRole('button', { name: 'Materie einsammeln' }).click({ clickCount: 56 });
 
-  await expect(page.getByRole('status')).toContainText('Automation kann ausgebaut werden.');
+  await expect(page.locator('[data-ui="toast-root"]').getByRole('status')).toContainText('Automation kann ausgebaut werden.');
   await expect(page.getByText('Neue Automation verfügbar.', { exact: true })).toHaveCount(0);
 });
 
@@ -1731,12 +1736,37 @@ test('mobile fills the viewport with the star chamber and replaces the control c
   await expect(dock).toBeVisible();
   await expect(dock.getByRole('button')).toHaveCount(5);
   await expect(dock.getByRole('button')).toHaveText([
-    'Fusionen', 'Upgrades', 'Automationen', 'Chronik', 'Settings',
+    'Upgrades', 'Automationen', 'Sternkammer', 'Chronik', 'Settings',
   ]);
-  // Der durch den entfallenen Perks-Bereich frei gewordene Platz geht in
-  // größere Symbole und Beschriftungen.
+  // Der durch die entfallenen Perks- und Fusionen-Bereiche frei gewordene
+  // Platz geht in größere Symbole und Beschriftungen.
   await expect(dock.getByRole('button').first().locator('svg')).toHaveCSS('width', '23px');
   await expect(dock.getByRole('button').first().locator('.dock-label')).toHaveCSS('font-size', '8px');
+  // Die Sternkammer steht in der Mitte, ist der Ausgangszustand des Docks und
+  // tritt als einziges Feld plastisch hervor: größeres, rundes Symbolfeld, das
+  // ein Stück über die Dockkante hinausragt.
+  const chamberButton = dock.getByRole('button', { name: 'Sternkammer anzeigen' });
+  await expect(chamberButton).toHaveClass(/active/);
+  const chamberProminence = await page.evaluate(() => {
+    const dockRect = document.querySelector('.mobile-dock')!.getBoundingClientRect();
+    const icons = [...document.querySelectorAll('.mobile-dock .dock-icon')].map((icon) => icon.getBoundingClientRect());
+    const chamberIcon = document.querySelector('.dock-chamber .dock-icon')!;
+    const chamberRect = chamberIcon.getBoundingClientRect();
+    const style = getComputedStyle(chamberIcon);
+    return {
+      index: icons.findIndex((icon) => icon.x === chamberRect.x),
+      total: icons.length,
+      width: chamberRect.width,
+      widestOther: Math.max(...icons.filter((icon) => icon.x !== chamberRect.x).map((icon) => icon.width)),
+      liftAboveDock: dockRect.top - chamberRect.top,
+      borderRadius: style.borderRadius,
+    };
+  });
+  expect(chamberProminence.index).toBe(2);
+  expect(chamberProminence.total).toBe(5);
+  expect(chamberProminence.width).toBeGreaterThan(chamberProminence.widestOther);
+  expect(chamberProminence.liftAboveDock).toBeGreaterThan(0);
+  expect(chamberProminence.borderRadius).toBe('50%');
 
   const geometry = await page.evaluate(() => {
     const chamber = document.querySelector('.star-chamber')!.getBoundingClientRect();
@@ -1792,9 +1822,9 @@ test('the dock opens each control area as a titled popup and keeps the tiles liv
   await page.goto('/');
   const dock = page.getByRole('navigation', { name: 'Kontrollbereiche' });
 
-  // Die ersten drei Symbole öffnen ihren Bereich als Popup mit passendem Titel.
+  // Die beiden Bereichssymbole öffnen ihren Bereich als Blatt mit passendem
+  // Titel. Die Fusionskacheln stehen dabei im Upgrades-Bereich.
   for (const [name, cardSelector] of [
-    ['Fusionen', '[data-reaction-card="hydrogen"]'],
     ['Upgrades', '[data-upgrade-card="gravity"]'],
     ['Automationen', '[data-automation-card="accretion"]'],
   ] as const) {
@@ -1806,6 +1836,9 @@ test('the dock opens each control area as a titled popup and keeps the tiles liv
     await page.getByRole('button', { name: `${name} schließen` }).click();
     await expect(popup).toHaveCount(0);
   }
+  await dock.getByRole('button', { name: 'Upgrades öffnen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Upgrades' }).locator('[data-reaction-card="hydrogen"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Upgrades schließen' }).click();
 
   // Die Kacheln im Popup werden weiterhin pro Tick aktualisiert: Der
   // Ausbaubutton der Gravitation ist mit 150 Energie bezahlbar und pulst.
@@ -1822,12 +1855,64 @@ test('the dock opens each control area as a titled popup and keeps the tiles liv
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Automationen' })).toHaveCount(0);
 
-  // Die letzten beiden Symbole öffnen unverändert ihre bekannten Modale.
+  // Die letzten beiden Symbole öffnen unverändert ihre bekannten Inhalte.
   await dock.getByRole('button', { name: 'Chronik öffnen' }).click();
   await expect(page.getByRole('dialog', { name: 'Lebenswege der Sterne' })).toBeVisible();
   await page.getByRole('button', { name: 'Chronik schließen' }).click();
   await dock.getByRole('button', { name: 'Einstellungen öffnen' }).click();
   await expect(page.getByRole('dialog', { name: 'Einstellungen' })).toBeVisible();
+});
+
+// Kern der mobilen Fassung: Vom Dock geöffnete Flächen enden über dem Dock,
+// statt es zu verdecken. Ein Wechsel zwischen zwei Dock-Zielen ist deshalb
+// immer genau ein Klick — ohne vorheriges Schließen.
+test('dock sheets end above the dock so switching between areas takes a single tap', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoGame(page);
+  const dock = page.getByRole('navigation', { name: 'Kontrollbereiche' });
+  const chamber = dock.getByRole('button', { name: 'Sternkammer anzeigen' });
+
+  const sheetGeometry = async () => page.evaluate(() => {
+    const backdrop = document.querySelector('.modal-backdrop')!.getBoundingClientRect();
+    const dockRect = document.querySelector('.mobile-dock')!.getBoundingClientRect();
+    const topmostAtDock = document.elementFromPoint(dockRect.x + dockRect.width / 2, dockRect.top + dockRect.height / 2);
+    return { sheetBottom: backdrop.bottom, dockTop: dockRect.top, dockIsOnTop: Boolean(topmostAtDock?.closest('.mobile-dock')) };
+  });
+
+  // Einstellungen öffnen: Das Blatt endet über dem Dock, das Dock bleibt oben.
+  await dock.getByRole('button', { name: 'Einstellungen öffnen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Einstellungen' })).toBeVisible();
+  let geometry = await sheetGeometry();
+  expect(geometry.sheetBottom).toBeLessThanOrEqual(geometry.dockTop);
+  expect(geometry.dockIsOnTop).toBe(true);
+  await expect(dock.getByRole('button', { name: 'Einstellungen öffnen' })).toHaveClass(/active/);
+  await expect(chamber).not.toHaveClass(/active/);
+
+  // Ein Klick genügt für den Wechsel in einen Kontrollbereich …
+  await dock.getByRole('button', { name: 'Upgrades öffnen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Upgrades' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Einstellungen' })).toHaveCount(0);
+  geometry = await sheetGeometry();
+  expect(geometry.sheetBottom).toBeLessThanOrEqual(geometry.dockTop);
+
+  // … und ein Klick auf die Sternkammer gibt den Blick auf den Stern frei.
+  await chamber.click();
+  await expect(page.getByRole('dialog', { name: 'Upgrades' })).toHaveCount(0);
+  await expect(chamber).toHaveClass(/active/);
+  await expect(page.getByRole('button', { name: 'Materie einsammeln' })).toBeVisible();
+
+  // Ein erneuter Klick auf dasselbe Dock-Element schließt es wieder.
+  await dock.getByRole('button', { name: 'Upgrades öffnen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Upgrades' })).toBeVisible();
+  await dock.getByRole('button', { name: 'Upgrades öffnen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Upgrades' })).toHaveCount(0);
+  await expect(chamber).toHaveClass(/active/);
+
+  // Ziel- und Wissens-Modale haben keinen Dock-Gegenpart und bleiben deshalb
+  // bildschirmfüllend.
+  await page.getByRole('button', { name: 'Aktuelles Ziel öffnen' }).click();
+  const objectiveGeometry = await sheetGeometry();
+  expect(objectiveGeometry.sheetBottom).toBeGreaterThan(objectiveGeometry.dockTop);
 });
 
 test('the dock marks control areas with an opportunity through glow and a counter', async ({ page }) => {
@@ -1841,15 +1926,16 @@ test('the dock marks control areas with an opportunity through glow and a counte
   await gotoGame(page);
   const dock = page.getByRole('navigation', { name: 'Kontrollbereiche' });
   const upgrades = dock.getByRole('button', { name: 'Upgrades öffnen' });
-  const reactions = dock.getByRole('button', { name: 'Fusionen öffnen' });
+  const chamber = dock.getByRole('button', { name: 'Sternkammer anzeigen' });
 
   await expect(upgrades).toHaveClass(/has-notice/);
-  await expect(upgrades.locator('.tab-count')).toHaveText('1');
   await expect(upgrades).toHaveCSS('color', 'rgb(242, 168, 75)');
   expect(await upgrades.locator('.dock-icon').evaluate((element) => getComputedStyle(element).filter)).toContain('drop-shadow');
-  // Der geöffnete Bereich selbst zeigt keine offene Gelegenheit an.
-  await expect(reactions).not.toHaveClass(/has-notice/);
-  await expect(reactions.locator('.tab-count')).toBeHidden();
+  // Solange im Dock nichts geöffnet ist, sieht der Spieler die Kacheln gar
+  // nicht — die Gelegenheit bleibt deshalb offen, statt still abgehakt zu
+  // werden. Die Sternkammer selbst kennt keine Gelegenheiten.
+  await expect(chamber).not.toHaveClass(/has-notice/);
+  await expect(chamber.locator('.tab-count')).toHaveCount(0);
 
   // Das Öffnen des Bereichs quittiert die Gelegenheit.
   await upgrades.click();

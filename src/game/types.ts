@@ -167,6 +167,9 @@ export type GameAction =
   | { type: 'ACCRETE' }
   | { type: 'RUN_REACTION'; reaction: ReactionId }
   | { type: 'SET_ACTIVE_REACTION'; reaction: ReactionId | null }
+  // Kostenlose Freischaltung einer Fusion, sobald Temperatur und Mindestmasse
+  // erreicht sind (siehe reactionUnlockable in game/engine.ts).
+  | { type: 'UNLOCK_REACTION'; reaction: ReactionId }
   | { type: 'BUY_REACTION_AUTOMATION'; reaction: ReactionId }
   | { type: 'BUY_REACTION_UPGRADE'; reaction: ReactionId }
   | { type: 'BUY_UPGRADE'; upgrade: keyof UpgradeState }
