@@ -6,6 +6,11 @@ export const icons = {
   settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>',
   stats: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/></svg>',
   realtime: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  // Dock-Symbole der beiden Bereiche ohne bestehendes Icon: Fusionen als
+  // Atomkern mit Bahnen, Automationen als geschlossener Kreislauf (bewusst
+  // anders als das einbogige Zurücksetzen-Icon darüber).
+  fusion: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.4"/><ellipse cx="12" cy="12" rx="9.6" ry="4.2"/><ellipse cx="12" cy="12" rx="9.6" ry="4.2" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9.6" ry="4.2" transform="rotate(120 12 12)"/></svg>',
+  automation: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.4 12a7.6 7.6 0 0 1 12.9-5.4M19.6 12a7.6 7.6 0 0 1-12.9 5.4" stroke-linecap="round"/><path d="M17.8 2.6v4.3h-4.3M6.2 21.4v-4.3h4.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   help: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.4 2.4 0 1 1 3.6 2.1c-.9.5-1.4 1-1.4 2.2M12 17h.01"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
@@ -29,6 +34,19 @@ export const formatCompact = (value: number): string => value < 1_000_000
 export const formatEnergy = (value: number): string =>
   formatNumber(Math.floor(Math.max(0, value)));
 export const formatMatter = (value: number): string => formatCompact(Math.round(value));
+
+// Die drei Ressourcen im Mittelpanel (Temperatur, Energie, Masse) teilen sich
+// eine eigene Kurzschreibweise: Ab einer Million steht dort „1,23 Mio“, ab
+// einer Milliarde „2,70 Mrd“ — immer mit zwei Nachkommastellen, damit die
+// Anzeige bei laufenden Werten nicht in der Breite springt. Darunter bleibt
+// die vollständige Zahl stehen.
+const CHAMBER_DECIMALS = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export function formatChamberValue(value: number): string {
+  const safe = Math.max(0, value);
+  if (safe >= 1_000_000_000) return `${CHAMBER_DECIMALS.format(safe / 1_000_000_000)} Mrd`;
+  if (safe >= 1_000_000) return `${CHAMBER_DECIMALS.format(safe / 1_000_000)} Mio`;
+  return formatNumber(safe);
+}
 export const formatSolarMasses = (value: number): string => `${formatNumber(value, 2)} M☉`;
 
 // For small rates (e.g. a faint shell wind well under 1 ME/s), formatMatter's

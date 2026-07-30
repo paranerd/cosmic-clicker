@@ -429,7 +429,34 @@ Chamber wählt die Reaktion, der Stern führt sie aus.
   Zyklus beginnt ohne Auswahl, also mit Akkretion. Ein abgeschlossener Zyklus
   blendet den Ring aus.
 
+### Benennung der Fusionen
+
+Eine Fusion trägt in der Oberfläche den Namen des Elements, das sie
+hauptsächlich erzeugt — die Frage beim Auswählen lautet „Was kommt dabei
+heraus?“, nicht „Was verbrenne ich?“. Der Kicker über dem Namen nennt den
+Prozess und unterscheidet die beiden Reaktionen mit demselben Produkt.
+
+| Brennstoff | Name der Kachel | Kicker | Ausgeschrieben |
+| --- | --- | --- | --- |
+| Wasserstoff | Helium | Proton-Proton-Kette | Fusion zu Helium |
+| Helium | Kohlenstoff | Triple-Alpha | Fusion zu Kohlenstoff |
+| Kohlenstoff + Helium | Sauerstoff | Alpha-Einfang | Fusion zu Sauerstoff |
+| Kohlenstoff | Neon | Schweres Kernbrennen | Fusion zu Neon |
+| Neon | Sauerstoff II | Schweres Kernbrennen | Fusion zu Sauerstoff II |
+| Sauerstoff | Silizium | Schweres Kernbrennen | Fusion zu Silizium |
+| Silizium | Eisen | Letzte exotherme Brennstufe | Fusion zur Eisengruppe |
+
+Der ausgeschriebene Name steht überall dort, wo der Kachelkontext fehlt und
+„Helium“ allein nicht als Fusion erkennbar wäre: Chronik-Timeline, Statistik,
+Sternenlogbuch, Zielbeschreibungen und Screenreader-Labels. Die Stadien des
+Sterns behalten ihre eigenen, brennstoffbezogenen Namen („Heliumfusion“ als
+Entwicklungsphase), weil sie den Zustand des Sterns beschreiben und nicht die
+auslösbare Aktion.
+
 ### Reaktionswerte
+
+Die Tabelle ist nach Brennstoff sortiert; die Anzeigenamen stehen im Abschnitt
+darüber.
 
 | Reaktion | Eingabe → Ausgabe | Manuell | Zündung | Mindestmasse | Energie | Wärme |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
@@ -876,9 +903,37 @@ Referenzbreiten:
   Zusammensetzungen
 - **Star Chamber:** Hauptaktion, Fusionsring, Entwicklungsstadium, Warnungen,
   Aktionsfeedback und Fortschrittsbalken
-- **Kontrollzentrum:** Reaktionen, Upgrades und Automationen
+- **Kontrollzentrum:** Fusionen, Upgrades, Automationen und Perks
 - **Chronik-Dock:** Entwicklungsweg und jüngste Logeinträge; die geöffnete
   Chronik zeigt zusätzlich die aktuelle Laufzeit
+
+Eine Fußzeile gibt es nicht mehr; Version und Leitgedanke stehen als eigener
+Abschnitt am Ende der Einstellungen.
+
+### Mobile Struktur
+
+Unterhalb von 780 px entfällt das Kontrollzentrum vollständig. Die Star Chamber
+nimmt den gesamten Viewport bis zum Dock ein, und die Seite selbst scrollt
+nicht mehr — gescrollt wird ausschließlich innerhalb der Popups. Das Dock steht
+in der letzten Rasterzeile der Seite (nicht `fixed`), damit nichts darunter
+verschwindet.
+
+Das Dock trägt sechs Symbole:
+
+| Position | Ziel | Verhalten |
+| --- | --- | --- |
+| 1 | Fusionen | Popup mit den Kacheln des Bereichs |
+| 2 | Upgrades | Popup mit den Kacheln des Bereichs |
+| 3 | Automationen | Popup mit den Kacheln des Bereichs |
+| 4 | Perks | Popup mit den Kacheln des Bereichs |
+| 5 | Chronik | bestehendes Chronik-Modal |
+| 6 | Settings | bestehendes Einstellungs-Modal |
+
+Die ersten drei zeigen Gelegenheiten wie die Desktop-Reiter: Amber-Glow am
+Symbol plus Zähler der ungesehenen Gelegenheiten. Perks kennen keine
+Gelegenheiten und bleiben deshalb ruhig. Das Popup bringt dieselbe Kachelfläche
+mit wie das Kontrollzentrum, sodass alle laufenden Aktualisierungen unverändert
+greifen; entsprechend steht immer nur eine der beiden Fassungen im DOM.
 
 ### Kartenprinzipien
 
@@ -1189,7 +1244,7 @@ Animationswerte:
 | --- | --- |
 | ab 1101 px und 800 px Höhe | App füllt genau einen Viewport, kompaktere Panels |
 | bis 1100 px | Kontrollzentrum wandert unter Stern und Datenpanel |
-| bis 780 px | einspaltiger Ablauf: Stern, Aktionen, Daten |
+| bis 780 px | kein Kontrollzentrum: Star Chamber füllt den Viewport, Dock am unteren Rand, Seite scrollt nicht |
 | bis 430 px | kompakte Header-, Intro-, Statistik- und Summary-Layouts |
 | Mindestbreite | 320 px |
 

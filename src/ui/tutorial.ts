@@ -3,8 +3,8 @@ import { canBuyAutomation, canBuyUpgrade } from '../game/engine';
 import { saveGame } from '../game/storage';
 import { tutorialResumeStepIndex } from '../game/tutorial-progress';
 import { markCurrentObjectiveSeen, showToast } from './notifications';
-import { invalidateOverlay, syncOverlay } from './overlay';
-import { app, getActivePanel, getState } from './store';
+import { invalidateOverlay, openPanelPopup, setPanelPopupOpen, syncOverlay } from './overlay';
+import { app, getActivePanel, getState, isMobileLayout } from './store';
 import { switchPanel } from './sync';
 
 let tutorialSignature = '';
@@ -119,12 +119,14 @@ function tutorialStepAvailable(step: TutorialStep): boolean {
 }
 
 function prepareTutorialTarget(step: TutorialStep): void {
-  if (
-    step.availability.type === 'immediate'
-    || step.availability.type === 'energy-at-least'
-    || getActivePanel() === step.availability.panel
-  ) return;
-  switchPanel(step.availability.panel, false);
+  if (step.availability.type === 'immediate' || step.availability.type === 'energy-at-least') return;
+  const panel = step.availability.panel;
+  // Auf kleinen Bildschirmen stehen die Kacheln im Dock-Popup statt im
+  // Kontrollzentrum — ohne geöffnetes Popup gäbe es dort kein Ziel zum
+  // Hervorheben.
+  if (isMobileLayout() && openPanelPopup() !== panel) setPanelPopupOpen(panel);
+  if (getActivePanel() === panel) return;
+  switchPanel(panel, false);
 }
 
 function tutorialTarget(step: TutorialStep): Element | null {

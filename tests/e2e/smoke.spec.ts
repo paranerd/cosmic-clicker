@@ -250,7 +250,7 @@ test('hydrogen burning remains usable after the main-sequence milestone', async 
   await star.evaluate((element) => (element as HTMLButtonElement).click());
   await expect(page.locator('[data-reaction-card="hydrogen"]')).toBeVisible();
   await expect(star).toBeEnabled();
-  await expect(star).toHaveAttribute('aria-label', 'Wasserstofffusion auslösen');
+  await expect(star).toHaveAttribute('aria-label', 'Fusion zu Helium auslösen');
   await expect(page.getByText('Hauptreihe verlassen', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Phase abgeschlossen', { exact: true })).toHaveCount(0);
 });
@@ -259,12 +259,16 @@ test('desktop cockpit fits and exposes the separated control tabs', async ({ pag
   await page.setViewportSize({ width: 1280, height: 800 });
   await gotoGame(page);
 
-  await expect(page.getByRole('tab', { name: 'Reaktionen' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Fusionen' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Upgrades' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Automationen' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Perks' })).toBeVisible();
   await expect(page.getByRole('tab')).toHaveCount(4);
   await expect(page.locator('.action-sidepanel')).toContainText('Kontrollzentrum');
+  // Punkt 5/6: Die Fußzeile ist ersatzlos entfallen, das Dock bleibt der
+  // mobilen Fassung vorbehalten.
+  await expect(page.locator('footer')).toHaveCount(0);
+  await expect(page.locator('.mobile-dock')).toHaveCount(0);
   await expect(page.locator('.left-panel')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Stern-Echtzeitdaten anzeigen' })).toBeHidden();
   await expect(page.getByText('Automatische Akkretion', { exact: true })).toHaveCount(0);
@@ -634,7 +638,7 @@ test('new players can complete and resume the interactive tutorial', async ({ pa
   await expect(page.getByRole('dialog', { name: 'Aktuelles Ziel' })).toContainText('Erzeuge 1 MeV Energie');
   await page.getByRole('button', { name: 'Ziel schließen' }).click();
   await expect(page.getByRole('dialog', { name: 'Protostern bilden' })).toHaveCount(0);
-  await expect(page.getByRole('tab', { name: 'Reaktionen' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Fusionen' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Ein neuer Kosmos beginnt.', { exact: true })).toBeVisible();
   let settings = await openSettings(page);
   await settings.getByRole('switch', { name: 'Tutorial ausschalten' }).click();
@@ -814,7 +818,7 @@ test('the protostar achievement and its next objective remain visible during the
   await expect(achievement.locator('.achievement-next')).toContainText('Erreiche 1.000.000 K');
 });
 
-test('mobile tutorial centers its card, spotlights targets and scrolls them into view', async ({ page }) => {
+test('mobile tutorial centers its card and spotlights targets inside the fixed viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.getByRole('dialog', { name: 'Entdecke das Schicksal der Sterne.' }).getByRole('button', { name: 'Tutorial starten', exact: true }).click();
@@ -833,36 +837,19 @@ test('mobile tutorial centers its card, spotlights targets and scrolls them into
   })).toBe(true);
   await expectTutorialFrameInsideViewport(page);
 
-  // Der sichtbare Rahmen ist direkt am Ziel verankert. Dadurch bewegt er
-  // sich auch beim compositor-gesteuerten mobilen Scrollen zusammen mit dem
-  // Element; nur die unsichtbaren Ausschnittsgrenzen werden per JS angepasst.
-  const trackedBoxes = await page.evaluate(() => {
-    return new Promise<{ targetTop: number; frameTop: number; blockerBottom: number }>((resolve) => {
-      const startY = window.scrollY;
-      const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-      const targetY = startY > 0
-        ? Math.max(0, startY - 60)
-        : Math.min(maxY, startY + 60);
-      if (targetY === startY) throw new Error('Expected the mobile tutorial page to be scrollable.');
-      window.addEventListener('scroll', () => {
-        const target = document.querySelector<HTMLElement>('.tutorial-focus')!;
-        const targetRect = target.getBoundingClientRect();
-        const padding = Number.parseFloat(getComputedStyle(target).getPropertyValue('--tutorial-frame-padding'));
-        const blocker = document.querySelector<HTMLElement>('[data-tutorial-blocker="top"]')!.getBoundingClientRect();
-        resolve({
-          targetTop: targetRect.top,
-          frameTop: targetRect.top - padding - 1,
-          blockerBottom: blocker.bottom,
-        });
-      }, { once: true, capture: true });
-      window.scrollTo(0, targetY);
-    });
-  });
-  expect(Math.abs(trackedBoxes.blockerBottom - trackedBoxes.frameTop)).toBeLessThanOrEqual(1);
-  // Am Viewportrand darf der elementgebundene Rahmen innerhalb des Ziels
-  // liegen. Entscheidend für scrollsynchrones Verhalten ist, dass die
-  // Abdunklungsgrenze ihm bereits im Scroll-Event exakt folgt.
-  expect(trackedBoxes.frameTop).toBeGreaterThanOrEqual(5.5);
+  // Punkt 7: Die Seite selbst scrollt nicht mehr — das Ziel muss also ohne
+  // Scrollen im Viewport liegen. Die Abdunklungsgrenze folgt dem Rahmen; die
+  // Messung wird wiederholt, weil das Popover beim Einblenden noch ein paar
+  // Pixel wandert und die Grenzen erst mit dem nächsten UI-Tick nachziehen.
+  expect(await page.evaluate(() => Math.max(0, document.documentElement.scrollHeight - window.innerHeight))).toBe(0);
+  await expect.poll(() => page.evaluate(() => {
+    const target = document.querySelector<HTMLElement>('.tutorial-focus')!;
+    const targetRect = target.getBoundingClientRect();
+    const padding = Number.parseFloat(getComputedStyle(target).getPropertyValue('--tutorial-frame-padding'));
+    const blocker = document.querySelector<HTMLElement>('[data-tutorial-blocker="top"]')!.getBoundingClientRect();
+    const frameTop = targetRect.top - padding - 1;
+    return Math.abs(blocker.bottom - frameTop) <= 1 && frameTop >= 5.5;
+  })).toBe(true);
 
   await tutorial.getByRole('button', { name: 'Weiter' }).click();
   const cloudTarget = page.locator('[data-tutorial="matter-reservoir"]');
@@ -917,6 +904,47 @@ test('audio settings persist volume and mute state', async ({ page }) => {
   settings = await openSettings(page);
   await expect(settings.getByRole('slider', { name: 'Effektlautstärke' })).toHaveValue('60');
   await expect(settings.getByRole('button', { name: 'Ton einschalten' })).toBeVisible();
+});
+
+// Punkt 5: Die Angaben der entfallenen Fußzeile stehen jetzt am Ende der
+// Einstellungen.
+test('settings carry the former footer information', async ({ page }) => {
+  await gotoGame(page);
+  const settings = await openSettings(page);
+  const about = settings.locator('.settings-about');
+  await expect(settings.getByRole('heading', { name: 'Cosmic Clicker' })).toBeVisible();
+  await expect(about).toContainText('COSMIC CLICKER · PROTOTYP 0.3');
+  await expect(about).toContainText('Wissenschaftlich plausibel · spielerisch komprimiert');
+});
+
+// Punkt 1: Ab einer Million kürzt das Mittelpanel ab — das linke Datenpanel
+// zeigt weiterhin den vollen Wert.
+test('the three chamber resources abbreviate values from one million upwards', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 7, run: 2, stage: 'helium', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 10_000, helium: 4_000, deuterium: 20, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 900_000, helium: 400_000, deuterium: 30, carbon: 1_000, oxygen: 0 },
+    temperature: 120_000_000, energy: 1_400_000,
+    unlockedReactions: ['hydrogen', 'helium', 'alphaCapture'],
+    reactionTotals: { hydrogen: 15_000, helium: 1_000, alphaCapture: 0, carbon: 0, neon: 0, oxygen: 0, silicon: 0 },
+    stats: { hydrogenFused: 15_000, heliumFused: 1_000, peakTemperature: 120_000_000 },
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await page.goto('/');
+
+  const chamberResources = page.getByRole('region', { name: 'Ressourcen' });
+  // Die Temperatur wird beim Laden aus dem Stadium neu berechnet (Heliumbrennen
+  // startet bei 100 Mio. K), unabhängig vom Wert im Spielstand.
+  await expect(chamberResources.locator('[data-ui="chamber-temperature"]')).toHaveText('100,00 Mio');
+  await expect(chamberResources.locator('[data-ui="chamber-energy"]')).toHaveText('1,40 Mio');
+  await expect(chamberResources.locator('[data-ui="chamber-mass"]')).toHaveText('1,30 Mio');
+  // Die Werte dürfen dabei nicht abgeschnitten werden.
+  const overflowing = await chamberResources.locator('.chamber-resource b').evaluateAll(
+    (values) => values.filter((value) => value.scrollWidth > value.clientWidth + 1).length,
+  );
+  expect(overflowing).toBe(0);
+  await expect(page.locator('[data-ui="temperature"]')).toHaveText('100 Mio. K');
 });
 
 test('settings export and import saves and tutorial state', async ({ page }) => {
@@ -1109,7 +1137,8 @@ test('active accretion automation continuously streams particles into the star',
 test('upgrade and automation cards use compact heading rows with the rate moved below the title', async ({ page }) => {
   await gotoGame(page);
   const lockedHydrogenCard = page.locator('[data-reaction-card="hydrogen"]');
-  await expect(lockedHydrogenCard).toContainText('Wasserstofffusion');
+  await expect(lockedHydrogenCard).toContainText('Helium');
+  await expect(lockedHydrogenCard.locator('.card-kicker')).toHaveText('Proton-Proton-Kette');
   // Die noch gesperrte Reaktion zeigt wie eine gesperrte Automation ein "-"
   // unter "Aktuell" und den Sperrgrund als Kostenzeile — und keinen eigenen
   // Aktionsbutton in der Kachel.
@@ -1419,7 +1448,7 @@ test('the fusion ring arranges one round button per unlocked reaction around the
   await expect(buttons).toHaveText(['He', 'C', 'O']);
   // Die gespeicherte Auswahl wird beim Laden wiederhergestellt.
   await expect(page.locator('[data-fusion-ring-button="helium"]')).toHaveClass(/is-active/);
-  await expect(page.locator('.star-button')).toHaveAttribute('aria-label', 'Heliumfusion auslösen');
+  await expect(page.locator('.star-button')).toHaveAttribute('aria-label', 'Fusion zu Kohlenstoff auslösen');
   const geometry = await page.evaluate(() => {
     const star = document.querySelector('.star-button')!.getBoundingClientRect();
     const center = { x: star.left + star.width / 2, y: star.top + star.height / 2 };
@@ -1473,8 +1502,8 @@ test('the fusion ring routes star clicks to the selected reaction and back to ac
   // Auswahl: Der Stern führt ab jetzt genau diese Fusion aus.
   await hydrogenButton.click();
   await expect(hydrogenButton).toHaveAttribute('aria-pressed', 'true');
-  await expect(hydrogenButton).toHaveAttribute('aria-label', 'Wasserstofffusion abwählen');
-  await expect(star).toHaveAttribute('aria-label', 'Wasserstofffusion auslösen');
+  await expect(hydrogenButton).toHaveAttribute('aria-label', 'Fusion zu Helium abwählen');
+  await expect(star).toHaveAttribute('aria-label', 'Fusion zu Helium auslösen');
   await expect(page.locator('[data-ui="click-detail"]')).toHaveText('Klicken, um zu fusionieren');
 
   const heliumBefore = await page.locator('[data-ui="helium-value"]').textContent();
@@ -1566,9 +1595,9 @@ test('stable hydrogen burning is hidden before ignition and then tracks created 
   });
   await gotoGame(page);
   const reactionPanel = page.locator('.reaction-grid');
-  await expect(reactionPanel.getByRole('heading', { name: 'Wasserstofffusion' })).toBeVisible();
-  await expect(reactionPanel.getByRole('heading', { name: 'Heliumfusion' })).toBeVisible();
-  await expect(reactionPanel.getByRole('heading', { name: 'Alpha-Einfang' })).toHaveCount(0);
+  await expect(reactionPanel.getByRole('heading', { name: 'Helium', exact: true })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Kohlenstoff', exact: true })).toBeVisible();
+  await expect(reactionPanel.locator('[data-reaction-card="alphaCapture"]')).toHaveCount(0);
   await page.getByRole('tab', { name: 'Automationen 1' }).click();
 
   const fusionAutomation = page.locator('[data-automation-card="fusion"]');
@@ -1591,10 +1620,13 @@ test('helium burning keeps earlier reactions, previews carbon and reveals matchi
   await page.goto('/');
 
   const reactionPanel = page.locator('.reaction-grid');
-  await expect(reactionPanel.getByRole('heading', { name: 'Wasserstofffusion' })).toBeVisible();
-  await expect(reactionPanel.getByRole('heading', { name: 'Heliumfusion' })).toBeVisible();
-  await expect(reactionPanel.getByRole('heading', { name: 'Alpha-Einfang' })).toBeVisible();
-  await expect(reactionPanel.getByRole('heading', { name: 'Kohlenstofffusion' })).toBeVisible();
+  // Punkt 2: Die Kachel trägt den Namen des Hauptprodukts, der Kicker nennt
+  // den Prozess — bei Alpha-Einfang unterscheidet er die Sauerstoffquelle.
+  await expect(reactionPanel.getByRole('heading', { name: 'Helium', exact: true })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Kohlenstoff', exact: true })).toBeVisible();
+  await expect(reactionPanel.getByRole('heading', { name: 'Sauerstoff', exact: true })).toBeVisible();
+  await expect(reactionPanel.locator('[data-reaction-card="alphaCapture"] .card-kicker')).toHaveText('Alpha-Einfang');
+  await expect(reactionPanel.getByRole('heading', { name: 'Neon', exact: true })).toBeVisible();
   // Die noch gesperrte Kohlenstofffusion hat keinen Ringbutton; für die drei
   // gezündeten Reaktionen steht je einer unter dem Stern.
   await expect(page.locator('[data-fusion-ring-button]')).toHaveCount(3);
@@ -1676,37 +1708,133 @@ test('modal utility buttons share the same translucent hover treatment', async (
   expect(await hoverStyle(page.getByRole('button', { name: 'Chronik schließen' }))).toEqual(settingsStyle);
 });
 
-test('mobile cockpit stacks star and actions while keeping realtime data in its popover', async ({ page }) => {
+// Punkt 6/7: Auf kleinen Bildschirmen gibt es kein Kontrollzentrum mehr. Die
+// Sternkammer füllt den Viewport bis zum Dock, die Seite selbst scrollt nicht.
+test('mobile fills the viewport with the star chamber and replaces the control center with a dock', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoGame(page);
   await expect(page.getByRole('button', { name: 'Materie einsammeln' })).toHaveCSS('touch-action', 'manipulation');
 
-  const positions = await page.evaluate(() => {
-    const chamber = document.querySelector('.star-chamber')?.getBoundingClientRect();
-    const star = document.querySelector('.star-button')?.getBoundingClientRect();
+  await expect(page.locator('.action-sidepanel')).toHaveCount(0);
+  await expect(page.getByRole('tab')).toHaveCount(0);
+  await expect(page.locator('footer')).toHaveCount(0);
+  await expect(page.locator('.left-panel')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Stern-Echtzeitdaten anzeigen' })).toBeVisible();
+
+  const dock = page.getByRole('navigation', { name: 'Kontrollbereiche' });
+  await expect(dock).toBeVisible();
+  await expect(dock.getByRole('button')).toHaveCount(6);
+  await expect(dock.getByRole('button')).toHaveText([
+    'Fusionen', 'Upgrades', 'Automationen', 'Perks', 'Chronik', 'Settings',
+  ]);
+
+  const geometry = await page.evaluate(() => {
+    const chamber = document.querySelector('.star-chamber')!.getBoundingClientRect();
+    const star = document.querySelector('.star-button')!.getBoundingClientRect();
+    const dockRect = document.querySelector('.mobile-dock')!.getBoundingClientRect();
     return {
-      chamber: chamber ? { x: chamber.x, y: chamber.y, width: chamber.width, height: chamber.height } : null,
-      star: star ? { x: star.x, y: star.y, width: star.width, height: star.height } : null,
-      actions: document.querySelector('.action-sidepanel')?.getBoundingClientRect().top ?? 0,
+      chamber: { x: chamber.x, y: chamber.y, width: chamber.width, height: chamber.height },
+      starCenterY: star.y + star.height / 2,
+      dockTop: dockRect.top,
+      dockBottom: dockRect.bottom,
+      documentHeight: document.documentElement.scrollHeight,
       documentWidth: document.documentElement.scrollWidth,
+      viewportHeight: window.innerHeight,
       viewportWidth: window.innerWidth,
     };
   });
 
-  expect(positions.chamber).not.toBeNull();
-  expect(positions.star).not.toBeNull();
-  expect(positions.chamber!.width).toBe(positions.viewportWidth);
-  expect(positions.chamber!.height).toBeGreaterThanOrEqual(844);
-  expect(positions.actions).toBeGreaterThanOrEqual(844);
-  expect(Math.abs(
-    positions.star!.y + positions.star!.height / 2
-      - (positions.chamber!.y + positions.chamber!.height / 2),
-  )).toBeLessThanOrEqual(1);
-  expect(positions.documentWidth).toBeLessThanOrEqual(positions.viewportWidth);
-  await expect(page.locator('.left-panel')).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Stern-Echtzeitdaten anzeigen' })).toBeVisible();
-  await expect(page.locator('.chronicle-dock')).toHaveCount(0);
-  await expect(page.locator('.action-sidepanel').getByRole('button', { name: 'Chronik öffnen' })).toBeVisible();
+  // Die Kammer beginnt oben, endet exakt am Dock und das Dock am Viewportrand.
+  expect(geometry.chamber.width).toBe(geometry.viewportWidth);
+  expect(geometry.chamber.y).toBe(0);
+  expect(Math.abs(geometry.chamber.y + geometry.chamber.height - geometry.dockTop)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.dockBottom - geometry.viewportHeight)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.starCenterY - (geometry.chamber.y + geometry.chamber.height / 2))).toBeLessThanOrEqual(1);
+  // Kein Scrollen mehr — weder vertikal noch horizontal.
+  expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewportHeight);
+  expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
+  expect(await page.evaluate(() => getComputedStyle(document.body).overflowY)).toBe('hidden');
+});
+
+test('the dock opens each control area as a titled popup and keeps the tiles live', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedLegacyGame(page, {
+    version: 4, stage: 'protostar', cloudTier: 1, nextCloudTier: 1,
+    cloud: { hydrogen: 50_000, helium: 18_000, deuterium: 80, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 5_000, helium: 900, deuterium: 20, carbon: 0, oxygen: 0 },
+    energy: 150, temperature: 350_000,
+    perks: { largerCloud: 1, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+    seenObjectives: ['heat-protostar'],
+  });
+  await page.goto('/');
+  const dock = page.getByRole('navigation', { name: 'Kontrollbereiche' });
+
+  // Die ersten vier Symbole öffnen ihren Bereich als Popup mit passendem Titel.
+  for (const [name, cardSelector] of [
+    ['Fusionen', '[data-reaction-card="hydrogen"]'],
+    ['Upgrades', '[data-upgrade-card="gravity"]'],
+    ['Automationen', '[data-automation-card="accretion"]'],
+    ['Perks', '[data-perk-card="largerCloud"]'],
+  ] as const) {
+    await dock.getByRole('button', { name: `${name} öffnen` }).click();
+    const popup = page.getByRole('dialog', { name });
+    await expect(popup).toBeVisible();
+    await expect(popup.getByRole('heading', { name })).toBeVisible();
+    await expect(popup.locator(cardSelector)).toBeVisible();
+    await page.getByRole('button', { name: `${name} schließen` }).click();
+    await expect(popup).toHaveCount(0);
+  }
+
+  // Die Kacheln im Popup werden weiterhin pro Tick aktualisiert: Der
+  // Ausbaubutton der Gravitation ist mit 150 Energie bezahlbar und pulst.
+  await dock.getByRole('button', { name: 'Upgrades öffnen' }).click();
+  const gravityButton = page.locator('[data-upgrade-card="gravity"] .tile-action-button');
+  await expect(gravityButton).toHaveClass(/is-buildable/);
+  await gravityButton.click();
+  await expect(page.locator('[data-upgrade-card="gravity"] .level-pip.is-filled')).toHaveCount(1);
+
+  // Schließen geht auch über den Hintergrund und Escape.
+  await page.locator('[data-overlay-dismiss="panel"]').click({ position: { x: 5, y: 5 } });
+  await expect(page.getByRole('dialog', { name: 'Upgrades' })).toHaveCount(0);
+  await dock.getByRole('button', { name: 'Perks öffnen' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Perks' })).toHaveCount(0);
+
+  // Die letzten beiden Symbole öffnen unverändert ihre bekannten Modale.
+  await dock.getByRole('button', { name: 'Chronik öffnen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Lebenswege der Sterne' })).toBeVisible();
+  await page.getByRole('button', { name: 'Chronik schließen' }).click();
+  await dock.getByRole('button', { name: 'Einstellungen öffnen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Einstellungen' })).toBeVisible();
+});
+
+test('the dock marks control areas with an opportunity through glow and a counter', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedLegacyGame(page, {
+    stage: 'hydrogen', cloud: { hydrogen: 38_900, helium: 19_000, deuterium: 50 },
+    star: { hydrogen: 30_000, helium: 6_000, deuterium: 50 },
+    energy: 1_000, temperature: 11_400_000, manualFusions: 25,
+    stats: { hydrogenFused: 5_000 },
+  });
+  await gotoGame(page);
+  const dock = page.getByRole('navigation', { name: 'Kontrollbereiche' });
+  const upgrades = dock.getByRole('button', { name: 'Upgrades öffnen' });
+  const perks = dock.getByRole('button', { name: 'Perks öffnen' });
+
+  await expect(upgrades).toHaveClass(/has-notice/);
+  await expect(upgrades.locator('.tab-count')).toHaveText('1');
+  await expect(upgrades).toHaveCSS('color', 'rgb(242, 168, 75)');
+  expect(await upgrades.locator('.dock-icon').evaluate((element) => getComputedStyle(element).filter)).toContain('drop-shadow');
+  // Perks kennen keine Gelegenheiten und bleiben deshalb ruhig.
+  await expect(perks).not.toHaveClass(/has-notice/);
+  await expect(perks.locator('.tab-count')).toBeHidden();
+
+  // Das Öffnen des Bereichs quittiert die Gelegenheit.
+  await upgrades.click();
+  await page.getByRole('button', { name: 'Upgrades schließen' }).click();
+  await expect(upgrades).not.toHaveClass(/has-notice/);
+  await expect(upgrades.locator('.tab-count')).toBeHidden();
 });
 
 test('restart uses an inline confirmation instead of a browser dialog', async ({ page }) => {
@@ -1926,10 +2054,10 @@ test('the full ordered reaction path keeps available fuel visible and previews c
   });
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Wasserstofffusion' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Heliumfusion' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Alpha-Einfang', level: 3 })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Kohlenstofffusion', level: 3 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Helium', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Kohlenstoff', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sauerstoff', exact: true, level: 3 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Neon', exact: true, level: 3 })).toBeVisible();
   await expect(page.locator('[data-reaction-card="hydrogen"] .reaction-symbol.element.he')).toHaveText('He');
   await expect(page.locator('[data-reaction-card="helium"] .reaction-symbol.element.c')).toHaveText('C');
   await expect(page.locator('[data-reaction-card="alphaCapture"] .reaction-symbol.element.o')).toHaveText('O');

@@ -25,8 +25,8 @@ import {
   setWarningsOpen,
 } from './ui/menus';
 import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement, dismissCycleEndNotice, showToast } from './ui/notifications';
-import { isKnowledgeOpen, isObjectiveOpen, isSettingsOpen, makeSummaryExclusive, resetSummaryAttention, setChronicleOpen, setKnowledgeOpen, setObjectiveOpen, setSettingsOpen, setStatsOpen } from './ui/overlay';
-import { app, getActivePanel, getState, loaded, setActivePanel, setState, type Panel } from './ui/store';
+import { isKnowledgeOpen, isObjectiveOpen, isSettingsOpen, makeSummaryExclusive, openPanelPopup, resetSummaryAttention, setChronicleOpen, setKnowledgeOpen, setObjectiveOpen, setPanelPopupOpen, setSettingsOpen, setStatsOpen } from './ui/overlay';
+import { app, getActivePanel, getState, isMobileLayout, loaded, onLayoutChange, setActivePanel, setState, type Panel } from './ui/store';
 import { renderShell, switchPanel, updateUI } from './ui/sync';
 import {
   advanceTutorial,
@@ -94,7 +94,19 @@ app.addEventListener('click', (event) => {
   if (target.dataset.overlayDismiss === 'settings') { setSettingsOpen(false); return; }
   if (target.dataset.overlayDismiss === 'knowledge') { setKnowledgeOpen(null); return; }
   if (target.dataset.overlayDismiss === 'objective') { setObjectiveOpen(false); return; }
-  const panelButton = target.closest<HTMLButtonElement>('[data-panel]'); if (panelButton) { switchPanel(panelButton.dataset.panel as Panel); advanceTutorial('panel'); return; }
+  if (target.dataset.overlayDismiss === 'panel') { setPanelPopupOpen(null); return; }
+  // Dock und Desktop-Reiter tragen dasselbe data-panel; nur im Dock öffnet der
+  // Bereich zusätzlich sein Popup, weil es dort kein Kontrollzentrum gibt, in
+  // dem die Kacheln stehen könnten. Das Popup wird vor switchPanel geöffnet,
+  // damit dessen Aktualisierung bereits die neue Fläche trifft.
+  const panelButton = target.closest<HTMLButtonElement>('[data-panel]');
+  if (panelButton) {
+    const panel = panelButton.dataset.panel as Panel;
+    if (panelButton.closest('.mobile-dock')) setPanelPopupOpen(panel);
+    switchPanel(panel);
+    advanceTutorial('panel');
+    return;
+  }
   const button = target.closest<HTMLButtonElement>('[data-action]'); if (!button || button.disabled) return;
   const action = button.dataset.action; if (!action) return;
   if (action === 'start-intro-tutorial') { resolveIntro(true); return; }
@@ -109,6 +121,7 @@ app.addEventListener('click', (event) => {
   if (action === 'close-objective') { setObjectiveOpen(false); return; }
   if (action === 'reset-run') { performReset('run'); return; }
   if (action === 'reset-full') { if (isFullResetArmed()) performReset('full'); else armFullReset(); return; }
+  if (action === 'close-panel') { setPanelPopupOpen(null); return; }
   if (action === 'open-settings') { setSettingsOpen(true); return; }
   if (action === 'close-settings') { setSettingsOpen(false); return; }
   if (action === 'toggle-warnings') { setWarningsOpen(!isWarningsOpen()); return; }
@@ -179,11 +192,21 @@ app.addEventListener('click', (event) => {
 // window und nicht an `app`: Nach einem Klick auf den Modal-Hintergrund liegt
 // der Fokus auf dem <body> und damit außerhalb von `app`.
 window.addEventListener('keydown', (event) => {
-  if (event.key !== 'Escape' || (!isKnowledgeOpen() && !isObjectiveOpen() && !isSettingsOpen())) return;
+  if (event.key !== 'Escape' || (!isKnowledgeOpen() && !isObjectiveOpen() && !isSettingsOpen() && !openPanelPopup())) return;
   event.preventDefault();
   if (isKnowledgeOpen()) setKnowledgeOpen(null);
   else if (isObjectiveOpen()) setObjectiveOpen(false);
-  else setSettingsOpen(false);
+  else if (isSettingsOpen()) setSettingsOpen(false);
+  else setPanelPopupOpen(null);
+});
+
+// Der Wechsel zwischen mobiler und Desktop-Fassung verschiebt die Kacheln
+// zwischen Dock-Popup und Kontrollzentrum. Beides gleichzeitig im DOM zu
+// halten würde die In-place-Updates doppeldeutig machen, deshalb baut die
+// Shell an dieser Grenze einmal neu auf.
+onLayoutChange(() => {
+  if (!isMobileLayout() && openPanelPopup()) setPanelPopupOpen(null);
+  renderShell();
 });
 
 app.addEventListener('input', (event) => {
