@@ -27,9 +27,9 @@ import {
   setWarningsOpen,
 } from './ui/menus';
 import { clearAchievements, clearCycleEndNotice, clearToasts, dismissAchievement, dismissCycleEndNotice, showToast } from './ui/notifications';
-import { isKnowledgeOpen, isObjectiveOpen, isSettingsOpen, makeSummaryExclusive, openPanelPopup, resetSummaryAttention, setChronicleOpen, setKnowledgeOpen, setObjectiveOpen, setPanelPopupOpen, setSettingsOpen, setStatsOpen } from './ui/overlay';
+import { isChronicleOpen, isKnowledgeOpen, isObjectiveOpen, isSettingsOpen, makeSummaryExclusive, openPanelPopup, resetSummaryAttention, setChronicleOpen, setKnowledgeOpen, setObjectiveOpen, setPanelPopupOpen, setSettingsOpen, setStatsOpen } from './ui/overlay';
 import { app, getActivePanel, getState, isMobileLayout, loaded, onLayoutChange, setActivePanel, setState, type Panel } from './ui/store';
-import { renderShell, switchPanel, updateUI } from './ui/sync';
+import { renderShell, switchPanel, syncDock, updateUI } from './ui/sync';
 import {
   advanceTutorial,
   cancelTutorialEnd,
@@ -41,6 +41,10 @@ import {
 } from './ui/tutorial';
 
 type ResetMode = 'run' | 'full';
+
+// Dieselbe Aktion öffnet auf dem Desktop (Kontrollzentrum) und im mobilen Dock
+// dasselbe Overlay — nur im Dock schaltet ein erneuter Klick es wieder zu.
+const inDock = (button: HTMLElement): boolean => Boolean(button.closest('.mobile-dock'));
 
 let lastFrame = performance.now();
 let frameTimer = 0;
@@ -59,7 +63,7 @@ function dispatch(action: GameAction): void {
     makeSummaryExclusive();
     playSound('complete', state.soundEnabled, state.volume);
   }
-  if (['BUY_UPGRADE', 'BUY_ACCRETION', 'BUY_REACTION_AUTOMATION', 'BUY_REACTION_UPGRADE', 'BUY_PERK'].includes(action.type)) switchPanel(getActivePanel(), false);
+  if (['BUY_UPGRADE', 'BUY_ACCRETION', 'BUY_REACTION_AUTOMATION', 'BUY_REACTION_UPGRADE', 'BUY_PERK', 'UNLOCK_REACTION'].includes(action.type)) switchPanel(getActivePanel(), false);
   updateUI(true);
 }
 
@@ -78,7 +82,7 @@ function performReset(mode: ResetMode): void {
   const state = getState();
   if (mode === 'full') { clearSave(); setState(createInitialState()); clearToasts(); }
   else setState(createInitialState(state.perks, state.stardust, state.run, { soundEnabled: state.soundEnabled, volume: state.volume, tutorial: state.tutorial, history: state.history, cloudTier: state.cloudTier, nextCloudTier: state.nextCloudTier, discoveredOutcomes: state.discoveredOutcomes, log: state.log, totalElapsed: state.totalElapsed }));
-  setActivePanel('reactions'); switchPanel('reactions', false); saveGame(getState()); updateUI(true);
+  setActivePanel('upgrades'); switchPanel('upgrades', false); saveGame(getState()); updateUI(true);
   if (mode === 'run') showToast('Der aktuelle Zyklus wurde neu gestartet.');
 }
 
@@ -100,13 +104,18 @@ app.addEventListener('click', (event) => {
   if (target.dataset.overlayDismiss === 'objective') { setObjectiveOpen(false); return; }
   if (target.dataset.overlayDismiss === 'panel') { setPanelPopupOpen(null); return; }
   // Dock und Desktop-Reiter tragen dasselbe data-panel; nur im Dock öffnet der
-  // Bereich zusätzlich sein Popup, weil es dort kein Kontrollzentrum gibt, in
-  // dem die Kacheln stehen könnten. Das Popup wird vor switchPanel geöffnet,
-  // damit dessen Aktualisierung bereits die neue Fläche trifft.
+  // Bereich zusätzlich sein Blatt, weil es dort kein Kontrollzentrum gibt, in
+  // dem die Kacheln stehen könnten. Das Blatt wird vor switchPanel geöffnet,
+  // damit dessen Aktualisierung bereits die neue Fläche trifft. Ein erneuter
+  // Klick auf dasselbe Dock-Element schließt es wieder — das Dock bleibt dabei
+  // durchgehend sichtbar, ein Wechsel kostet also nie einen Zwischenschritt.
   const panelButton = target.closest<HTMLButtonElement>('[data-panel]');
   if (panelButton) {
     const panel = panelButton.dataset.panel as Panel;
-    if (panelButton.closest('.mobile-dock')) setPanelPopupOpen(panel);
+    if (panelButton.closest('.mobile-dock')) {
+      if (openPanelPopup() === panel) { setPanelPopupOpen(null); syncDock(); return; }
+      setPanelPopupOpen(panel);
+    }
     switchPanel(panel);
     advanceTutorial('panel');
     return;
@@ -125,9 +134,12 @@ app.addEventListener('click', (event) => {
   if (action === 'close-objective') { setObjectiveOpen(false); return; }
   if (action === 'reset-run') { performReset('run'); return; }
   if (action === 'reset-full') { if (isFullResetArmed()) performReset('full'); else armFullReset(); return; }
-  if (action === 'close-panel') { setPanelPopupOpen(null); return; }
-  if (action === 'open-settings') { setSettingsOpen(true); return; }
-  if (action === 'close-settings') { setSettingsOpen(false); return; }
+  if (action === 'close-panel') { setPanelPopupOpen(null); syncDock(); return; }
+  // Sternkammer: das einzige Dock-Element, das nichts öffnet. Es schließt
+  // jedes offene Dock-Blatt und gibt damit den Blick auf den Stern frei.
+  if (action === 'show-chamber') { setPanelPopupOpen(null); setChronicleOpen(false); setSettingsOpen(false); setObjectiveOpen(false); setKnowledgeOpen(null); syncDock(); return; }
+  if (action === 'open-settings') { setSettingsOpen(!(inDock(button) && isSettingsOpen())); syncDock(); return; }
+  if (action === 'close-settings') { setSettingsOpen(false); syncDock(); return; }
   if (action === 'toggle-warnings') { setWarningsOpen(!isWarningsOpen()); return; }
   if (action === 'toggle-cloud-info') { setCloudInfoOpen(!isCloudInfoOpen()); return; }
   if (action === 'toggle-stellar-data') { setStellarDataOpen(!isStellarDataOpen()); return; }
@@ -139,15 +151,15 @@ app.addEventListener('click', (event) => {
   if (action === 'close-knowledge') { setKnowledgeOpen(null); return; }
   if (action === 'open-stats') { setStatsOpen(true); return; }
   if (action === 'close-stats') { setStatsOpen(false); return; }
-  if (action === 'open-chronicle') { setChronicleOpen(true); advanceTutorial('open-chronicle'); return; }
-  if (action === 'close-chronicle') { setChronicleOpen(false); return; }
+  if (action === 'open-chronicle') { setChronicleOpen(!(inDock(button) && isChronicleOpen())); syncDock(); advanceTutorial('open-chronicle'); return; }
+  if (action === 'close-chronicle') { setChronicleOpen(false); syncDock(); return; }
   if (action === 'open-summary') { dismissCycleEndNotice(); makeSummaryExclusive(); dispatch({ type: 'OPEN_SUMMARY' }); return; }
   if (action === 'close-summary') { clearPrestigeConfirmation(); dispatch({ type: 'CLOSE_SUMMARY' }); return; }
   if (action === 'prestige') {
     if (!hasPendingPerks() && hasAffordableSummaryPerk() && !isPrestigeConfirmationArmed()) { armPrestigeConfirmation(); return; }
     clearPrestigeConfirmation();
     dispatch({ type: 'PRESTIGE' });
-    switchPanel('reactions', false);
+    switchPanel('upgrades', false);
     return;
   }
   if (action.startsWith('buy-perk-') || action.startsWith('remove-perk-')) clearPrestigeConfirmation();
@@ -156,6 +168,13 @@ app.addEventListener('click', (event) => {
   if (action === 'select-reaction' && button.dataset.reaction) {
     const reaction = button.dataset.reaction as ReactionId;
     dispatch({ type: 'SET_ACTIVE_REACTION', reaction: getState().activeReaction === reaction ? null : reaction });
+    playActionFeedback(action, event as MouseEvent);
+    return;
+  }
+  // Kostenlose Freischaltung einer zündbereiten Fusion aus ihrer Kachel im
+  // Upgrades-Bereich heraus.
+  if (action === 'unlock-reaction' && button.dataset.reaction) {
+    dispatch({ type: 'UNLOCK_REACTION', reaction: button.dataset.reaction as ReactionId });
     playActionFeedback(action, event as MouseEvent);
     return;
   }

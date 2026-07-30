@@ -4,7 +4,7 @@ import { setDebugOpen, syncDebug } from './debug';
 import { disabled, formatDuration, formatMatter, formatSolarMasses, icons } from './format';
 import { clearPrestigeConfirmation, closeResetMenu } from './menus';
 import { clearAchievements, clearToasts } from './notifications';
-import { app, getState, PANEL_LABELS, type Panel } from './store';
+import { app, getState, isMobileLayout, PANEL_LABELS, type Panel } from './store';
 import { historyMarkup, logMarkup, panelMarkup, statsEntries, statsGridMarkup, timelineMarkup } from './views';
 import { invalidateTutorial } from './tutorial';
 
@@ -21,8 +21,17 @@ export const invalidateOverlay = (): void => { overlaySignature = ''; };
 export const resetSummaryAttention = (): void => { summaryAttentionRun = 0; };
 export const isKnowledgeOpen = (): boolean => knowledgeEntry !== null;
 export const isSettingsOpen = (): boolean => settingsOpen;
+export const isChronicleOpen = (): boolean => chronicleOpen;
 export const isObjectiveOpen = (): boolean => objectiveOpen;
 export const openPanelPopup = (): Panel | null => panelPopup;
+
+// Alles, was vom Dock aus geöffnet wird (Kontrollbereiche, Chronik,
+// Einstellungen), legt sich auf kleinen Bildschirmen NICHT über das Dock,
+// sondern endet darüber: Das Dock bleibt sichtbar und bedienbar, sodass sich
+// z. B. zwischen Sternkammer und Einstellungen ohne Zwischenschritt hin- und
+// herschalten lässt. Modale, die keinen Dock-Gegenpart haben (Ziel,
+// Wissenseintrag, Zusammenfassung, Intro), bleiben bewusst bildschirmfüllend.
+const dockSheetClass = (): string => isMobileLayout() ? ' dock-sheet' : '';
 
 export function setChronicleOpen(open: boolean): void {
   chronicleOpen = open;
@@ -155,7 +164,7 @@ export function syncOverlay(): void {
     if (panelSignature === overlaySignature) return;
     overlaySignature = panelSignature;
     const label = PANEL_LABELS[panelPopup];
-    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="panel" role="presentation">
+    root.innerHTML = `<div class="modal-backdrop${dockSheetClass()}" data-overlay-dismiss="panel" role="presentation">
       <section class="panel-modal" role="dialog" aria-modal="true" aria-label="${label}">
         <div class="chronicle-modal-heading"><div><small>KONTROLLZENTRUM</small><h2>${label}</h2></div><button data-action="close-panel" aria-label="${label} schließen">×</button></div>
         <div class="panel-modal-body" data-ui="deck-content">${panelMarkup(panelPopup)}</div>
@@ -167,7 +176,7 @@ export function syncOverlay(): void {
     if (overlaySignature === 'settings') return;
     overlaySignature = 'settings';
     const tutorialEnabled = !state.tutorial.completed;
-    root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="settings" role="presentation">
+    root.innerHTML = `<div class="modal-backdrop${dockSheetClass()}" data-overlay-dismiss="settings" role="presentation">
       <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <div class="chronicle-modal-heading"><div><small>SYSTEMKONFIGURATION</small><h2 id="settings-title">Einstellungen</h2></div><button data-action="close-settings" aria-label="Einstellungen schließen">×</button></div>
         <div class="settings-body">
@@ -211,7 +220,7 @@ export function syncOverlay(): void {
     const chronicleSignature = `chronicle:${state.stage}:${state.log.map((entry) => entry.id).join(',')}`;
     if (chronicleSignature !== overlaySignature) {
       overlaySignature = chronicleSignature;
-      root.innerHTML = `<div class="modal-backdrop" data-overlay-dismiss="chronicle" role="presentation"><section class="chronicle-modal" role="dialog" aria-modal="true" aria-labelledby="chronicle-title"><div class="chronicle-modal-heading"><div><small>KOSMISCHE CHRONIK</small><h2 id="chronicle-title">Lebenswege der Sterne</h2></div><button data-action="close-chronicle" aria-label="Chronik schließen">×</button></div><div class="chronicle-layout"><div class="timeline-card"><div class="section-label"><span>Aktueller Entwicklungspfad</span><small>${cloudDefinition(state.cloudTier).name}</small></div><div class="timeline">${timelineMarkup()}</div><div class="chronicle-stats"><div class="section-label"><span>Statistik</span><small>ZYKLUS ${state.run.toString().padStart(2, '0')}</small></div><div class="run-stat-grid">${statsGridMarkup(true)}</div></div></div><div class="log-card"><div class="section-label"><span>Sternenlogbuch</span><small data-ui="chronicle-elapsed">LAUFZEIT ${formatDuration(state.elapsed)}</small></div><div class="log-list">${logMarkup()}</div></div></div></section></div>`;
+      root.innerHTML = `<div class="modal-backdrop${dockSheetClass()}" data-overlay-dismiss="chronicle" role="presentation"><section class="chronicle-modal" role="dialog" aria-modal="true" aria-labelledby="chronicle-title"><div class="chronicle-modal-heading"><div><small>KOSMISCHE CHRONIK</small><h2 id="chronicle-title">Lebenswege der Sterne</h2></div><button data-action="close-chronicle" aria-label="Chronik schließen">×</button></div><div class="chronicle-layout"><div class="timeline-card"><div class="section-label"><span>Aktueller Entwicklungspfad</span><small>${cloudDefinition(state.cloudTier).name}</small></div><div class="timeline">${timelineMarkup()}</div><div class="chronicle-stats"><div class="section-label"><span>Statistik</span><small>ZYKLUS ${state.run.toString().padStart(2, '0')}</small></div><div class="run-stat-grid">${statsGridMarkup(true)}</div></div></div><div class="log-card"><div class="section-label"><span>Sternenlogbuch</span><small data-ui="chronicle-elapsed">LAUFZEIT ${formatDuration(state.elapsed)}</small></div><div class="log-list">${logMarkup()}</div></div></div></section></div>`;
     }
     syncLiveStats(root);
     return;

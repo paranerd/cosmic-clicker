@@ -95,7 +95,7 @@ export const OBJECTIVES: ObjectiveDefinitions = {
   'ignite-hydrogen': {
     eyebrow: 'Nächstes Ziel',
     title: 'Zünde den Wasserstoffkern',
-    detail: `Erreiche ${THRESHOLDS.hydrogenTemperature.toLocaleString('de-DE')} K und mindestens ${THRESHOLDS.hydrogenIgnitionMass.toLocaleString('de-DE')} ME Sternmasse durch weitere Verdichtung.`,
+    detail: `Erreiche ${THRESHOLDS.hydrogenTemperature.toLocaleString('de-DE')} K und mindestens ${THRESHOLDS.hydrogenIgnitionMass.toLocaleString('de-DE')} ME Sternmasse durch weitere Verdichtung. Danach schaltest du die Fusion bei den Upgrades kostenlos frei.`,
     achievementTitle: 'Wasserstofffusion gezündet',
   },
   // Neu (vormals nicht von der generischen Brennphase unterschieden): eigenes
@@ -120,7 +120,7 @@ export const OBJECTIVE_EYEBROWS = {
 export const OBJECTIVE_TEMPLATES = {
   igniteTitle: (reactionTitle: string): string => `${reactionTitle} zünden`,
   igniteDetail: (ignitionTemperature: number, requiredSolarMasses: string): string =>
-    `Der erschöpfte Kern kontrahiert bis ${ignitionTemperature.toLocaleString('de-DE')} K (benötigt ≥ ${requiredSolarMasses} M☉).`,
+    `Der erschöpfte Kern kontrahiert bis ${ignitionTemperature.toLocaleString('de-DE')} K (benötigt ≥ ${requiredSolarMasses} M☉). Danach schaltest du die Fusion bei den Upgrades kostenlos frei.`,
 } as const;
 
 // Generischer Auflöser für Erfolgstitel: zuerst die statischen Formationsziele

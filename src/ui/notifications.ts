@@ -148,28 +148,33 @@ function flashUnlockedTab(panel: Panel): void {
   button.addEventListener('animationend', () => button.classList.remove('unlock-flash'), { once: true });
 }
 
-export function syncNotifications(): void {
+// `visiblePanel` ist der Bereich, dessen Kacheln der Spieler gerade wirklich
+// vor sich hat: auf dem Desktop der gewählte Reiter, auf kleinen Bildschirmen
+// nur ein tatsächlich geöffnetes Dock-Blatt. Ohne diese Unterscheidung würde
+// der zuletzt gewählte Bereich seine Gelegenheiten auch dann als gesehen
+// abhaken, wenn im Dock gar nichts offen ist — eine zündbereite Fusion bekäme
+// dann nie ihren Indikator.
+export function syncNotifications(visiblePanel: Panel | null = getActivePanel()): void {
   const state = getState();
-  const activePanel = getActivePanel();
   const opportunities = currentOpportunities();
   const previous = new Set(lastOpportunitySignature ? lastOpportunitySignature.split('|') : []);
   const unseenBeforeOpening = (Object.keys(opportunities) as Panel[]).reduce<Record<Panel, string[]>>((result, panel) => {
     result[panel] = opportunities[panel].filter((key) => !state.seenOpportunities.includes(key));
     return result;
-  }, { reactions: [], upgrades: [], automation: [] });
+  }, { upgrades: [], automation: [] });
   const newlyUnlocked = notificationsInitialized
     ? (Object.keys(opportunities) as Panel[]).filter((panel) => unseenBeforeOpening[panel].some((key) => !previous.has(key)))
     : [];
   const newlyAvailable = (Object.keys(opportunities) as Panel[]).reduce<Record<Panel, string[]>>((result, panel) => {
     result[panel] = unseenBeforeOpening[panel].filter((key) => !previous.has(key));
     return result;
-  }, { reactions: [], upgrades: [], automation: [] });
+  }, { upgrades: [], automation: [] });
 
-  markOpportunitiesSeen(activePanel, opportunities);
+  if (visiblePanel) markOpportunitiesSeen(visiblePanel, opportunities);
   (Object.keys(opportunities) as Panel[]).forEach((panel) => {
     const button = app.querySelector<HTMLButtonElement>(`[data-panel="${panel}"]`);
     const count = app.querySelector<HTMLElement>(`[data-tab-count="${panel}"]`);
-    const unreadCount = panel === activePanel ? 0 : opportunities[panel].filter((key) => !state.seenOpportunities.includes(key)).length;
+    const unreadCount = panel === visiblePanel ? 0 : opportunities[panel].filter((key) => !state.seenOpportunities.includes(key)).length;
     button?.classList.toggle('has-notice', unreadCount > 0);
     if (count) {
       count.textContent = unreadCount ? String(unreadCount) : '';
@@ -181,7 +186,11 @@ export function syncNotifications(): void {
     newlyUnlocked.forEach(flashUnlockedTab);
     playSound('unlock', state.soundEnabled, state.volume);
     const automationIsNew = newlyAvailable.automation.some((key) => key.endsWith(':0'));
-    const messages: Record<Panel, string> = { reactions: 'Neue Reaktion verfügbar.', upgrades: 'Neues Upgrade verfügbar.', automation: automationIsNew ? 'Neue Automation verfügbar.' : 'Automation kann ausgebaut werden.' };
+    // Eine zündbereite Fusion ist die dringlichste Gelegenheit des
+    // Upgrades-Bereichs und bekommt deshalb ihren eigenen Hinweis — sie kostet
+    // nichts, verlangt aber eine Handlung, ohne die der Stern stehen bleibt.
+    const reactionUnlockIsNew = newlyAvailable.upgrades.some((key) => key.startsWith('reaction-unlock:'));
+    const messages: Record<Panel, string> = { upgrades: reactionUnlockIsNew ? 'Neue Fusion kann kostenlos freigeschaltet werden.' : 'Neues Upgrade verfügbar.', automation: automationIsNew ? 'Neue Automation verfügbar.' : 'Automation kann ausgebaut werden.' };
     showToast(newlyUnlocked.length === 1 ? messages[newlyUnlocked[0]] : 'Neue Sternsysteme verfügbar.');
   }
   lastOpportunitySignature = (Object.keys(opportunities) as Panel[]).flatMap((panel) => opportunities[panel]).join('|');

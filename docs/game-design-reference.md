@@ -157,7 +157,7 @@ astronomische Schwellen, ohne permanent extrem große Zahlen anzeigen zu müssen
 | Sternenstaub | 0 |
 | Gravitation | Stufe 0 |
 | Automationen | alle Stufe 0 |
-| Reaktionen | keine freigeschaltet |
+| Reaktionen | keine freigeschaltet (jede wird einzeln kostenlos gezündet) |
 | Ausgewählte Fusion | keine (Stern akkretiert) |
 | Sound | an |
 | Lautstärke | 35 % |
@@ -406,8 +406,31 @@ Temperatur und gesamte Sternmasse.
 - Frühere gezündete Reaktionen bleiben verfügbar, solange ihr Brennstoff
   vorhanden ist; eine höhere Brennstufe sperrt sie nicht.
 - Das Kontrollzentrum zeigt alle freigeschalteten Prozesse und genau die
-  unmittelbar nächste gesperrte Reaktion. Spätere Stufen werden nicht auf
-  einmal vorweggenommen.
+  unmittelbar nächste gesperrte Reaktion — zusätzlich jede bereits zündbare,
+  weil Heliumfusion und Alpha-Einfang gleichzeitig zündbar werden. Spätere
+  Stufen werden nicht auf einmal vorweggenommen.
+
+### Freischaltung einer Fusion
+
+Fusionen sind keine eigene Kategorie mehr, sondern stehen als Kacheln zwischen
+den übrigen Upgrades — eine noch nicht gezündete Fusion ist dort schlicht ein
+Upgrade, das nichts kostet.
+
+- Sind Zündtemperatur und Mindestmasse erreicht, wird die Fusion
+  **freischaltbar** und wartet auf eine bewusste, kostenlose Handlung des
+  Spielers. Sie zündet nicht mehr von selbst.
+- Bis zu diesem Klick bleibt der Stern stehen: Stadienwechsel,
+  Temperaturuntergrenze, Logeintrag und die Kontraktion zur nächsten Brennstufe
+  hängen alle an der freigeschalteten Reaktion.
+- Eine leergeräumte Urwolke beendet den Zyklus deshalb nur, solange die
+  Wasserstofffusion wirklich unerreichbar ist. Ist sie bereits freischaltbar,
+  wäre der ausstehende Klick sonst eine Falle.
+- Die Kachel folgt der bekannten Zustandsfolge der Eck-Buttons: Schloss mit
+  Fortschritts-Fill Richtung Zündbedingung → Schloss mit Amber-Glow und dem
+  Preis „Gratis“, sobald zündbar → Doppel-Caret des Reaktionsausbaus, sobald
+  gezündet.
+- Der Fortschritts-Fill folgt der am wenigsten erfüllten Bedingung, damit er
+  nicht auf 100 % steht, während noch Sternmasse fehlt.
 
 ### Auswahl und Auslösung
 
@@ -825,9 +848,15 @@ berechnet. 100 % fallen damit mit der Brennstofferschöpfung zusammen.
 - Übergang nach dem Schließen: 340 ms.
 - Toasts bleiben 3.200 ms und blenden 320 ms aus.
 - Mehrere Toasts stapeln sich und verschwinden unabhängig.
-- Neue Reaktionen, Upgrades und Automationen markieren ihren Tab und erzeugen
-  bei Bedarf einen Toast.
-- Der aktive Tab markiert seine sichtbaren Möglichkeiten als gesehen.
+- Neue Upgrades und Automationen markieren ihren Tab und erzeugen bei Bedarf
+  einen Toast; eine zündbereite Fusion ist die dringlichste Gelegenheit des
+  Upgrades-Bereichs und bekommt ihren eigenen Hinweis.
+- Gemeldet wird nur, was sich im Bereich selbst erledigen lässt: die kostenlose
+  Freischaltung und ein bezahlbarer Ausbau. Dass eine Fusion Brennstoff hat, ist
+  kein Hinweis auf den Bereich — ausgeführt wird sie am Stern.
+- Der sichtbare Tab markiert seine Möglichkeiten als gesehen. Sichtbar heißt auf
+  dem Desktop der gewählte Reiter, mobil nur ein tatsächlich geöffnetes
+  Dock-Blatt.
 - Tutorial, Zielerfolge, Zyklusende und Toasts besitzen getrennte Render-Ebenen
   und dürfen einander nicht unterdrücken.
 - Beim eigentlichen Rundenabschluss erscheint kein zusätzliches Zielbanner;
@@ -904,7 +933,8 @@ Referenzbreiten:
 - **Star Chamber:** Hauptaktion, Fusionsring, Entwicklungsstadium,
   Aktionsfeedback und Fortschrittsbalken; unten links Urwolke und (mobil)
   Echtzeitdaten, unten rechts die Effekte-Ecke
-- **Kontrollzentrum:** Fusionen, Upgrades und Automationen
+- **Kontrollzentrum:** Upgrades (inklusive der Fusionskacheln) und
+  Automationen
 - **Chronik-Dock:** Entwicklungsweg und jüngste Logeinträge; die geöffnete
   Chronik zeigt zusätzlich die aktuelle Laufzeit
 
@@ -944,16 +974,35 @@ Das Dock trägt fünf Symbole:
 
 | Position | Ziel | Verhalten |
 | --- | --- | --- |
-| 1 | Fusionen | Popup mit den Kacheln des Bereichs |
-| 2 | Upgrades | Popup mit den Kacheln des Bereichs |
-| 3 | Automationen | Popup mit den Kacheln des Bereichs |
-| 4 | Chronik | bestehendes Chronik-Modal |
-| 5 | Settings | bestehendes Einstellungs-Modal |
+| 1 | Upgrades | Blatt mit den Kacheln des Bereichs |
+| 2 | Automationen | Blatt mit den Kacheln des Bereichs |
+| 3 | Sternkammer | schließt jedes offene Blatt |
+| 4 | Chronik | Blatt mit der Chronik |
+| 5 | Settings | Blatt mit den Einstellungen |
 
-Da die Perks in die Effekte-Ecke der Star Chamber gezogen sind, verteilt sich
-der frei gewordene Platz auf die verbleibenden Felder: größere Symbole,
-größere Beschriftung und eine höhere Trefferfläche. Dasselbe gilt für die drei
-Reiter des Desktop-Kontrollzentrums.
+Alle vom Dock geöffneten Flächen enden **oberhalb** des Docks, statt es zu
+verdecken — genauer: oberhalb des Überstands, mit dem das Sternkammer-Feld über
+die Dockkante hinausragt, damit sie es nicht oben anschneiden. Das Dock bleibt dadurch durchgehend sichtbar und bedienbar: Der
+Wechsel zwischen zwei Zielen — etwa von den Einstellungen zurück in die
+Sternkammer — ist immer genau ein Klick, ohne vorheriges Schließen. Ein
+erneuter Klick auf ein bereits geöffnetes Dock-Element schließt es wieder.
+Overlays ohne Dock-Gegenpart (Ziel, Wissenseintrag, Zyklus-Zusammenfassung,
+Intro) bleiben dagegen bildschirmfüllend und decken das Dock ab.
+
+Die Sternkammer in der Mitte ist der Ausgangszustand des Docks und das einzige
+Element, das nichts öffnet, sondern alles schließt. Sie tritt deshalb als
+einziges Feld plastisch hervor: ein größeres, rundes Symbolfeld, das ein Stück
+über die Dockkante hinausragt. Hinausragen darf dabei allein das Symbolfeld —
+es belegt dieselbe Layouthöhe wie ein gewöhnliches Docksymbol, sodass alle fünf
+Beschriftungen weiterhin auf einer Linie stehen. Die Hervorhebung ist bewusst rein plastisch —
+Farbe bleibt im Dock durchgehend die Sprache des Zustands, sodass immer genau
+ein Feld als aktiv zu erkennen ist. Im Ruhezustand ist das Kammerfeld deshalb
+genauso gedämpft wie die übrigen Symbole.
+
+Da die Perks in die Effekte-Ecke der Star Chamber gezogen und die Fusionen in
+die Upgrades eingegliedert sind, verteilt sich der frei gewordene Platz auf die
+verbleibenden Felder: größere Symbole, größere Beschriftung und eine höhere
+Trefferfläche. Dasselbe gilt für die beiden Reiter des Desktop-Kontrollzentrums.
 
 Unter den Dock-Buttons bleibt ein Fußabstand von 18 px frei, seitlich mindestens
 6 px — jeweils zusätzlich zur Safe-Area des Geräts. Auf Telefonen mit
@@ -961,10 +1010,13 @@ Home-Indikator liegt direkt darunter die System-Geste für Home und Siri, und di
 abgerundeten Displayecken schneiden den unteren Rand diagonal an; ohne diesen
 Puffer säßen Beschriftung und Trefferfläche der äußeren Felder genau dort.
 
-Die ersten drei zeigen Gelegenheiten wie die Desktop-Reiter: Amber-Glow am
-Symbol plus Zähler der ungesehenen Gelegenheiten. Das Popup bringt dieselbe Kachelfläche
-mit wie das Kontrollzentrum, sodass alle laufenden Aktualisierungen unverändert
-greifen; entsprechend steht immer nur eine der beiden Fassungen im DOM.
+Die beiden Bereichsfelder zeigen Gelegenheiten wie die Desktop-Reiter:
+Amber-Glow am Symbol plus Zähler der ungesehenen Gelegenheiten. Als gesehen gilt
+ein Bereich erst, wenn seine Kacheln tatsächlich vor dem Spieler liegen — mobil
+also nur bei geöffnetem Blatt, nicht schon durch die bloße Vorauswahl. Das Blatt
+bringt dieselbe Kachelfläche mit wie das Kontrollzentrum, sodass alle laufenden
+Aktualisierungen unverändert greifen; entsprechend steht immer nur eine der
+beiden Fassungen im DOM.
 
 ### Kartenprinzipien
 
@@ -1226,7 +1278,8 @@ Fokusabstand von 7 px und einen 1-px-Amberrahmen bei 55 %.
 | Tutorial-Schutzraum | 42 | undurchsichtiger Highlight-Ring |
 | Tutorialziel/-rahmen | 43 | einzig bedienbares Ziel |
 | Tutorialkarte | 45 | Erklärung und Aktionen |
-| Modaler Backdrop | 50 | Intro, Chronik, Statistik, Summary |
+| Dock-Blatt | 50 | vom Dock geöffnete Fläche, endet über dem Dock |
+| Modaler Backdrop | 50 | Intro, Ziel, Wissen, Summary |
 | Zielbanner | 76 | nicht blockierender Erfolg |
 | Zyklusende | 78 | Abschluss-Hinweis |
 | Toasts | 80 | flüchtige Statusmeldungen |
@@ -1275,7 +1328,7 @@ Animationswerte:
 | --- | --- |
 | ab 1101 px und 800 px Höhe | App füllt genau einen Viewport, kompaktere Panels |
 | bis 1100 px | Kontrollzentrum wandert unter Stern und Datenpanel |
-| bis 780 px | kein Kontrollzentrum: Star Chamber füllt den Viewport, Dock am unteren Rand, Seite scrollt nicht |
+| bis 780 px | kein Kontrollzentrum: Star Chamber füllt den Viewport, Dock am unteren Rand (bleibt bei geöffnetem Blatt sichtbar), Seite scrollt nicht |
 | bis 430 px | kompakte Header-, Intro-, Statistik- und Summary-Layouts |
 | Mindestbreite | 320 px |
 

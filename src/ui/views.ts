@@ -36,6 +36,8 @@ import {
   reactionCapacity,
   reactionManualAmount,
   reactionManualAmountAtLevel,
+  reactionUnlockable,
+  reactionUnlockProgress,
   reactionUpgradeCost,
   starMass,
   upgradeSupplyExhausted,
@@ -117,14 +119,24 @@ export const automationMastery = (kind: AutomationKind): number => {
   return mastery.kind === 'starMass' ? starMass(getState()) : reactionOutput(mastery.reaction);
 };
 
+// Fusionen zählen seit der Zusammenlegung zu den Gelegenheiten des
+// Upgrades-Bereichs: eine kostenlos freischaltbare Fusion ist dort die
+// dringlichste davon, eine mit Brennstoff versorgte Reaktion wie bisher ein
+// Hinweis auf den Bereich.
 export function currentOpportunities(): Record<Panel, string[]> {
   const state = getState();
-  const reactions: string[] = [];
   const upgrades: string[] = [];
   const automation: string[] = [];
-  if (state.completed) return { reactions, upgrades, automation };
+  if (state.completed) return { upgrades, automation };
   REACTION_ORDER.forEach((id) => {
-    if (reactionAvailable(state, id)) reactions.push(`reaction:${id}`);
+    const view = reactionView(id);
+    if (!view.visible) return;
+    // Gemeldet wird nur, was sich im Bereich selbst erledigen lässt: die
+    // kostenlose Freischaltung und ein bezahlbarer Reaktionsausbau. Dass eine
+    // Fusion Brennstoff hat, ist dagegen kein Hinweis auf diesen Bereich
+    // mehr — ausgeführt wird sie am Stern.
+    if (!view.unlocked) { if (view.unlockable) upgrades.push(`reaction-unlock:${id}`); return; }
+    if (view.upgradeAffordable) upgrades.push(`reaction-upgrade:${id}:${view.upgradeLevel}`);
   });
   UPGRADE_ORDER.forEach((id) => {
     const view = upgradeView(id);
@@ -138,13 +150,17 @@ export function currentOpportunities(): Record<Panel, string[]> {
     const price = automationCost(kind, level);
     if (automationVisible(kind) && level < definition.maxLevel && automationMastery(kind) >= definition.mastery.threshold && state.energy >= price && !automationSupplyExhausted(state, kind)) automation.push(`${kind}:${level}`);
   });
-  return { reactions, upgrades, automation };
+  return { upgrades, automation };
 }
 
 export interface ReactionView {
   id: ReactionId;
   visible: boolean;
   unlocked: boolean;
+  // Temperatur und Mindestmasse sind erreicht, die Fusion wartet nur noch auf
+  // die kostenlose Freischaltung durch den Spieler.
+  unlockable: boolean;
+  unlockProgress: number;
   available: boolean;
   amount: number;
   energy: number;
@@ -156,6 +172,9 @@ export interface ReactionView {
   upgradePrice: number;
   upgradeMax: boolean;
   upgradeAffordable: boolean;
+  // Sortierrang innerhalb des Upgrades-Rasters, identisch zur Skala der
+  // Upgrade-Karten (0 = jetzt möglich, 3 = gesperrt).
+  priority: number;
 }
 
 // Zeigt im manuellen Reaktionsbutton die tatsächlich bei diesem Klick
@@ -187,29 +206,63 @@ export function reactionView(id: ReactionId): ReactionView {
   const inputMass = Object.values(definition.inputs).reduce((sum, ratio) => sum + amount * (ratio ?? 0), 0);
   const outputMass = Object.values(definition.outputs).reduce((sum, ratio) => sum + amount * (ratio ?? 0), 0);
   const energy = (definition.energyBasis === 'input' ? inputMass : outputMass) * definition.energyPerUnit;
+  const unlockable = reactionUnlockable(state, id);
   const nextLocked = REACTION_ORDER.find((reaction) => !state.unlockedReactions.includes(reaction));
-  const visible = unlocked || id === nextLocked;
+  // Freischaltbare Fusionen sind immer sichtbar, auch wenn sie nicht die
+  // nächste der Kette sind: Helium und Alpha-Einfang werden gleichzeitig
+  // freischaltbar und brauchen deshalb gleichzeitig eine Kachel.
+  const visible = unlocked || unlockable || id === nextLocked;
   const available = reactionAvailable(state, id);
   // Punkt 2: Zustand des Reaktionsausbaus für die Karte.
   const upgradeLevel = state.reactionUpgrades[id];
   const upgradePrice = reactionUpgradeCost(id, upgradeLevel);
   const upgradeMax = upgradeLevel >= definition.upgrade.maxLevel;
+  const upgradeAffordable = !upgradeMax && state.energy >= upgradePrice;
+  // Der Sperrgrund nennt die Bedingung, die gerade tatsächlich fehlt: Ist die
+  // Zündtemperatur schon erreicht, hilft "Ab 10 Mio. K" nicht weiter — dann
+  // fehlt Sternmasse.
+  const lockedLabel = state.temperature >= definition.ignitionTemperature
+    ? `Ab ${formatMatter(definition.minimumMass)} ME`
+    : `Ab ${formatTemperature(definition.ignitionTemperature)}`;
+  const priority = !unlocked ? (unlockable ? 0 : 3) : upgradeMax ? 2 : upgradeAffordable ? 0 : 1;
   return {
-    id, visible, unlocked, available, amount, energy,
-    lockedLabel: `Ab ${formatTemperature(definition.ignitionTemperature)}`,
+    id, visible, unlocked, unlockable, unlockProgress: reactionUnlockProgress(state, id), available, amount, energy,
+    lockedLabel,
     detail: !unlocked ? '' : capacity > 0 ? reactionConversionLabel(id, amount, energy) : '',
-    upgradeLevel, upgradePrice, upgradeMax, upgradeAffordable: !upgradeMax && state.energy >= upgradePrice,
+    upgradeLevel, upgradePrice, upgradeMax, upgradeAffordable, priority,
   };
 }
 
+// Kostenloser Freischalt-Button einer noch nicht gezündeten Fusion. Er nutzt
+// dieselbe Eck-Mechanik wie Upgrades und Automationen: Schloss-Icon, Fill als
+// Fortschritt Richtung Zündbedingung, Amber-Glow sobald es tatsächlich
+// losgehen kann. Als Preis steht dort "Gratis" — die Freischaltung kostet
+// bewusst nichts, verlangt aber eine eigene Handlung.
+export const REACTION_UNLOCK_PRICE_LABEL = 'Gratis';
+
+function reactionUnlockButton(view: ReactionView): string {
+  const definition = REACTIONS[view.id];
+  return tileActionButton({
+    action: 'unlock-reaction',
+    dataset: { reaction: view.id },
+    complete: false,
+    unlocked: view.unlockable,
+    showLock: true,
+    affordable: view.unlockable,
+    fillPercent: view.unlockProgress * 100,
+    costText: view.unlockable ? REACTION_UNLOCK_PRICE_LABEL : '',
+    ariaLabel: view.unlockable ? `${definition.fullTitle} kostenlos freischalten` : view.lockedLabel,
+  });
+}
+
 // Punkt 7: Ausbau-Button oben rechts auf der Reaktionskarte, analog zu
-// Automationen/Upgrades — nur bei bereits freigeschalteten Reaktionen (eine
-// gesperrte Reaktion hat noch keinen Ausbau, daher kein Schloss-Zustand hier).
-// Das Icon ist deshalb von Anfang an der Doppel-Caret (showLock: false), nie
-// ein Schloss — anders als bei Upgrades/Automationen. Die Kachel zeigt hier
-// weiterhin echten Fortschritt im Button-Fill (Energie ⁄ Ausbaupreis).
+// Automationen/Upgrades. Bei einer noch gesperrten Fusion steht an derselben
+// Stelle der Freischalt-Button oben; ist sie gezündet, wechselt das Icon vom
+// Schloss zum Doppel-Caret — exakt die Zustandsfolge der Upgrade-Kacheln. Die
+// Kachel zeigt hier weiterhin echten Fortschritt im Button-Fill (Energie ⁄
+// Ausbaupreis).
 function reactionUpgradeButton(view: ReactionView): string {
-  if (!view.unlocked) return '';
+  if (!view.unlocked) return reactionUnlockButton(view);
   const fillPercent = view.upgradeMax ? 0 : getState().energy / view.upgradePrice * 100;
   const ariaLabel = view.upgradeMax ? 'Reaktionsausbau voll ausgebaut' : `Reaktionsausbau für ${view.upgradePrice} Energie`;
   return tileActionButton({
@@ -265,13 +318,8 @@ function reactionCard(view: ReactionView): string {
     ${reactionRateRow(view)}
     <p>${definition.description}</p>
     ${reactionUpgradeFooter(view)}
-    ${view.unlocked ? '' : `<div class="tile-cost" data-reaction-cost="${view.id}">${view.lockedLabel}</div>`}
+    ${view.unlocked ? '' : `<div class="tile-cost ${view.unlockable ? 'is-ready' : ''}" data-reaction-cost="${view.id}">${view.unlockable ? 'Kostenlos freischalten' : view.lockedLabel}</div>`}
   </div>`;
-}
-
-function renderReactionPanel(): string {
-  const cards = REACTION_ORDER.map(reactionView).filter((view) => view.visible);
-  return `<div class="reaction-grid">${cards.map(reactionCard).join('')}</div>`;
 }
 
 // Fusionsring: Für jede freigeschaltete Reaktion ein runder Button, ringförmig
@@ -562,16 +610,44 @@ export function logMarkup(limit?: number): string {
   return entries.map((entry) => `<div class="log-entry ${entry.kind}"><i></i><div><time>${formatDuration(entry.elapsed)}</time><p>${entry.text}</p></div></div>`).join('');
 }
 
-export function orderedUpgradeCards(): { view: UpgradeView; markup: string }[] {
-  return UPGRADE_ORDER
-    .map(upgradeView)
-    .filter((view) => view.visible)
-    .sort((a, b) => a.priority - b.priority)
-    .map((view) => ({ view, markup: upgradeCard(view) }));
+// Kacheln des Upgrades-Bereichs: klassische Upgrades UND Fusionen in einem
+// gemeinsamen Raster, gemeinsam nach Priorität sortiert (0 = jetzt möglich,
+// 3 = gesperrt). Eine kostenlos freischaltbare Fusion steht damit automatisch
+// oben, eine noch nicht zündbare unten bei den übrigen gesperrten Kacheln.
+// `signature` beschreibt nur den strukturellen Zustand einer Kachel — die pro
+// Tick schwankenden Werte aktualisiert ui/sync.ts in-place, ohne das Raster
+// neu zu bauen.
+interface PanelCard {
+  key: string;
+  priority: number;
+  signature: string;
+  render: () => string;
 }
 
-export const upgradeOrderSignature = (): string => orderedUpgradeCards()
-  .map(({ view }) => `${view.id}:${view.priority}:${view.level}:${view.expired}:${view.exhausted}`)
+export const visibleUpgradeViews = (): UpgradeView[] => UPGRADE_ORDER.map(upgradeView).filter((view) => view.visible);
+export const visibleReactionViews = (): ReactionView[] => REACTION_ORDER.map(reactionView).filter((view) => view.visible);
+
+function panelCards(): PanelCard[] {
+  const upgrades: PanelCard[] = visibleUpgradeViews().map((view) => ({
+    key: `upgrade:${view.id}`,
+    priority: view.priority,
+    signature: `${view.level}:${view.expired}:${view.exhausted}`,
+    render: () => upgradeCard(view),
+  }));
+  const reactions: PanelCard[] = visibleReactionViews().map((view) => ({
+    key: `reaction:${view.id}`,
+    priority: view.priority,
+    signature: `${view.unlocked}:${view.unlockable}:${view.upgradeLevel}:${view.upgradeMax}`,
+    render: () => reactionCard(view),
+  }));
+  return [...upgrades, ...reactions].sort((a, b) => a.priority - b.priority);
+}
+
+export const orderedUpgradeCards = (): { key: string; markup: string }[] =>
+  panelCards().map((card) => ({ key: card.key, markup: card.render() }));
+
+export const upgradeOrderSignature = (): string => panelCards()
+  .map((card) => `${card.key}:${card.priority}:${card.signature}`)
   .join('|');
 
 // Seit die Perks aus den Kontrollbereichen ausgezogen sind, wird in jedem
@@ -585,7 +661,6 @@ function panelEnergyBalance(): string {
 }
 
 export function panelMarkup(panel: Panel): string {
-  if (panel === 'reactions') return renderReactionPanel();
   if (panel === 'upgrades') {
     const cards = orderedUpgradeCards();
     return `${panelEnergyBalance()}<div class="upgrade-grid ${cards.length === 1 ? 'single-upgrade' : ''}">${cards.map((card) => card.markup).join('')}</div>`;

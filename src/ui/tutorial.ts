@@ -32,7 +32,7 @@ export function invalidateTutorial(): void {
 
 function finishInitialTour(): void {
   const state = getState();
-  switchPanel('reactions', false);
+  switchPanel('upgrades', false);
   markCurrentObjectiveSeen();
   if (state.tutorial.cosmosToastPending) {
     state.tutorial.cosmosToastPending = false;

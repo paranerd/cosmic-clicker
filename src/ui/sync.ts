@@ -26,7 +26,7 @@ import { syncDebug } from './debug';
 import { formatChamberValue, formatEnergy, formatMatter, formatNumber, formatRate, formatTemperature, icons, temperatureScale } from './format';
 import { isCloudInfoOpen, isWarningsOpen, setCloudInfoOpen, setWarningsOpen } from './menus';
 import { markOpportunitiesSeen, syncCycleEndNotice, syncNotifications, syncObjectiveAchievement, syncToast } from './notifications';
-import { invalidateOverlay, syncOverlay } from './overlay';
+import { invalidateOverlay, isChronicleOpen, isSettingsOpen, openPanelPopup, syncOverlay } from './overlay';
 import { app, getActivePanel, getState, isMobileLayout, PANEL_LABELS, PANEL_ORDER, setActivePanel, type Panel } from './store';
 import { invalidateTutorial, syncTutorial } from './tutorial';
 import {
@@ -36,12 +36,13 @@ import {
   currentOpportunities,
   fusionRingMarkup,
   knowledgeButton,
-  orderedUpgradeCards,
   panelMarkup,
   reactionView,
+  REACTION_UNLOCK_PRICE_LABEL,
   tileButtonInner,
   unlockedReactionIds,
   upgradeOrderSignature,
+  visibleUpgradeViews,
 } from './views';
 
 let lastStage = getState().stage;
@@ -52,9 +53,9 @@ const uiElements = new Map<string, HTMLElement>();
 
 function dynamicPanelSignature(panel: Panel): string {
   const state = getState();
-  if (panel === 'reactions') {
-    return `${state.unlockedReactions.join(',')}:${Object.values(state.reactionUpgrades).join(',')}`;
-  }
+  // Der Upgrades-Bereich braucht hier keine eigene Signatur mehr: Seine
+  // Struktur — inklusive der eingegliederten Fusionskacheln — steckt
+  // vollständig in upgradeOrderSignature().
   if (panel === 'automation') {
     return `${state.unlockedReactions.join(',')}:${Object.values(state.automation).join(',')}:${AUTOMATION_ORDER.map((kind) => automationView(kind).unlocked).join(',')}`;
   }
@@ -93,13 +94,12 @@ const controlCenterMarkup = (): string => `
           <div class="side-content" data-ui="deck-content"></div>
         </aside>`;
 
-// Dock der mobilen Fassung: die drei Kontrollbereiche als Popup-Öffner plus
-// Chronik und Einstellungen, die dieselben Modale wie auf dem Desktop öffnen.
-// Die Bereichsbuttons tragen dasselbe `data-panel` wie die Desktop-Reiter —
-// Auswahlzustand (switchPanel) und Gelegenheits-Indikator (syncNotifications)
-// funktionieren dadurch unverändert für beide Fassungen.
+// Dock der mobilen Fassung: die beiden Kontrollbereiche als Popup-Öffner, in
+// der Mitte die Sternkammer und rechts Chronik und Einstellungen, die
+// dieselben Inhalte wie auf dem Desktop zeigen. Die Bereichsbuttons tragen
+// dasselbe `data-panel` wie die Desktop-Reiter — der Gelegenheits-Indikator
+// (syncNotifications) funktioniert dadurch unverändert für beide Fassungen.
 const DOCK_PANEL_ICONS: Record<Panel, string> = {
-  reactions: icons.fusion,
   upgrades: icons.buildUp,
   automation: icons.automation,
 };
@@ -128,9 +128,14 @@ const effectsCornerMarkup = (): string => `
             </div>
           </div>`;
 
+// Die Sternkammer steht bewusst in der Mitte und ist optisch hervorgehoben:
+// Sie ist der Ausgangszustand, zu dem jedes geöffnete Dock-Blatt wieder
+// zurückführt, und damit das einzige Dock-Element, das nichts öffnet sondern
+// alles schließt.
 const dockMarkup = (): string => `
       <nav class="mobile-dock" aria-label="Kontrollbereiche">
         ${PANEL_ORDER.map((panel) => `<button data-panel="${panel}" aria-haspopup="dialog" aria-label="${PANEL_LABELS[panel]} öffnen"><span class="dock-icon">${DOCK_PANEL_ICONS[panel]}</span><span class="dock-label">${PANEL_LABELS[panel]}</span><b class="tab-count" data-tab-count="${panel}" hidden></b></button>`).join('')}
+        <button class="dock-chamber" data-action="show-chamber" aria-label="Sternkammer anzeigen"><span class="dock-icon">${icons.chamber}</span><span class="dock-label">Sternkammer</span></button>
         <button data-action="open-chronicle" aria-haspopup="dialog" aria-label="Chronik öffnen"><span class="dock-icon">${icons.stats}</span><span class="dock-label">Chronik</span></button>
         <button data-action="open-settings" class="settings-button" aria-haspopup="dialog" aria-label="Einstellungen öffnen"><span class="dock-icon">${icons.settings}</span><span class="dock-label">Settings</span></button>
       </nav>`;
@@ -229,6 +234,22 @@ function syncReactionPanel(): void {
     if (!card) return;
     const view = reactionView(id);
     card.classList.toggle('is-ready', view.available);
+    // Noch nicht gezündete Fusion: Der Eck-Button ist der kostenlose
+    // Freischalter. Temperatur und Masse wachsen laufend, deshalb müssen Fill
+    // und Sperrgrund bei jedem Tick nachgeführt werden — der Wechsel zu
+    // "freischaltbar" selbst steckt in der Panel-Signatur und baut die Kachel
+    // ohnehin neu.
+    const unlockButton = card.querySelector<HTMLButtonElement>('[data-action="unlock-reaction"]');
+    if (unlockButton) {
+      const ariaLabel = view.unlockable ? `${REACTIONS[id].fullTitle} kostenlos freischalten` : view.lockedLabel;
+      syncTileButton(unlockButton, false, view.unlockable, true, view.unlockable, view.unlockProgress * 100, view.unlockable ? REACTION_UNLOCK_PRICE_LABEL : '', ariaLabel);
+      const cost = card.querySelector<HTMLElement>(`[data-reaction-cost="${id}"]`);
+      const costLabel = view.unlockable ? 'Kostenlos freischalten' : view.lockedLabel;
+      if (cost) {
+        if (cost.textContent !== costLabel) cost.textContent = costLabel;
+        cost.classList.toggle('is-ready', view.unlockable);
+      }
+    }
     const upgradeButton = card.querySelector<HTMLButtonElement>('[data-action="buy-reaction-upgrade"]');
     if (upgradeButton) {
       // Der Ausbaupreis ändert sich nur mit der Ausbaustufe, und die ist Teil
@@ -322,9 +343,11 @@ function syncActivePanel(): void {
     const value = formatEnergy(state.energy);
     if (panelResource.textContent !== value) panelResource.textContent = value;
   }
-  if (activePanel === 'reactions') syncReactionPanel();
+  // Der Upgrades-Bereich enthält beide Kachelarten: klassische Upgrades und
+  // die eingegliederten Fusionen.
   if (activePanel === 'upgrades') {
-    orderedUpgradeCards().forEach(({ view }) => {
+    syncReactionPanel();
+    visibleUpgradeViews().forEach((view) => {
       const button = app.querySelector<HTMLButtonElement>(`[data-action="${view.definition.action}"]`);
       const affordable = !view.complete && view.unlocked && state.energy >= view.price;
       // Fortschritts-Fill genau wie bei Reaktionen: gesperrt → unlockProgress,
@@ -487,13 +510,38 @@ export function updateUI(forcePanel = false): void {
   const currentDynamicPanelSignature = dynamicPanelSignature(activePanel);
   const dynamicPanelChanged = currentDynamicPanelSignature !== lastDynamicPanelSignature;
   if (forcePanel || stageChanged || upgradeOrderChanged || dynamicPanelChanged) { const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(activePanel); lastStage = state.stage; lastUpgradeOrderSignature = currentUpgradeOrder; lastDynamicPanelSignature = currentDynamicPanelSignature; }
-  syncFusionRing(); syncNotifications(); syncActivePanel(); syncOverlay(); syncCycleEndNotice(); syncTutorial(); syncToast();
+  syncFusionRing(); syncNotifications(visiblePanel()); syncActivePanel(); syncOverlay(); syncDock(); syncCycleEndNotice(); syncTutorial(); syncToast();
   if (import.meta.hot) syncDebug();
+}
+
+// Dock-Zustand: Im Dock markiert `.active` nicht den zuletzt gewählten
+// Bereich, sondern das gerade geöffnete Blatt — anders als bei den
+// Desktop-Reitern, wo immer genau ein Bereich sichtbar ist. Ist nichts
+// geöffnet, leuchtet die Sternkammer, denn genau die ist dann zu sehen.
+export function syncDock(): void {
+  const dock = app.querySelector<HTMLElement>('.mobile-dock');
+  if (!dock) return;
+  const popup = openPanelPopup();
+  const chronicle = isChronicleOpen();
+  const settings = isSettingsOpen();
+  dock.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
+    const panel = button.dataset.panel as Panel | undefined;
+    const action = button.dataset.action;
+    const active = panel ? popup === panel
+      : action === 'open-chronicle' ? chronicle
+        : action === 'open-settings' ? settings
+          : action === 'show-chamber' ? !popup && !chronicle && !settings
+            : false;
+    button.classList.toggle('active', active);
+    if (action !== 'show-chamber') button.setAttribute('aria-expanded', String(active));
+  });
 }
 
 export function switchPanel(panel: Panel, markSeen = true): void {
   setActivePanel(panel);
-  app.querySelectorAll<HTMLButtonElement>('[data-panel]').forEach((button) => { const active = button.dataset.panel === panel; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
+  // Die Dock-Buttons tragen dasselbe `data-panel`, folgen aber ihrem eigenen
+  // Zustand (siehe syncDock) und bleiben hier deshalb unangetastet.
+  app.querySelectorAll<HTMLButtonElement>('.side-tabs [data-panel]').forEach((button) => { const active = button.dataset.panel === panel; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
   const content = app.querySelector<HTMLElement>('[data-ui="deck-content"]'); if (content) content.innerHTML = panelMarkup(panel);
   // Der nächste UI-Tick darf das soeben gerenderte Panel nicht direkt erneut
   // ersetzen. Andernfalls zeigen die gespeicherten Signaturen noch auf den
@@ -502,5 +550,11 @@ export function switchPanel(panel: Panel, markSeen = true): void {
   rememberPanelStructure(panel);
   syncActivePanel();
   if (markSeen) markOpportunitiesSeen(panel, currentOpportunities());
-  syncNotifications();
+  syncNotifications(visiblePanel());
+  syncDock();
 }
+
+// Sichtbarer Bereich: auf dem Desktop immer der gewählte Reiter, auf kleinen
+// Bildschirmen nur ein tatsächlich geöffnetes Dock-Blatt (siehe
+// syncNotifications).
+const visiblePanel = (): Panel | null => isMobileLayout() ? openPanelPopup() : getActivePanel();

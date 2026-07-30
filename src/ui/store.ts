@@ -6,17 +6,20 @@ import type { GameState } from '../game/types';
 // Zyklus-Zusammenfassung), sondern eine reine Statusanzeige. Sie leben deshalb
 // im Effekte-Popover unten rechts in der Sternenkammer (siehe ui/sync.ts,
 // effectsCornerMarkup) statt in Dock und Reitern.
-export type Panel = 'reactions' | 'upgrades' | 'automation';
+// Fusionen sind kein eigener Kontrollbereich mehr: Ihre Kacheln stehen seit
+// der Zusammenlegung gemeinsam mit den übrigen Upgrades im Upgrades-Bereich
+// (siehe ui/views.ts, panelCards) — eine freischaltbare Fusion ist dort
+// schlicht ein Upgrade, das nichts kostet.
+export type Panel = 'upgrades' | 'automation';
 
 // Beschriftung der Kontrollbereiche an einer Stelle: Sie steht auf dem
 // Desktop-Reiter, im mobilen Dock und als Titel des Dock-Popups.
 export const PANEL_LABELS: Record<Panel, string> = {
-  reactions: 'Fusionen',
   upgrades: 'Upgrades',
   automation: 'Automationen',
 };
 
-export const PANEL_ORDER = ['reactions', 'upgrades', 'automation'] as const satisfies readonly Panel[];
+export const PANEL_ORDER = ['upgrades', 'automation'] as const satisfies readonly Panel[];
 
 // Auf kleinen Bildschirmen entfällt das Kontrollzentrum vollständig; seine
 // Bereiche erreicht man stattdessen über das Dock am unteren Rand, das sie in
@@ -37,7 +40,7 @@ if (!app) throw new Error('App root missing');
 
 export const loaded = loadGame();
 let state: GameState = loaded.state;
-let activePanel: Panel = 'reactions';
+let activePanel: Panel = 'upgrades';
 
 export const getState = (): GameState => state;
 export const setState = (next: GameState): void => { state = next; };

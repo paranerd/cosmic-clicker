@@ -14,6 +14,8 @@ import {
   reactionAvailable,
   reactionCapacity,
   reactionManualAmountAtLevel,
+  reactionUnlockable,
+  reactionUnlockProgress,
   reactionUpgradeCost,
   reduceGame,
   shellWindPerSecond,
@@ -35,6 +37,13 @@ const accreteUntil = (initial: GameState, targetMass: number, guardLimit = 20_00
   }
   return state;
 };
+
+// Fusionen schalten sich nicht mehr von selbst frei: Sobald Temperatur und
+// Mindestmasse erreicht sind, wartet die Kachel im Upgrades-Bereich auf die
+// kostenlose Freischaltung. Tests, die eine gezündete Reaktion brauchen,
+// führen diesen Klick hier explizit aus.
+const unlockReactions = (initial: GameState, ...reactions: ReactionId[]): GameState =>
+  reactions.reduce((state, reaction) => reduceGame(state, { type: 'UNLOCK_REACTION', reaction }), initial);
 
 const reactionState = (reaction: ReactionId, fuel = 1_000): GameState => {
   const state = createInitialState({ largerCloud: 2 }, 0, 3, { cloudTier: 2 });
@@ -233,10 +242,47 @@ describe('data-driven stellar engine v0.4', () => {
     expect(state.unlockedReactions).not.toContain('hydrogen');
   });
 
-  it('unlocks hydrogen from temperature and mass rather than cloud tier', () => {
+  it('makes hydrogen unlockable from temperature and mass rather than cloud tier, but waits for the free unlock', () => {
     const state = accreteUntil(createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 }), THRESHOLDS.hydrogenIgnitionMass);
-    expect(state.unlockedReactions).toContain('hydrogen');
     expect(state.temperature).toBeGreaterThanOrEqual(THRESHOLDS.hydrogenTemperature);
+    // Temperatur und Masse genügen — freigeschaltet wird trotzdem erst durch
+    // eine eigene (kostenlose) Handlung des Spielers.
+    expect(reactionUnlockable(state, 'hydrogen')).toBe(true);
+    expect(state.unlockedReactions).not.toContain('hydrogen');
+    expect(state.stage).not.toBe('hydrogen');
+    const ignited = reduceGame(state, { type: 'UNLOCK_REACTION', reaction: 'hydrogen' });
+    expect(ignited.unlockedReactions).toContain('hydrogen');
+    expect(ignited.stage).toBe('hydrogen');
+    expect(ignited.energy).toBe(state.energy);
+  });
+
+  it('ignores a reaction unlock whose ignition conditions are not met yet', () => {
+    const state = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
+    expect(reactionUnlockable(state, 'hydrogen')).toBe(false);
+    expect(reduceGame(state, { type: 'UNLOCK_REACTION', reaction: 'hydrogen' }).unlockedReactions).toEqual([]);
+  });
+
+  it('reports the least fulfilled ignition condition as the unlock progress of a fusion tile', () => {
+    const cold = createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 });
+    expect(reactionUnlockProgress(cold, 'hydrogen')).toBeLessThan(1);
+    // Die Kompressionswärme deckelt bei 10 Mio. K, kurz bevor die Zündmasse
+    // erreicht ist: Der Fortschritt folgt dann der fehlenden Masse.
+    const warm = accreteUntil(cold, THRESHOLDS.hydrogenIgnitionMass - 150);
+    expect(warm.temperature).toBe(THRESHOLDS.hydrogenTemperature);
+    expect(reactionUnlockProgress(warm, 'hydrogen')).toBeCloseTo(starMass(warm) / THRESHOLDS.hydrogenIgnitionMass, 5);
+    expect(reactionUnlockProgress(accreteUntil(warm, THRESHOLDS.hydrogenIgnitionMass), 'hydrogen')).toBe(1);
+  });
+
+  it('keeps an ignitable star out of the brown-dwarf ending while its unlock is still pending', () => {
+    // Eine leergeräumte Wolke beendet den Zyklus nur, solange die
+    // Wasserstofffusion unerreichbar bleibt — sonst wäre der ausstehende
+    // Freischaltklick eine Falle.
+    const state = accreteUntil(createInitialState({ largerCloud: 1 }, 0, 2, { cloudTier: 1 }), THRESHOLDS.hydrogenIgnitionMass);
+    state.cloud = { ...EMPTY_MATTER };
+    const waiting = tick(state, 1);
+    expect(reactionUnlockable(waiting, 'hydrogen')).toBe(true);
+    expect(waiting.completed).toBe(false);
+    expect(waiting.outcome).toBeNull();
   });
 
   it('keeps hydrogen burning available after the main-sequence milestone', () => {
@@ -339,7 +385,13 @@ describe('data-driven stellar engine v0.4', () => {
     state.cloud = { ...EMPTY_MATTER };
     const giant = tick(state, 1);
     expect(['redGiant', 'helium']).toContain(giant.stage);
-    const ignited = tick(giant, 100);
+    const contracted = tick(giant, 100);
+    expect(contracted.temperature).toBeGreaterThanOrEqual(THRESHOLDS.heliumTemperature);
+    // Heliumbrennen und Alpha-Einfang werden gleichzeitig zündbar und werden
+    // beide einzeln freigeschaltet.
+    expect(reactionUnlockable(contracted, 'helium')).toBe(true);
+    expect(reactionUnlockable(contracted, 'alphaCapture')).toBe(true);
+    const ignited = unlockReactions(contracted, 'helium', 'alphaCapture');
     expect(ignited.unlockedReactions).toContain('helium');
     expect(ignited.unlockedReactions).toContain('alphaCapture');
     expect(ignited.temperature).toBeGreaterThanOrEqual(THRESHOLDS.heliumTemperature);
@@ -358,7 +410,8 @@ describe('data-driven stellar engine v0.4', () => {
     state.unlockedReactions.push('alphaCapture');
     state.star = { ...EMPTY_MATTER, carbon: 1_250_000 };
     state.temperature = THRESHOLDS.heliumTemperature;
-    const result = tick(state, 100);
+    const contracted = tick(state, 100);
+    const result = unlockReactions(contracted, 'carbon');
     expect(result.unlockedReactions).toContain('carbon');
     expect(result.temperature).toBeGreaterThanOrEqual(THRESHOLDS.carbonTemperature);
   });
@@ -559,8 +612,8 @@ describe('data-driven stellar engine v0.4', () => {
     expect(objective.id).toBe('ignite-hydrogen');
     expect(objective.progress).toBeLessThan(100);
     expect(objective.detail).toContain('ME Sternmasse');
-    const ignited = accreteUntil(state, THRESHOLDS.hydrogenIgnitionMass + 200);
-    expect(ignited.unlockedReactions).toContain('hydrogen');
+    const ignitable = accreteUntil(state, THRESHOLDS.hydrogenIgnitionMass + 200);
+    expect(unlockReactions(ignitable, 'hydrogen').unlockedReactions).toContain('hydrogen');
   });
 
   it('archives the calibrated outcome and persistent settings during prestige', () => {
