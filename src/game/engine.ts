@@ -7,11 +7,11 @@ import {
   cloudMatterForLevel,
   cloudMatureAccretionMultiplier,
   cloudSolarMasses,
+  CORE_COLLAPSE,
   EMPTY_MATTER,
   INITIAL_TEMPERATURE,
   levelValue,
   LIMITS,
-  MAIN_SEQUENCE_BURN,
   MATTER_KEYS,
   OBJECTIVE_EYEBROWS,
   OBJECTIVE_TEMPLATES,
@@ -22,7 +22,9 @@ import {
   REACTIONS,
   REACTION_ORDER,
   STAGES,
+  stardustReward,
   STELLAR_WIND,
+  STRUCTURAL_BURN_REFERENCE_MASS,
   TEMPERATURE_MODEL,
   THRESHOLDS,
   UPGRADES,
@@ -82,6 +84,11 @@ export const gravityMultiplier = (state: GameState): number =>
   upgradeValueAtLevel(state, 'gravity', state.upgrades.gravity);
 export const stellarFusionMultiplier = (state: GameState): number =>
   prestigePerkValue('fusionMemory', state.perks.fusionMemory);
+// Wirkt ausschließlich auf automatische Fusion. Manuelles Klicken bleibt
+// davon unberührt, damit die Konvektionszone den Abstand zwischen Automation
+// und Dauerklicken tatsächlich schließt, statt ihn mitzuskalieren.
+export const convectionMultiplier = (state: GameState): number =>
+  upgradeValueAtLevel(state, 'convection', state.upgrades.convection);
 
 const matureAccretionMultiplier = (state: GameState): number =>
   state.unlockedReactions.includes('hydrogen') ? cloudMatureAccretionMultiplier(cloudSolarMasses(state.cloudTier)) : 1;
@@ -93,7 +100,7 @@ export const automationValueAtLevel = (kind: AutomationKind, level: number): num
   levelValue(level, AUTOMATIONS[kind].value);
 export const reactionAutomationPerSecond = (state: GameState, reaction: ReactionId): number => {
   const kind = REACTIONS[reaction].automation;
-  return automationValueAtLevel(kind, state.automation[kind]) * stellarFusionMultiplier(state);
+  return automationValueAtLevel(kind, state.automation[kind]) * stellarFusionMultiplier(state) * convectionMultiplier(state);
 };
 
 // Punkt 2: manuelle Fusionsmenge einer Reaktion inklusive Reaktionsausbau
@@ -151,11 +158,24 @@ export const activeWarnings = (state: GameState): ActiveWarning[] => {
   return warnings;
 };
 
-export const structuralHydrogenBurnPerSecond = (state: GameState): number => {
-  if (state.completed || state.stage !== 'mainSequence') return 0;
-  const massRatio = starMass(state) / MAIN_SEQUENCE_BURN.referenceMass;
-  return MAIN_SEQUENCE_BURN.ratePerSecond * massRatio ** MAIN_SEQUENCE_BURN.massExponent;
+// Struktureller Grundumsatz einer Brennphase: läuft unabhängig von gekauften
+// Automationen und zusätzlich zu manueller Fusion, sobald der Stern in einem
+// der bei der Reaktion hinterlegten Stadien steht. Die Rate skaliert
+// überproportional mit der Sternmasse, sodass ein massereicher Stern seinen
+// Vorrat auch ohne Zutun durchbrennt, ein sonnenähnlicher aber weiterhin von
+// der Hand des Spielers lebt.
+export const structuralBurnPerSecond = (state: GameState, reaction: ReactionId): number => {
+  const burn = REACTIONS[reaction].structuralBurn;
+  if (state.completed || !burn || !burn.stages.includes(state.stage)) return 0;
+  const massRatio = starMass(state) / STRUCTURAL_BURN_REFERENCE_MASS;
+  return burn.ratePerSecond * massRatio ** burn.massExponent;
 };
+
+// Gesamter automatischer Durchsatz einer Reaktion (gekaufte Automation plus
+// struktureller Grundumsatz). Die Oberfläche zeigt damit die Rate, die der
+// Stern tatsächlich ohne Klicks umsetzt.
+export const reactionThroughputPerSecond = (state: GameState, reaction: ReactionId): number =>
+  reactionAutomationPerSecond(state, reaction) + structuralBurnPerSecond(state, reaction);
 
 export const automationCost = (kind: AutomationKind, level: number): number => {
   const definition = AUTOMATIONS[kind];
@@ -232,7 +252,7 @@ const setStage = (state: GameState, stage: Stage, message?: string): void => {
 
 export const createRunStatistics = (): RunStatistics => ({
   manualClicks: 0, deuteriumBurns: 0, manualFusionActions: 0, manualHeliumActions: 0,
-  matterAccreted: 0, automaticMatterAccreted: 0, matterLostToWind: 0, matterLostToShellWind: 0,
+  matterAccreted: 0, automaticMatterAccreted: 0, matterLostToWind: 0, matterLostToShellWind: 0, envelopeEjected: 0,
   hydrogenFused: 0, automaticHydrogenFused: 0, heliumFused: 0, automaticHeliumFused: 0,
   oxygenCreated: 0, automaticOxygenCreated: 0, energyGenerated: 0, peakTemperature: INITIAL_TEMPERATURE,
   upgradesPurchased: 0, automationsPurchased: 0, offlineSeconds: 0, stardustEarned: 0,
@@ -316,7 +336,12 @@ const runReaction = (state: GameState, reaction: ReactionId, requested: number, 
   state.reactionTotals[reaction] += amount;
   if (automatic) state.automaticReactionTotals[reaction] += amount;
   state.stats.energyGenerated += energy;
-  if (!automatic) state.stats.manualFusionActions += 1;
+  if (!automatic) {
+    state.stats.manualFusionActions += 1;
+    // Eine einzige selbst ausgelöste Fusion schaltet ihre Automation frei —
+    // in diesem und, weil die Liste den Zyklus überdauert, in jedem weiteren.
+    if (!state.experiencedReactions.includes(reaction)) state.experiencedReactions.push(reaction);
+  }
 
   // Datengetriebener Stadienwechsel: z. B. stabilisiert sich der Stern nach
   // genug fusioniertem Wasserstoff auf der Hauptreihe (siehe reactions.ts).
@@ -352,7 +377,20 @@ const addDiscovery = (state: GameState, outcome: StellarOutcome): void => {
 
 const completeRun = (state: GameState, outcome: Exclude<StellarOutcome, 'legacyMainSequence'>): void => {
   if (state.completed) return;
-  const award = OUTCOMES[outcome].stardust;
+  // Der Ertrag folgt der tatsächlich erreichten Endmasse, nicht mehr allein
+  // der Kategorie des Endzustands (siehe stardustReward in content/prestige).
+  //
+  // Bezugsgröße ist dabei — genau wie bei der Wahl des Sternrests — die Masse
+  // VOR einer Abstoßung im Kernkollaps. Sonst würde jeder Klick während der
+  // Supernova den Massen-Multiplikator senken und Anwesenheit zur Strafe
+  // machen. Der r-Prozess-Bonus aus abgestoßener Hülle kommt obendrauf; er
+  // kann nur in einem Kernkollaps überhaupt entstehen.
+  const ejectedSolarMasses = state.stats.envelopeEjected / THRESHOLDS.matterPerSolarMass;
+  const base = stardustReward(outcome, solarMasses(state) + ejectedSolarMasses);
+  const ejectedShare = massBeforeCollapse(state) > 0
+    ? state.stats.envelopeEjected / (massBeforeCollapse(state) * CORE_COLLAPSE.maximumEjectedFraction)
+    : 0;
+  const award = base + Math.round(base * Math.min(1, ejectedShare) * CORE_COLLAPSE.stardustBonusAtFullEjection);
   state.completed = true;
   state.outcome = outcome;
   state.stage = END_STAGES[outcome];
@@ -374,10 +412,33 @@ const completeRun = (state: GameState, outcome: Exclude<StellarOutcome, 'legacyM
 // der Stern in seinem aktuellen Stadium stehen; Stadienwechsel,
 // Temperaturuntergrenze und die Kontraktion zur nächsten Brennstufe hängen
 // alle an `unlockedReactions` und rühren sich deshalb erst danach.
+// Eine Fusion darf erst zünden, wenn der Stern seine aktuelle Brennphase
+// wirklich beendet hat.
+//
+// Ohne diese Bedingung genügten Temperatur und Mindestmasse allein — und die
+// Fusionswärme der laufenden Phase überschreitet bei großen Sternen die
+// nächste Zündtemperatur sofort. Ein Stern mit 4.588 M☉ sprang dadurch nach
+// 0,6 Sekunden Hauptreihe direkt ins Heliumbrennen und beendete die Runde mit
+// 27 % seiner Masse als nie verbranntem Wasserstoff. Die Zielanzeige
+// beschrieb den richtigen Ablauf ohnehin schon („Kernkontraktion“, sobald der
+// Brennstoff erschöpft ist); die Zündbedingung folgt ihr jetzt.
+const ignitionSequenceReady = (state: GameState, reaction: ReactionId): boolean => {
+  // Wasserstoff steht am Anfang der Kette — vor ihm liegt keine Brennphase.
+  if (reaction === 'hydrogen') return true;
+  // Alpha-Einfang ist ein Nebenkanal der Heliumphase, keine eigene Stufe der
+  // Kette: Er teilt sich Zündtemperatur und Mindestmasse mit der
+  // Heliumfusion und wird verfügbar, sobald diese gezündet hat.
+  if (reaction === 'alphaCapture') return state.unlockedReactions.includes('helium');
+  const decision = contractionDecision(state);
+  return decision?.kind === 'ignite' && decision.next === reaction;
+};
+
 export const reactionUnlockable = (state: GameState, reaction: ReactionId): boolean => {
   if (state.completed || state.unlockedReactions.includes(reaction)) return false;
   const definition = REACTIONS[reaction];
-  return state.temperature >= definition.ignitionTemperature && starMass(state) >= definition.minimumMass;
+  return state.temperature >= definition.ignitionTemperature
+    && starMass(state) >= definition.minimumMass
+    && ignitionSequenceReady(state, reaction);
 };
 
 // Fortschritt Richtung Freischaltung (0..1) für den Fill des Eck-Buttons:
@@ -396,8 +457,26 @@ const unlockReaction = (state: GameState, reaction: ReactionId): void => {
   if (!reactionUnlockable(state, reaction)) return;
   const definition = REACTIONS[reaction];
   state.unlockedReactions.push(reaction);
+  // Zyklusübergreifend merken: Ab dem nächsten Durchlauf zündet diese
+  // Reaktion von selbst (siehe autoIgniteKnownReactions).
+  if (!state.ignitedReactions.includes(reaction)) state.ignitedReactions.push(reaction);
   if (reaction !== 'alphaCapture') setStage(state, definition.stageOnUnlock, `${definition.fullTitle} bei ${definition.ignitionTemperature.toLocaleString('de-DE')} K freigeschaltet.`);
   else log(state, `${definition.fullTitle} freigeschaltet.`, 'fusion');
+};
+
+// Eine bereits einmal entdeckte Fusion wartet in späteren Zyklen nicht mehr
+// auf den Freischaltklick, sondern zündet selbst, sobald Temperatur und
+// Mindestmasse erreicht sind.
+//
+// Die bewusste, kostenlose Freischaltung bleibt damit genau dort erhalten, wo
+// sie etwas erzählt — beim ersten Mal. Ohne diese Ausnahme wäre jede Runde
+// zwingend an einen anwesenden Spieler gebunden: Ein Stern, der still auf
+// einen Klick wartet, macht Offline-Fortschritt unmöglich, egal wie gut alles
+// andere automatisiert ist.
+const autoIgniteKnownReactions = (state: GameState): void => {
+  REACTION_ORDER.forEach((reaction) => {
+    if (state.ignitedReactions.includes(reaction) && reactionUnlockable(state, reaction)) unlockReaction(state, reaction);
+  });
 };
 
 const updateFormationStage = (state: GameState): void => {
@@ -410,17 +489,35 @@ const updateFormationStage = (state: GameState): void => {
   }
 };
 
-const nextHeavyFuel = (state: GameState): ReactionId | null => {
-  if (state.star.carbon > 0) return 'carbon';
-  if (state.star.neon > 0) return 'neon';
-  if (state.star.oxygen > 0) return 'oxygen';
-  if (state.star.silicon > 0) return 'silicon';
-  return null;
-};
+// Nächster schwerer Brennstoff, der noch in nennenswerter Menge vorliegt.
+// Muss dieselbe Schwelle wie fuelDepleted() verwenden: Mit einem Test auf
+// `> 0` meldete diese Funktion einen Brennstoff als vorhanden, den
+// fuelDepleted() zugleich als erschöpft führte. Der Stern kontrahierte dann
+// endlos in Richtung einer Reaktion, die längst gezündet war und deren
+// Zündtemperatur er bereits überschritten hatte.
+const nextHeavyFuel = (state: GameState): ReactionId | null =>
+  (['carbon', 'neon', 'oxygen', 'silicon'] as const).find((key) => !fuelDepleted(state, key)) ?? null;
 
-// A fuel only counts as exhausted once neither the core nor the residual
-// cloud can still supply it; otherwise accretion could flip the stage back.
-const fuelDepleted = (state: GameState, key: keyof Matter): boolean => state.star[key] + state.cloud[key] <= 0;
+// Ein Brennstoff gilt als erschöpft, wenn weder Kern noch Restwolke ihn noch
+// in nennenswerter Menge liefern können.
+//
+// Der Vergleich ist bewusst relativ zur Sternmasse statt auf exakt null. Ein
+// Test auf `<= 0` versagt in beide Richtungen:
+//
+// - Zu spät: Die Automationen der früheren Brennstufen laufen weiter und
+//   liefern den vermeintlich erschöpften Brennstoff laufend nach. Ein Stern
+//   mit 6,8 × 10⁸ ME Masse blieb so dauerhaft im Kontraktionsstadium stehen,
+//   weil die Kette H → He → C den Kohlenstoff bei rund 400 ME hielt — die
+//   Bedingung wurde nie wieder wahr, und die nächste Zündung kam nie.
+// - Zu früh: Ein einzelner Tick, in dem der Vorrat rechnerisch kurz null
+//   berührt, schaltet das Stadium unwiderruflich weiter. Danach füllt die
+//   Akkretion den Kern wieder auf, und der Stern zündet eine Stufe, deren
+//   eigentlichen Brennstoff er noch gar nicht verbraucht hat.
+//
+// Beide Fälle verschwinden mit einer Schwelle, die mit dem Stern mitwächst.
+const DEPLETION_FRACTION = 1e-3;
+const fuelDepleted = (state: GameState, key: keyof Matter): boolean =>
+  state.star[key] + state.cloud[key] <= Math.max(1, starMass(state) * DEPLETION_FRACTION);
 
 type ContractionDecision = { kind: 'ignite'; next: ReactionId } | { kind: 'settle' } | null;
 
@@ -448,11 +545,19 @@ const evaluateEvolution = (state: GameState): void => {
     completeRun(state, 'brownDwarf');
     return;
   }
-  if (state.unlockedReactions.includes('silicon') && state.star.silicon <= 0 && state.star.iron > 0) {
+  // Der Eisenkern beendet die Runde nicht mehr unmittelbar, sondern führt in
+  // den Kernkollaps. Das Stadium `supernova` war zwar seit jeher definiert,
+  // wurde aber nie betreten — der dramatischste Moment des Spiels existierte
+  // nur als nachträglicher Eintrag in der Chronik. Jetzt ist er eine eigene,
+  // kurze Phase, in der die Restmasse und damit der Sternrest noch beeinflusst
+  // werden kann (siehe applyCoreCollapse).
+  if (state.stage !== 'supernova' && state.unlockedReactions.includes('silicon') && fuelDepleted(state, 'silicon') && state.star.iron > 0) {
     setStage(state, 'ironCore', 'Ein Eisenkern ist entstanden. Weitere Fusion liefert keine Energie mehr.');
-    completeRun(state, starMass(state) >= THRESHOLDS.blackHoleMass ? 'blackHole' : 'neutronStar');
+    setStage(state, 'supernova', 'Der Kern kollabiert. Klicks auf den Stern stoßen jetzt Hülle ab und senken die Restmasse.');
+    state.collapseElapsed = 0;
     return;
   }
+  if (state.stage === 'supernova') return;
   const decision = contractionDecision(state);
   if (!decision) return;
   if (decision.kind === 'settle') {
@@ -471,6 +576,45 @@ const evaluateEvolution = (state: GameState): void => {
   else completeRun(state, 'oxygenNeonWhiteDwarf');
 };
 
+// Masse des Sterns beim Eintritt in den Kernkollaps. Sie entscheidet über den
+// Sternrest und ist damit unabhängig davon, wie viel Hülle der Spieler
+// während der Phase noch abstößt.
+const massBeforeCollapse = (state: GameState): number => starMass(state) + state.stats.envelopeEjected;
+
+const maximumEjectableMass = (state: GameState): number =>
+  massBeforeCollapse(state) * CORE_COLLAPSE.maximumEjectedFraction;
+
+export const collapseProgress = (state: GameState): number =>
+  Math.min(1, state.collapseElapsed / CORE_COLLAPSE.seconds);
+
+export const collapseEjectionPerClick = (state: GameState): number =>
+  Math.max(0, Math.min(
+    massBeforeCollapse(state) * CORE_COLLAPSE.ejectionPerClick,
+    maximumEjectableMass(state) - state.stats.envelopeEjected,
+  ));
+
+// Stößt Materie proportional aus dem gesamten Stern ab — anders als der
+// Hüllenwind, der bewusst nur H und He abträgt: Beim Kernkollaps fliegt alles
+// außerhalb des kollabierenden Kerns davon, und H/He sind zu diesem Zeitpunkt
+// ohnehin längst verbrannt.
+const ejectStarMatter = (state: GameState, requested: number): number => {
+  const available = starMass(state);
+  const amount = Math.min(requested, available);
+  if (amount <= 0) return 0;
+  const ratio = amount / available;
+  MATTER_KEYS.forEach((key) => { state.star[key] -= state.star[key] * ratio; });
+  state.radiatedMass += amount;
+  state.stats.envelopeEjected += amount;
+  return amount;
+};
+
+const applyCoreCollapse = (state: GameState, seconds: number): void => {
+  if (state.completed || state.stage !== 'supernova') return;
+  state.collapseElapsed += seconds;
+  if (state.collapseElapsed < CORE_COLLAPSE.seconds) return;
+  completeRun(state, massBeforeCollapse(state) >= THRESHOLDS.blackHoleMass ? 'blackHole' : 'neutronStar');
+};
+
 const applyContraction = (state: GameState, seconds: number): void => {
   const decision = contractionDecision(state);
   if (decision?.kind !== 'ignite') return;
@@ -487,6 +631,8 @@ interface PersistentRunOptions {
   soundEnabled?: boolean; volume?: number; tutorial?: TutorialState; history?: RoundRecord[];
   cloudTier?: CloudTier; nextCloudTier?: CloudTier; discoveredOutcomes?: StellarOutcome[];
   log?: LogEntry[]; totalElapsed?: number;
+  // Beide Reaktionsgedächtnisse überdauern den Zyklus (siehe game/types.ts).
+  ignitedReactions?: ReactionId[]; experiencedReactions?: ReactionId[];
 }
 
 export const createInitialState = (
@@ -503,11 +649,14 @@ export const createInitialState = (
   const totalElapsed = Math.max(0, persistent.totalElapsed ?? 0);
   const now = Date.now();
   return {
-    version: 7, run, startedAt: now, lastTick: now, elapsed: 0, totalElapsed, stage: 'nebula', cloudTier,
+    version: 8, run, startedAt: now, lastTick: now, elapsed: 0, totalElapsed, stage: 'nebula', cloudTier,
     nextCloudTier: clampCloudTier(Math.min(persistent.nextCloudTier ?? cloudTier, unlockedTier)),
     cloud: cloudMatterForLevel(cloudTier), star: { ...EMPTY_MATTER }, radiatedMass: 0,
-    energy: 0, temperature: INITIAL_TEMPERATURE, heatBonus: 0, contractionHeat: 0,
-    deuteriumIgnitionCompression: null, unlockedReactions: [], reactionTotals: emptyReactionTotals(),
+    energy: 0, temperature: INITIAL_TEMPERATURE, heatBonus: 0, contractionHeat: 0, collapseElapsed: 0,
+    deuteriumIgnitionCompression: null, unlockedReactions: [],
+    ignitedReactions: [...(persistent.ignitedReactions ?? [])],
+    experiencedReactions: [...(persistent.experiencedReactions ?? [])],
+    reactionTotals: emptyReactionTotals(),
     automaticReactionTotals: emptyReactionTotals(), reactionUpgrades: emptyReactionTotals(), activeReaction: null,
     fusedHydrogen: 0, fusedHelium: 0,
     manualFusions: 0, manualHeliumFusions: 0,
@@ -547,18 +696,24 @@ export const tick = (state: GameState, seconds: number): GameState => {
   AUTOMATION_ORDER.forEach((kind) => {
     const definition = AUTOMATIONS[kind];
     if (!definition.reaction || next.automation[kind] <= 0) return;
-    runReaction(next, definition.reaction, automationValueAtLevel(kind, next.automation[kind]) * stellarFusionMultiplier(next) * dt, true);
+    runReaction(next, definition.reaction, reactionAutomationPerSecond(next, definition.reaction) * dt, true);
   });
-  const structuralBurn = structuralHydrogenBurnPerSecond(next) * dt;
-  if (structuralBurn > 0) runReaction(next, 'hydrogen', structuralBurn, true);
+  // Struktureller Grundumsatz jeder Brennphase, nicht mehr nur der Hauptreihe.
+  REACTION_ORDER.forEach((reaction) => {
+    const amount = structuralBurnPerSecond(next, reaction) * dt;
+    if (amount > 0) runReaction(next, reaction, amount, true);
+  });
   next.heatBonus = Math.max(0, next.heatBonus - dt * TEMPERATURE_MODEL.heatLossPerSecond);
   evaluateEvolution(next);
   applyContraction(next, dt);
+  // Bereits bekannte Fusionen zünden ohne Freischaltklick. Erst danach erneut
+  // auswerten, damit die Kontraktion zur nächsten Stufe im selben Tick greift
+  // und eine unbeaufsichtigte Runde nicht zwischen zwei Stadien hängen bleibt.
+  autoIgniteKnownReactions(next);
+  applyCoreCollapse(next, dt);
   evaluateEvolution(next);
   return next;
 };
-
-const reactionMastery = (state: GameState, reaction: ReactionId): number => primaryOutputAmount(reaction, state.reactionTotals[reaction]);
 
 // Punkt 1: Ist die in der Definition hinterlegte Nachschubquelle einer
 // Automation erschöpft (z. B. keine Restmaterie mehr in der Urwolke), kann
@@ -568,18 +723,26 @@ export const automationSupplyExhausted = (state: GameState, kind: AutomationKind
   return supply?.kind === 'cloudMatter' ? cloudMass(state) <= .001 : false;
 };
 
+// Fortschritt einer Automation Richtung Freischaltung, gemeinsam genutzt von
+// Engine und Oberfläche. `manualExperience` kennt nur zwei Zustände: Die
+// zugehörige Reaktion wurde schon einmal selbst ausgelöst — oder eben nicht.
+export const automationMasteryProgress = (state: GameState, kind: AutomationKind): number => {
+  const { mastery } = AUTOMATIONS[kind];
+  if (mastery.kind === 'starMass') return Math.min(1, starMass(state) / mastery.threshold);
+  return state.experiencedReactions.includes(mastery.reaction) ? 1 : 0;
+};
+
+export const automationUnlocked = (state: GameState, kind: AutomationKind): boolean =>
+  automationMasteryProgress(state, kind) >= 1 && !automationSupplyExhausted(state, kind);
+
 export const canBuyAutomation = (state: GameState, kind: AutomationKind): boolean => {
   const definition = AUTOMATIONS[kind];
   const visible = !definition.reaction || state.unlockedReactions.includes(definition.reaction);
-  const mastery = definition.mastery.kind === 'starMass'
-    ? starMass(state)
-    : reactionMastery(state, definition.mastery.reaction);
   return !state.completed
     && visible
-    && mastery >= definition.mastery.threshold
+    && automationUnlocked(state, kind)
     && state.energy >= automationCost(kind, state.automation[kind])
-    && state.automation[kind] < definition.maxLevel
-    && !automationSupplyExhausted(state, kind);
+    && state.automation[kind] < definition.maxLevel;
 };
 
 // Kleines Register benannter Kaufwirkungen (Punkt 6): Upgrades referenzieren
@@ -643,6 +806,11 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
       soundEnabled: state.soundEnabled, volume: state.volume, tutorial: state.tutorial,
       history: [record, ...state.history], cloudTier: state.nextCloudTier, nextCloudTier: state.nextCloudTier,
       discoveredOutcomes: state.discoveredOutcomes, log: state.log, totalElapsed: state.totalElapsed,
+      // Was in diesem Zyklus gezündet war, gilt als entdeckt — unabhängig
+      // davon, auf welchem Weg es in `unlockedReactions` gelandet ist (eigener
+      // Klick, Autozündung oder Migration eines älteren Spielstands).
+      ignitedReactions: [...new Set([...state.ignitedReactions, ...state.unlockedReactions])],
+      experiencedReactions: state.experiencedReactions,
     });
   }
   const next = structuredClone(state);
@@ -688,6 +856,11 @@ export const reduceGame = (state: GameState, action: GameAction): GameState => {
   if (action.type === 'ACCRETE') {
     const moved = transferMatter(next, accretionPerClick(next));
     next.stats.manualClicks += 1; next.stats.matterAccreted += moved; next.stats.energyGenerated += moved * ACCRETION.energyPerMatter;
+  } else if (action.type === 'EJECT_ENVELOPE') {
+    if (next.stage === 'supernova') {
+      ejectStarMatter(next, collapseEjectionPerClick(next));
+      next.stats.manualClicks += 1;
+    }
   } else if (action.type === 'BUY_UPGRADE') {
     buyUpgrade(next, action.upgrade);
   } else if (action.type === 'RUN_REACTION') {

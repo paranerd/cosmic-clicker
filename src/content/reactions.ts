@@ -70,6 +70,40 @@ export interface ReactionDefinition {
   // steht, wechselt er in `stage`. Aktuell nur bei Wasserstoff gesetzt
   // (Stabilisierung auf der Hauptreihe nach 15.000 fusionierten H-ME).
   stabilizesInto?: { fusedAmount: number; stage: Stage; message: string };
+  // Struktureller Grundumsatz dieser Brennphase, unabhängig von gekauften
+  // Automationen und zusätzlich zu manueller Fusion. Vormals ausschließlich
+  // für Wasserstoff als globales MAIN_SEQUENCE_BURN verdrahtet — der Grund,
+  // weshalb allein die Wasserstoffphase mit wachsender Wolke kürzer statt
+  // länger wurde, während sich jede andere Phase pro Wolkenstufe verdoppelte.
+  //
+  // Die Rate skaliert mit der Sternmasse. Der Exponent steuert dabei direkt
+  // die Rundenkurve, denn der Vorrat einer Phase wächst selbst linear mit der
+  // Masse: Die Phasendauer verhält sich wie `Masse^(1 − massExponent)`.
+  //
+  // - Exponent 1 hält jede Phase über alle Wolkengrößen hinweg gleich lang.
+  //   Das ist der Normalfall für die Phasen ab Helium.
+  // - Ein Exponent über 1 lässt die Phase mit wachsender Masse kürzer werden.
+  //   Das bleibt der Hauptreihe vorbehalten, deren komprimierte Lebensdauer
+  //   eine bewusste, dokumentierte Designentscheidung ist.
+  //
+  // Ein einheitlicher Exponent von 1,45 wäre physikalisch näher dran, hat aber
+  // eine unbrauchbare Kurve erzeugt: Die Rundendauer fiel jenseits von
+  // Wolkenstufe 10 wieder ab (Stufe 16 war mit 3 Minuten kürzer als Stufe 9
+  // mit 13), und der Ertrag pro Stunde explodierte entsprechend.
+  //
+  // Die Basisrate ist so gewählt, dass sie bei sonnenähnlichen Sternen neben
+  // Automation und Klicks kaum ins Gewicht fällt — dort gehört die Phase dem
+  // aktiven Spieler — und ab der massereichen Kette die Runde trägt, auch
+  // ohne dass jemand zusieht.
+  structuralBurn?: {
+    // Umgesetzte Primäreingabe pro Sekunde bei `referenceMass` (= 1 M☉).
+    ratePerSecond: number;
+    massExponent: number;
+    // Stadien, in denen der Grundumsatz läuft. Bewusst explizit statt aus
+    // `stageOnUnlock` abgeleitet: Der Wasserstoff brennt strukturell erst ab
+    // der Hauptreihe, nicht schon in der frühen Zündphase.
+    stages: readonly Stage[];
+  };
 }
 
 export const HYDROGEN_TO_HELIUM_RATIO = .993;
@@ -98,6 +132,7 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
       stage: 'mainSequence',
       message: 'Hydrostatisches Gleichgewicht: Der Stern erreicht die Hauptreihe. Wasserstofffusion bleibt aktiv.',
     },
+    structuralBurn: { ratePerSecond: 300, massExponent: 1.46, stages: ['mainSequence'] },
   },
   helium: {
     id: 'helium', title: 'Kohlenstoff', fullTitle: 'Fusion zu Kohlenstoff', kicker: 'Triple-Alpha',
@@ -111,6 +146,12 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     stageOnUnlock: 'helium', energyBasis: 'input', energyPerUnit: .52, heatPerUnit: 1.2, automation: 'heliumFusion',
     ignitionAchievementTitle: 'Heliumkern gezündet', completionAchievementTitle: 'Heliumfusion abgeschlossen',
     burnObjective: { title: 'Kohlenstoffkern aufbauen', detail: 'Fusioniere Helium zu Kohlenstoff — der Grundstock für Alpha-Einfang und eine mögliche Kohlenstoffzündung.' },
+    // Durch Helium fließt praktisch die gesamte Wolkenmasse (25 % primordial
+    // plus fast der komplette fusionierte Wasserstoff). Ohne Grundumsatz war
+    // diese Phase in jeder Runde ab 0,56 M☉ die längste und verdoppelte sich
+    // pro Wolkenstufe. Die niedrige Basisrate hält sie bei sonnenähnlichen
+    // Sternen trotzdem klar in der Hand des Spielers.
+    structuralBurn: { ratePerSecond: 160, massExponent: 1, stages: ['helium'] },
   },
   alphaCapture: {
     id: 'alphaCapture', title: 'Sauerstoff', fullTitle: 'Fusion zu Sauerstoff', kicker: 'Alpha-Einfang',
@@ -140,6 +181,10 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     stageOnUnlock: 'carbonBurning', energyBasis: 'input', energyPerUnit: .82, heatPerUnit: .65, automation: 'carbonFusion',
     ignitionAchievementTitle: 'Kohlenstofffusion freigeschaltet', completionAchievementTitle: 'Kohlenstofffusion abgeschlossen',
     burnObjective: { title: 'Neonkern aufbauen', detail: 'Fusioniere Kohlenstoff zu Neon und bereite damit die nächste Brennstufe des massereichen Sterns vor.' },
+    // Die schwere Kette zündet erst ab 8 M☉. Ein kräftiger Grundumsatz ist
+    // dort für das frühe Spiel folgenlos und verhindert, dass vier weitere
+    // Brennstufen die Runde nacheinander um je eine halbe Stunde verlängern.
+    structuralBurn: { ratePerSecond: 260, massExponent: 1, stages: ['carbonBurning'] },
   },
   neon: {
     id: 'neon', title: 'Sauerstoff II', fullTitle: 'Fusion zu Sauerstoff II', kicker: 'Schweres Kernbrennen',
@@ -153,6 +198,7 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     stageOnUnlock: 'neonBurning', energyBasis: 'input', energyPerUnit: .94, heatPerUnit: .55, automation: 'neonFusion',
     ignitionAchievementTitle: 'Neonfusion freigeschaltet', completionAchievementTitle: 'Neonfusion abgeschlossen',
     burnObjective: { title: 'Sauerstoffkern aufbauen', detail: 'Baue Neon zu Sauerstoff um — der Brennstoff der folgenden Sauerstofffusion.' },
+    structuralBurn: { ratePerSecond: 260, massExponent: 1, stages: ['neonBurning'] },
   },
   oxygen: {
     id: 'oxygen', title: 'Silizium', fullTitle: 'Fusion zu Silizium', kicker: 'Schweres Kernbrennen',
@@ -166,6 +212,7 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     stageOnUnlock: 'oxygenBurning', energyBasis: 'input', energyPerUnit: 1.08, heatPerUnit: .45, automation: 'oxygenFusion',
     ignitionAchievementTitle: 'Sauerstofffusion freigeschaltet', completionAchievementTitle: 'Sauerstofffusion abgeschlossen',
     burnObjective: { title: 'Siliziumkern aufbauen', detail: 'Fusioniere Sauerstoff zu Silizium, dem letzten exothermen Brennstoff des Sterns.' },
+    structuralBurn: { ratePerSecond: 260, massExponent: 1, stages: ['oxygenBurning'] },
   },
   silicon: {
     id: 'silicon', title: 'Eisen', fullTitle: 'Fusion zur Eisengruppe', kicker: 'Letzte exotherme Brennstufe',
@@ -179,6 +226,7 @@ export const REACTIONS: Record<ReactionId, ReactionDefinition> = {
     stageOnUnlock: 'siliconBurning', energyBasis: 'input', energyPerUnit: 1.2, heatPerUnit: .3, automation: 'siliconFusion',
     ignitionAchievementTitle: 'Siliziumfusion freigeschaltet', completionAchievementTitle: 'Siliziumfusion abgeschlossen',
     burnObjective: { title: 'Eisenkern aufbauen', detail: 'Silizium wird zur Eisengruppe umgebaut. Ein vollständiger Eisenkern liefert keine Energie mehr und löst den Kollaps aus.' },
+    structuralBurn: { ratePerSecond: 260, massExponent: 1, stages: ['siliconBurning'] },
   },
 };
 

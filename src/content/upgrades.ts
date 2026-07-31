@@ -147,9 +147,68 @@ export const UPGRADES = {
       statCounter: 'deuteriumBurns',
     },
   },
+  // Offener Energie-Sink und Gegengewicht zum manuellen Klicken.
+  //
+  // Zwei zusammenhängende Probleme werden hier behoben. Erstens hatte die
+  // Runde ab etwa 2,7 M☉ Wolkenmasse keinen Verwendungszweck mehr für Energie:
+  // Alle Upgrades, Automationen und Reaktionsausbauten waren nach wenigen
+  // Minuten am Maximum, während weiter Millionen MeV anfielen. Zweitens war
+  // Dauerklicken dem vollen Automationsausbau um Faktor 4 (Wasserstoff) bis 17
+  // (Silizium) überlegen, was das Versprechen „aktiv beginnen, schrittweise
+  // automatisieren“ umkehrte.
+  //
+  // Die Konvektionszone wirkt deshalb ausschließlich auf automatische
+  // Fusion, hat keine Maximalstufe und wird exponentiell teurer. Sie bleibt
+  // dadurch bis zum Rundenende die relevante Kaufentscheidung und macht
+  // Automation im späten Spiel zur stärkeren Quelle.
+  convection: {
+    id: 'convection',
+    title: 'Konvektionszone',
+    icon: 'K',
+    description: 'Steigert die Rate aller automatischen Fusionen um 25 % je Stufe. Ohne Ausbaugrenze.',
+    action: 'buy-convection',
+    hiddenStages: ['nebula', 'protostar', 'deuterium'],
+    requirements: {
+      minimumTemperature: THRESHOLDS.hydrogenTemperature,
+    },
+    cost: {
+      baseCost: 400,
+      growthFactor: 1.55,
+      quadraticCoefficient: 0,
+      linearCoefficient: 0,
+    },
+    // Keine echte Ausbaugrenze; der Wert ist nur eine Schutzschwelle gegen
+    // unbrauchbar große Zahlen. Die Oberfläche zeigt bei Upgrades ohne
+    // sinnvolle Grenze die Stufe als Zahl statt als Pip-Reihe.
+    maxLevel: 999,
+    value: {
+      formula: {
+        baseCost: 1,
+        growthFactor: 1,
+        quadraticCoefficient: 0,
+        linearCoefficient: .25,
+      },
+      detail: {
+        inactive: '',
+        active: '',
+      },
+    },
+    button: {
+      purchase: 'Ausbauen',
+      locked: 'Ab Wasserstofffusion',
+      expired: 'Phase beendet',
+      complete: 'Maximum',
+    },
+  },
 } as const satisfies Record<UpgradeId, UpgradeDefinition>;
 
 export const UPGRADE_ORDER = [
   'gravity',
   'deuteriumBurning',
+  'convection',
 ] as const satisfies readonly UpgradeId[];
+
+// Upgrades ab dieser Maximalstufe gelten als praktisch unbegrenzt: Die
+// Oberfläche zeigt dort die erreichte Stufe als Zahl statt als Pip-Reihe und
+// meldet nie „voll ausgebaut“.
+export const UNBOUNDED_UPGRADE_LEVELS = 25;

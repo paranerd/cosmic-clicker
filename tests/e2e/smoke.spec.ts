@@ -1062,12 +1062,12 @@ test('the effects corner lists every permanent perk with its current level', asy
   await expect(cloudPerk).toContainText('Stufe 2 von 24');
   await expect(cloudPerk.locator('strong')).toHaveText('×4');
   await expect(popover.locator('[data-perk-entry="permanentGravity"]')).toContainText('Gravitatives Gedächtnis');
-  await expect(popover.locator('[data-perk-entry="permanentGravity"]')).toContainText('Stufe 1 von 10');
+  await expect(popover.locator('[data-perk-entry="permanentGravity"]')).toContainText('Stufe 1 von 16');
 
   // Ein noch nicht gekaufter Perk bleibt sichtbar, tritt aber zurück.
   const fusionPerk = popover.locator('[data-perk-entry="fusionMemory"]');
   await expect(fusionPerk).toHaveClass(/is-inactive/);
-  await expect(fusionPerk).toContainText('Stufe 0 von 5');
+  await expect(fusionPerk).toContainText('Stufe 0 von 20');
   await expect(fusionPerk.locator('strong')).toHaveText('×1');
 
   // Gekauft wird weiterhin ausschließlich in der Zyklus-Zusammenfassung.
@@ -1613,7 +1613,9 @@ test('stable hydrogen burning is hidden before ignition and then tracks created 
 
   const fusionAutomation = page.locator('[data-automation-card="fusion"]');
   await expect(fusionAutomation).toBeVisible();
-  await expect(fusionAutomation).toContainText('0 / 5.000 He');
+  // Die Automation hängt nicht mehr an einer Produktmenge, sondern an einer
+  // einzigen selbst ausgelösten Fusion (siehe content/automations.ts).
+  await expect(fusionAutomation).toContainText('Einmal selbst fusionieren');
   await expect(fusionAutomation).not.toContainText('Reaktionen');
   await expect(page.locator('[data-automation-card="heliumFusion"]')).toHaveCount(0);
 });
@@ -1648,7 +1650,7 @@ test('helium burning keeps earlier reactions, previews carbon and reveals matchi
   await expect(page.locator('[data-automation-card="fusion"]')).toBeVisible();
   const heliumAutomation = page.locator('[data-automation-card="heliumFusion"]');
   await expect(heliumAutomation).toBeVisible();
-  await expect(heliumAutomation).toContainText('998 / 1.500 C');
+  await expect(heliumAutomation).toContainText('Einmal selbst fusionieren');
   await expect(page.locator('[data-automation-card="oxygenSynthesis"]')).toBeVisible();
   await expect(page.locator('[data-automation-card="carbonFusion"]')).toHaveCount(0);
 });
@@ -2081,16 +2083,19 @@ test('multiple perk levels can be staged and deselected before prestige', async 
     cloud: { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
     star: { hydrogen: 12_000, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
     completed: true, outcome: 'brownDwarf', discoveredOutcomes: ['brownDwarf'], summaryOpen: true,
-    stardust: 7, perks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
+    stardust: 8, perks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
-    stats: { stardustEarned: 7 }, seenObjectives: [],
+    stats: { stardustEarned: 8 }, seenObjectives: [],
   });
   await page.goto('/');
 
   const summary = page.getByRole('dialog', { name: 'Eine Massengrenze wird sichtbar.' });
   const cloudPerk = summary.locator('.summary-perk-grid article').filter({ hasText: 'Wolkenmasse' });
+  // Die Wolkenleiter kostet seit dem Balancing-Umbau exponentiell statt
+  // linear (2, 6, 11, 16 …), damit der massenabhängige Ertrag sie nicht
+  // innerhalb weniger Runden überholt.
   await cloudPerk.getByRole('button', { name: '+2 ✦' }).click();
-  await cloudPerk.getByRole('button', { name: '+5 ✦' }).click();
+  await cloudPerk.getByRole('button', { name: '+6 ✦' }).click();
   await expect(cloudPerk).toContainText('Stufe 2');
   await expect(cloudPerk).toContainText('+2 gewählt');
   await expect(summary.locator('.cloud-slider input[type="range"]')).toHaveValue('2');
@@ -2100,7 +2105,7 @@ test('multiple perk levels can be staged and deselected before prestige', async 
   await cloudPerk.getByRole('button', { name: 'Wolkenmasse abwählen' }).click();
   await expect(cloudPerk).toContainText('+1 gewählt');
   await expect(summary.locator('.cloud-slider input[type="range"]')).toHaveAttribute('max', '1');
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').stardust)).toBe(5);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').stardust)).toBe(6);
 
   await summary.getByRole('button', { name: 'Neuen Zyklus starten' }).click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').run)).toBe(2);
@@ -2114,9 +2119,9 @@ test('perk changes preserve the summary scroll position on a small screen', asyn
     cloud: { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
     star: { hydrogen: 12_000, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
     completed: true, outcome: 'brownDwarf', discoveredOutcomes: ['brownDwarf'], summaryOpen: true,
-    stardust: 7, perks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
+    stardust: 8, perks: { largerCloud: 0, permanentGravity: 0, fusionMemory: 0 },
     tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
-    stats: { stardustEarned: 7 }, seenObjectives: [],
+    stats: { stardustEarned: 8 }, seenObjectives: [],
   });
   await page.goto('/');
 
@@ -2198,4 +2203,39 @@ test('the full ordered reaction path keeps available fuel visible and previews c
   await expect(page.locator('[data-automation-card="heliumFusion"]')).toBeVisible();
   await expect(page.locator('[data-automation-card="oxygenSynthesis"]')).toBeVisible();
   await expect(page.locator('[data-automation-card="carbonFusion"]')).toHaveCount(0);
+});
+
+// Der Eisenkern beendet die Runde nicht mehr sofort, sondern führt in eine
+// eigene, kurze Kollapsphase. Sie ist der einzige Moment, in dem der Stern
+// weder akkretiert noch fusioniert — ein Klick stößt dort Hülle ab.
+test('the iron core opens a playable core collapse before the run ends', async ({ page }) => {
+  await seedLegacyGame(page, {
+    version: 8, stage: 'siliconBurning', cloudTier: 9, nextCloudTier: 9,
+    cloud: { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, oxygen: 0 },
+    star: { hydrogen: 0, helium: 0, deuterium: 0, carbon: 0, neon: 0, oxygen: 0, silicon: 400, iron: 3_400_000 },
+    energy: 0, temperature: 2_700_000_000,
+    unlockedReactions: ['hydrogen', 'helium', 'alphaCapture', 'carbon', 'neon', 'oxygen', 'silicon'],
+    ignitedReactions: ['hydrogen', 'helium', 'alphaCapture', 'carbon', 'neon', 'oxygen', 'silicon'],
+    experiencedReactions: ['hydrogen', 'helium', 'alphaCapture', 'carbon', 'neon', 'oxygen', 'silicon'],
+    perks: { largerCloud: 9, permanentGravity: 0, fusionMemory: 0 },
+    tutorial: { introSeen: true, cosmosToastPending: false, completed: true, step: 0 },
+  });
+  await gotoGame(page);
+
+  // Der Kollaps beginnt von selbst, sobald das Silizium aufgebraucht ist.
+  await expect(page.locator('[data-ui="stage"]')).toHaveText('Supernova', { timeout: 15_000 });
+  const star = page.locator('.star-button');
+  await expect(star).toHaveAttribute('data-action', 'eject-envelope');
+  await expect(star).toHaveAccessibleName('Hülle abstoßen');
+  await expect(page.locator('[data-ui="click-detail"]')).toContainText('Hülle abzustoßen');
+
+  // Klicks stoßen Hülle ab; die abgestoßene Masse wird als eigener Wert
+  // geführt und zahlt am Rundenende den r-Prozess-Bonus.
+  for (let i = 0; i < 8; i += 1) await star.evaluate((element) => (element as HTMLButtonElement).click());
+  await expect.poll(async () => page.evaluate(
+    () => JSON.parse(localStorage.getItem('cosmic-clicker-save-v1') ?? '{}').stats?.envelopeEjected ?? 0,
+  )).toBeGreaterThan(0);
+
+  // Die Phase läuft auch ohne weitere Klicks aus und schließt die Runde ab.
+  await expect(page.locator('.cycle-end-banner')).toBeVisible({ timeout: 45_000 });
 });

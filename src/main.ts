@@ -200,7 +200,7 @@ app.addEventListener('click', (event) => {
     // Upgrade-Kaufaktionen kommen generisch aus den Definitionen (Punkt 6):
     // ein neues Upgrade in content/upgrades.ts braucht hier keine Änderung.
     ...Object.fromEntries(UPGRADE_ORDER.map((id) => [UPGRADES[id].action, { type: 'BUY_UPGRADE', upgrade: id } satisfies GameAction])),
-    accrete: { type: 'ACCRETE' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, 'buy-perk-fusion': { type: 'BUY_PERK', perk: 'fusionMemory' }, 'remove-perk-cloud': { type: 'REMOVE_PERK', perk: 'largerCloud' }, 'remove-perk-gravity': { type: 'REMOVE_PERK', perk: 'permanentGravity' }, 'remove-perk-fusion': { type: 'REMOVE_PERK', perk: 'fusionMemory' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
+    accrete: { type: 'ACCRETE' }, 'eject-envelope': { type: 'EJECT_ENVELOPE' }, 'buy-accretion': { type: 'BUY_ACCRETION' }, 'buy-perk-cloud': { type: 'BUY_PERK', perk: 'largerCloud' }, 'buy-perk-gravity': { type: 'BUY_PERK', perk: 'permanentGravity' }, 'buy-perk-fusion': { type: 'BUY_PERK', perk: 'fusionMemory' }, 'remove-perk-cloud': { type: 'REMOVE_PERK', perk: 'largerCloud' }, 'remove-perk-gravity': { type: 'REMOVE_PERK', perk: 'permanentGravity' }, 'remove-perk-fusion': { type: 'REMOVE_PERK', perk: 'fusionMemory' }, 'toggle-sound': { type: 'TOGGLE_SOUND' },
   };
   if (actions[action]) {
     dispatch(actions[action]);

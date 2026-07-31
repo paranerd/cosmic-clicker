@@ -53,16 +53,38 @@ export const STELLAR_WIND = {
   },
 } as const;
 
-// Punkt 6: struktureller Wasserstoffverbrauch ab der Hauptreihe, unabhängig
-// von gekauften Automationen. rateReferenceMass entspricht 1 M☉; die Rate
-// skaliert überproportional mit der Sternmasse (massExponent > 1), sodass
-// massereichere Sterne die Hauptreihe deutlich schneller durchlaufen als
-// leichte, aber nicht im realen Verhältnis (~3.000×), sondern komprimiert
-// auf den Faktor 3–5 zwischen der 1- und der 25-Sonnenmassen-Wolke.
-export const MAIN_SEQUENCE_BURN = {
-  ratePerSecond: 300,
-  referenceMass: THRESHOLDS.matterPerSolarMass,
-  massExponent: 1.46,
+// Gemeinsame Bezugsmasse aller strukturellen Brennraten (= 1 M☉). Die Raten
+// und Exponenten selbst stehen seit dem Balancing-Umbau als `structuralBurn`
+// direkt an der jeweiligen Reaktion in `reactions.ts` — vorher galt ein
+// globaler Sonderfall allein für Wasserstoff, weshalb sich jede andere
+// Brennphase pro Wolkenstufe verdoppelte.
+export const STRUCTURAL_BURN_REFERENCE_MASS = THRESHOLDS.matterPerSolarMass;
+
+// Kernkollaps: Der Eisenkern beendet die Runde nicht mehr sofort, sondern
+// führt in ein eigenes, kurzes Stadium — das Stadium `supernova` war seit
+// jeher definiert, wurde aber nie betreten.
+//
+// Die Phase läuft vollständig von selbst ab und ist damit idle-sicher. Wer
+// anwesend ist, stößt durch Klicks zusätzlich Hülle ab und wandelt sie in
+// Sternenstaub um (r-Prozess). Welcher Sternrest entsteht, ist dabei bereits
+// beim Eintritt in den Kollaps entschieden und wird von der Abstoßung nicht
+// mehr verändert: Der Vergleich mit `blackHoleMass` verwendet die Masse vor
+// der Abstoßung. Anwesenheit ist dadurch ein Bonus, nie eine Voraussetzung
+// oder ein Risiko.
+export const CORE_COLLAPSE = {
+  seconds: 24,
+  // Anteil der Masse bei Kollapsbeginn, den ein einzelner Klick abstößt.
+  ejectionPerClick: .012,
+  maximumEjectedFraction: .6,
+  // Zusätzlicher Sternenstaub bei vollständig abgestoßener Hülle, als Anteil
+  // der regulären Belohnung dieser Runde.
+  //
+  // Bewusst relativ und nicht als fester Betrag je abgestoßener Sonnenmasse:
+  // Ein linearer Satz wächst mit der Masse, die Basisbelohnung dagegen nur mit
+  // `Masse^0,45`. Bei 4.588 M☉ überstieg der Bonus die eigentliche Belohnung
+  // dadurch um das Neunfache — aus einem Bonus für Anwesenheit wäre der
+  // eigentliche Ertrag der Runde geworden.
+  stardustBonusAtFullEjection: .5,
 } as const;
 
 export interface StageDefinition {

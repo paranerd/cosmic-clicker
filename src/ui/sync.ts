@@ -10,11 +10,13 @@ import {
   STAGES,
   STAGE_LABELS,
   THRESHOLDS,
+  CORE_COLLAPSE,
 } from '../content';
 import {
   accretionPerClick,
   accretionPerSecond,
   activeWarnings,
+  collapseEjectionPerClick,
   cloudDefinition,
   cloudMass,
   objectiveFor,
@@ -441,17 +443,25 @@ export function updateUI(forcePanel = false): void {
     ? state.activeReaction
     : null;
   const activeReactionView = activeReaction ? reactionView(activeReaction) : null;
+  // Während des Kernkollapses übernimmt der Stern eine dritte Aufgabe: Jeder
+  // Klick stößt Hülle ab. Die Phase läuft auch ohne Zutun vollständig durch —
+  // der Klick ist ein Bonus, keine Bedingung.
+  const collapsing = !state.completed && state.stage === 'supernova';
   const star = app.querySelector<HTMLButtonElement>('.star-button');
   if (star) {
     star.className = `star-button stage-${state.stage}${state.completed ? ' is-complete' : ''}`;
     if (state.completed) delete star.dataset.action;
-    else star.dataset.action = activeReaction ? 'run-reaction' : 'accrete';
-    if (activeReaction && !state.completed) star.dataset.reaction = activeReaction;
+    else star.dataset.action = collapsing ? 'eject-envelope' : activeReaction ? 'run-reaction' : 'accrete';
+    if (activeReaction && !state.completed && !collapsing) star.dataset.reaction = activeReaction;
     else delete star.dataset.reaction;
     star.ariaLabel = state.completed ? 'Abgeschlossener Stern'
-      : activeReaction ? `${REACTIONS[activeReaction].fullTitle} auslösen`
-        : 'Materie einsammeln';
-    star.disabled = !state.completed && (activeReactionView ? !activeReactionView.available : remaining <= 0);
+      : collapsing ? 'Hülle abstoßen'
+        : activeReaction ? `${REACTIONS[activeReaction].fullTitle} auslösen`
+          : 'Materie einsammeln';
+    star.disabled = state.completed ? false
+      : collapsing ? collapseEjectionPerClick(state) <= 0
+        : activeReactionView ? !activeReactionView.available : remaining <= 0;
+    if (state.completed) star.disabled = true;
   }
   const clickCallout = app.querySelector<HTMLButtonElement>('.click-callout');
   if (clickCallout) {
@@ -469,6 +479,9 @@ export function updateUI(forcePanel = false): void {
   // damit auch die dynamische Reaktionsgleichung, die vorher im Fusionsbutton
   // der Kachel stand.
   const [clickYield, clickDetail] = state.completed ? ['ZUSAMMENFASSUNG', 'Hier klicken zum Öffnen']
+    : collapsing ? collapseEjectionPerClick(state) > 0
+      ? [`KERNKOLLAPS · ${Math.max(0, Math.ceil(CORE_COLLAPSE.seconds - state.collapseElapsed))} s`, 'Klicken, um Hülle abzustoßen']
+      : ['KERNKOLLAPS', 'Hülle vollständig abgestoßen']
     : activeReactionView ? activeReactionView.available
       ? [activeReactionView.detail, 'Klicken, um zu fusionieren']
       : ['KEIN BRENNSTOFF', 'Andere Fusion wählen oder Brennstoff aufbauen']

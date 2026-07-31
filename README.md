@@ -10,10 +10,14 @@ Ein responsives Browser-Spiel über die Entstehung und Entwicklung eines Sterns 
 - Fusionen als Teil der Upgrades: eine zündbereite Fusion wird kostenlos, aber bewusst freigeschaltet
 - Temperatur- und Druckentwicklung durch gravitative Kontraktion
 - Deuteriumbrennen als zeitlich begrenztes Upgrade sowie eine konfigurationsgetriebene Brennkette von Wasserstoff bis zur Eisengruppe
+- Struktureller Grundumsatz je Brennphase: Ein massereicher Stern brennt seinen Vorrat auch ohne Zutun durch, ein sonnenähnlicher lebt von der Hand des Spielers
+- Konvektionszone als unbegrenzt ausbaubares Upgrade, das die automatische Fusion trägt
+- Spielbarer Kernkollaps: Der Eisenkern führt in eine eigene Supernova-Phase, in der Klicks Hülle abstoßen und zusätzlichen Sternenstaub liefern
 - Massenabhängige Entwicklung zu Braunem Zwerg, mehreren Weißer-Zwerg-Typen, Neutronenstern oder Schwarzem Loch
 - Zeitbasierte Hauptreihe mit strukturellem Wasserstoffbrennen und massenabhängigem Hüllenwind, der den späteren Sternrest beeinflussen kann
 - Sternmasse zusätzlich als Sonnenmassen-Anzeige (M☉) in den Kerndaten und an Entwicklungsschwellen
-- Upgrades, Automationen und ein permanentes Prestige-System
+- Upgrades, Automationen und ein permanentes Prestige-System mit massenabhängigem Sternenstaub
+- Zyklusübergreifendes Reaktionsgedächtnis: Bekannte Fusionen zünden und automatisieren sich ab dem zweiten Durchlauf selbst, sodass eine Runde nach kurzem manuellem Anschub unbeaufsichtigt durchläuft
 - Wissenschaftliche Kurzinfos und Sternenlogbuch
 - Automatische Speicherung, bis zu acht Stunden Offline-Fortschritt sowie Import/Export
 - Kurzes, überspringbares Tutorial mit jederzeit möglicher Wiederholung
