@@ -4,6 +4,15 @@ Stand: 31. Juli 2026
 Analysierter Commit: `33e839f`
 Leitfrage: Was trägt das Spiel über viele Tage – und was steht dem im Weg?
 
+> **Umsetzungsstand.** Die Befunde dieses Dokuments beschreiben den Zustand
+> **vor** dem Balancing-Umbau. P1 bis P4, P6 und der spielbare Kernkollaps
+> (P5-B) sind umgesetzt; die gemessenen Ergebnisse stehen in Abschnitt 10.
+> Metallizität (P5-A), die zweite Prestige-Ebene (P5-C) und
+> Herausforderungswolken (P5-D) sind bewusst nicht umgesetzt — es sind eigene
+> Systeme mit eigener Oberfläche und eigenem Speicherformat, keine
+> Balancing-Änderungen. Sie stehen als Richtung in Abschnitt 29 der
+> Design-Referenz.
+
 Alle Zahlen in diesem Dokument stammen aus Simulationen gegen die echte
 Engine (`src/game/engine.ts`), nicht aus Schätzungen. Der simulierte Spieler
 klickt durchgehend 6×/s, kauft jede verfügbare Stufe sofort und wählt immer
@@ -458,3 +467,77 @@ Wiederspielwert pro investierter Entwicklungszeit.
 Schritt 1 bis 3 sind Balancing an bestehenden Systemen und bringen das Spiel
 von „5–8 Stunden“ auf „solide zweistellig“. Schritt 4 bis 6 sind neue
 Inhalte und öffnen den Zeitraum von Wochen.
+
+---
+
+## 10. Ergebnis des Umbaus
+
+Alle Werte gemessen wie oben: Simulation gegen die echte Engine, aktiver
+Spieler mit 6 Klicks/s und perfekter Kaufreihenfolge.
+
+### Rundendauer und Ertrag
+
+| Stufe | M☉ | Endzustand | vorher | nachher | ✦ vorher | ✦ nachher | ✦/h nachher |
+| ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 3 | 0,6 | Weißer Zwerg | 4,8 min | 2,5 min | 5 | 5 | 122 |
+| 5 | 2,2 | Weißer Zwerg | 8,1 min | 2,9 min | 5 | 10 | 208 |
+| 7 | 9,0 | O/Ne-Weißer-Zwerg | 17,8 min | 3,7 min | 6 | 22 | 354 |
+| 8 | 17,9 | Neutronenstern | 54,2 min | 15,3 min | 8 | 59 | 232 |
+| 9 | 35,8 | Schwarzes Loch | 1,6 h | 17,2 min | 10 | 101 | 353 |
+| 10 | 71,7 | Schwarzes Loch | 2,7 h | 23,7 min | 10 | 137 | 346 |
+| 12 | 286,7 | Schwarzes Loch | – | 39,2 min | – | 254 | 389 |
+| 14 | 1.147 | Schwarzes Loch | – | 49,9 min | – | 471 | 567 |
+| 16 | 4.588 | Schwarzes Loch | – | 52,8 min | – | 878 | 997 |
+
+Die Ertragskurve steigt jetzt monoton statt zu fallen: von 122 ✦/h auf
+Wolkenstufe 3 auf 997 ✦/h auf Stufe 16. Vorher fiel sie von 62 auf 2,4.
+
+Die Rundendauer steigt ebenfalls monoton und fällt an keiner Stelle mehr
+zurück. Der Sprung von Stufe 7 (3,7 min) auf Stufe 8 (15,3 min) markiert den
+Übergang vom aktiven zum unbeaufsichtigten Spiel — ab dort läuft die volle
+Brennkette bis zum Eisenkern.
+
+### Idle-Fähigkeit
+
+Eine Runde, die 60 Sekunden lang manuell angeschoben und danach vollständig
+allein gelassen wird:
+
+| Stufe | vorher | nachher |
+| ---: | --- | --- |
+| 4 | abgeschlossen | abgeschlossen (2,8 min) |
+| 7 | **eingefroren nach 12 h** | abgeschlossen (5,8 min) |
+| 9 | **eingefroren nach 12 h** | abgeschlossen (30,6 min) |
+| 12 | – | abgeschlossen (47,1 min) |
+| 16 | – | abgeschlossen (53,6 min) |
+
+Jede Runde bleibt damit innerhalb des 8-Stunden-Offline-Fensters.
+
+### Was das für den Tagesrhythmus bedeutet
+
+- **Tag 1:** Wolkenstufen 0 bis 8, alle Zyklen unter 15 Minuten, durchgehend
+  aktiv — rund ein bis zwei Stunden.
+- **Woche 1:** der massereiche Pfad, Runden von 15 bis 50 Minuten. Der Spieler
+  schiebt an und kommt später zurück.
+- **Danach:** ein bis zwei Anschübe pro Tag zu je etwa einer Minute. Die
+  Wolkenleiter verlangt bei Stufe 16 rund 2,6 Runden je Stufe und bei Stufe 20
+  etwa 5 — sie wird langsam steiler, weil die Kosten (×1,55 je Stufe) schneller
+  wachsen als der Ertrag (×1,37 je Stufe).
+
+### Drei Fehler, die dabei ans Licht kamen
+
+Der Umbau hat drei echte Fehler sichtbar gemacht, die vorher latent waren:
+
+1. **`fuelDepleted()` verglich auf exakt null.** Die Automationen früherer
+   Brennstufen lieferten den vermeintlich erschöpften Brennstoff laufend nach
+   und hielten den Kohlenstoff bei rund 400 ME — der Stern blieb dauerhaft im
+   Kontraktionsstadium stehen. Umgekehrt schaltete ein kurzer Nulldurchgang das
+   Stadium unwiderruflich zu früh weiter.
+2. **`nextHeavyFuel()` verwendete eine andere Schwelle als `fuelDepleted()`.**
+   Dieselbe Menge galt gleichzeitig als vorhanden und als erschöpft; der Stern
+   kontrahierte endlos in Richtung einer längst gezündeten Reaktion.
+3. **`reactionUnlockable()` prüfte nur Temperatur und Masse.** Bei großen
+   Sternen überschreitet schon die Fusionswärme der laufenden Phase die nächste
+   Zündtemperatur. Ein Stern mit 4.588 M☉ sprang nach 0,6 Sekunden Hauptreihe
+   ins Heliumbrennen und endete mit 27 % nie verbranntem Wasserstoff.
+
+Alle drei sind behoben und durch Tests abgesichert.

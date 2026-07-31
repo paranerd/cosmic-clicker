@@ -54,6 +54,7 @@ export interface AutomationState {
 export interface UpgradeState {
   gravity: number;
   deuteriumBurning: number;
+  convection: number;
 }
 
 export interface PerkState {
@@ -92,6 +93,9 @@ export interface RunStatistics {
   automationsPurchased: number;
   offlineSeconds: number;
   stardustEarned: number;
+  // Während des Kernkollapses aktiv abgestoßene Hüllenmasse. Sie senkt die
+  // Restmasse und erhöht dadurch den Sternenstaub-Ertrag der Supernova.
+  envelopeEjected: number;
 }
 
 export interface RoundRecord extends RunStatistics {
@@ -111,7 +115,7 @@ export interface TutorialState {
 }
 
 export interface GameState {
-  version: 7;
+  version: 8;
   run: number;
   startedAt: number;
   lastTick: number;
@@ -129,6 +133,23 @@ export interface GameState {
   contractionHeat: number;
   deuteriumIgnitionCompression: number | null;
   unlockedReactions: ReactionId[];
+  // Zwei zyklusübergreifende Gedächtnisse, die das Spiel ab dem zweiten
+  // Durchlauf idle-fähig machen, ohne die erste Entdeckung zu entwerten:
+  //
+  // `ignitedReactions` merkt sich jede jemals freigeschaltete Fusion. Eine
+  // bereits bekannte Reaktion zündet in späteren Zyklen von selbst, sobald
+  // Temperatur und Mindestmasse erreicht sind — die bewusste, kostenlose
+  // Freischaltung bleibt also genau einmal je Reaktion erhalten.
+  //
+  // `experiencedReactions` merkt sich jede jemals manuell ausgelöste Fusion.
+  // Sie ersetzt die früheren absoluten Mengenschwellen der Reaktions-
+  // automationen: Wer eine Reaktion einmal selbst ausgeführt hat, darf sie ab
+  // sofort und in jedem weiteren Zyklus automatisieren. Vorher konnte eine
+  // Kette dauerhaft blockieren, weil die Automation ihr eigenes Produkt als
+  // Freischaltbedingung verlangte und dieses Produkt ohne Automation nur
+  // durch Klicks entstand.
+  ignitedReactions: ReactionId[];
+  experiencedReactions: ReactionId[];
   reactionTotals: Record<ReactionId, number>;
   automaticReactionTotals: Record<ReactionId, number>;
   // Punkt 2: Ausbaustufen der manuellen Fusionsmenge je Reaktion.
@@ -149,6 +170,10 @@ export interface GameState {
   stardust: number;
   perks: PerkState;
   pendingPerks: PerkState;
+  // Kernkollaps: Sekunden, die der Stern bereits im Stadium `supernova` steht.
+  // Die Phase läuft von selbst ab (idle-sicher); Sternklicks stoßen zusätzlich
+  // Hülle ab und verschieben dadurch die Restmasse und damit den Sternrest.
+  collapseElapsed: number;
   completed: boolean;
   outcome: StellarOutcome | null;
   discoveredOutcomes: StellarOutcome[];
@@ -165,6 +190,9 @@ export interface GameState {
 
 export type GameAction =
   | { type: 'ACCRETE' }
+  // Sternklick während des Kernkollapses: stößt Hülle ab. Optional, die Phase
+  // läuft auch ohne Zutun vollständig durch.
+  | { type: 'EJECT_ENVELOPE' }
   | { type: 'RUN_REACTION'; reaction: ReactionId }
   | { type: 'SET_ACTIVE_REACTION'; reaction: ReactionId | null }
   // Kostenlose Freischaltung einer Fusion, sobald Temperatur und Mindestmasse

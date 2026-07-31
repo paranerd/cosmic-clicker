@@ -28,10 +28,12 @@ import {
 import {
   automationCost,
   automationValueAtLevel,
+  automationMasteryProgress,
   automationSupplyExhausted,
+  automationUnlocked,
   accretionPerClick,
   cloudDefinition,
-  reactionAutomationPerSecond,
+  reactionThroughputPerSecond,
   reactionAvailable,
   reactionCapacity,
   reactionManualAmount,
@@ -45,7 +47,7 @@ import {
   upgradeValueAtLevel,
 } from '../game/engine';
 import type { CloudTier, ReactionId, Stage, StellarOutcome } from '../game/types';
-import { disabled, formatCompact, formatDuration, formatEnergy, formatMatter, formatNumber, formatTemperature, icons, levelPips } from './format';
+import { disabled, formatCompact, formatDuration, formatEnergy, formatMatter, formatNumber, formatTemperature, icons, levelDisplay, levelPips } from './format';
 import { getState, type Panel } from './store';
 
 // Erklär-Button der Wissensdatenbank. Er steht direkt neben dem Begriff, den
@@ -111,13 +113,11 @@ export const automationVisible = (kind: AutomationKind): boolean => {
   return !reaction || state.unlockedReactions.includes(reaction);
 };
 
-const reactionOutput = (reaction: ReactionId): number =>
-  getState().reactionTotals[reaction] * (REACTIONS[reaction].outputs[REACTIONS[reaction].primaryOutput] ?? 1);
-
-export const automationMastery = (kind: AutomationKind): number => {
-  const mastery = AUTOMATIONS[kind].mastery;
-  return mastery.kind === 'starMass' ? starMass(getState()) : reactionOutput(mastery.reaction);
-};
+// Fortschritt (0..1) Richtung Freischaltung einer Automation. Die Engine
+// besitzt die Regel, die Oberfläche liest sie nur — dadurch können Kaufbarkeit,
+// Fill des Eck-Buttons und Gelegenheitszähler nicht auseinanderlaufen.
+export const automationUnlockProgress = (kind: AutomationKind): number =>
+  automationMasteryProgress(getState(), kind);
 
 // Fusionen zählen seit der Zusammenlegung zu den Gelegenheiten des
 // Upgrades-Bereichs: eine kostenlos freischaltbare Fusion ist dort die
@@ -148,7 +148,7 @@ export function currentOpportunities(): Record<Panel, string[]> {
     const definition = AUTOMATIONS[kind];
     const level = state.automation[kind];
     const price = automationCost(kind, level);
-    if (automationVisible(kind) && level < definition.maxLevel && automationMastery(kind) >= definition.mastery.threshold && state.energy >= price && !automationSupplyExhausted(state, kind)) automation.push(`${kind}:${level}`);
+    if (automationVisible(kind) && level < definition.maxLevel && automationUnlocked(state, kind) && state.energy >= price) automation.push(`${kind}:${level}`);
   });
   return { upgrades, automation };
 }
@@ -452,7 +452,7 @@ function upgradeCard(view: UpgradeView): string {
       <div class="upgrade-heading"><span class="upgrade-icon">${definition.icon}</span><h3>${definition.title}</h3></div>
       <div class="tile-rate"><div><span>Aktuell</span><b>${locked ? '-' : view.value}</b></div><div><span>Nächste Stufe:</span> <b>${complete ? 'Voll ausgebaut' : upgradeNextValue(view)}</b></div></div>
       <p>${definition.description}${view.detail ? `<strong>${view.detail}</strong>` : ''}</p>
-      <div class="level-row" data-levels="${view.id}">${levelPips(level, definition.maxLevel)}</div>
+      <div class="level-row" data-levels="${view.id}">${levelDisplay(level, definition.maxLevel)}</div>
       ${locked ? `<div class="tile-cost" data-upgrade-cost="${view.id}">${view.label}</div>` : ''}
     </article>`;
 }
@@ -461,28 +461,32 @@ export function automationView(kind: AutomationKind) {
   const state = getState();
   const definition = AUTOMATIONS[kind];
   const level = state.automation[kind];
-  const mastery = automationMastery(kind);
+  // Die angezeigte "Aktuell"-Rate enthält den strukturellen Grundumsatz der
+  // Brennphase mit, weil genau das die Menge ist, die der Stern gerade ohne
+  // Klicks umsetzt. Die Vorschau auf die nächste Stufe verwendet dieselbe
+  // Größe, damit der Zuwachs vergleichbar bleibt.
   const rateAt = (nextLevel: number): number => definition.reaction
-    ? reactionAutomationPerSecond({ ...state, automation: { ...state.automation, [kind]: nextLevel } }, definition.reaction)
+    ? reactionThroughputPerSecond({ ...state, automation: { ...state.automation, [kind]: nextLevel } }, definition.reaction)
     : automationValueAtLevel(kind, nextLevel) * (accretionPerClick(state) / ACCRETION.manualBase);
   // Punkt 1: Eine Automation mit versiegter Nachschubquelle (z. B. leere
   // Urwolke) kann nicht weiter ausgebaut werden und zeigt das auch an.
   const exhausted = automationSupplyExhausted(state, kind);
+  const { mastery } = definition;
   return {
     ...definition,
     level,
     max: definition.maxLevel,
     price: automationCost(kind, level),
-    unlocked: mastery >= definition.mastery.threshold && !exhausted,
+    unlocked: automationUnlocked(state, kind),
     exhausted,
     lockedLabel: exhausted && definition.supply
       ? definition.supply.exhaustedLabel
-      : definition.mastery.kind === 'starMass'
+      : mastery.kind === 'starMass'
         ? 'Protostern erforderlich'
-        : `${formatMatter(mastery)} / ${formatMatter(definition.mastery.threshold)} ${definition.mastery.symbol}`,
+        : mastery.lockedLabel,
     // Fortschritt Richtung Freischaltung (0..1) — treibt den Fill des
     // Eck-Ausbaubuttons, solange die Automation noch gesperrt ist.
-    unlockProgress: Math.min(1, mastery / definition.mastery.threshold),
+    unlockProgress: automationUnlockProgress(kind),
     action: definition.reaction ? 'buy-reaction-automation' : 'buy-accretion',
     rateAt,
   };

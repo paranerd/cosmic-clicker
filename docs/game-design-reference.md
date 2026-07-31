@@ -1,7 +1,7 @@
 # Cosmic Clicker – wiederverwendbare Game-Design-Referenz
 
-Stand: 23. Juli 2026
-Referenzstand des Spiels: Commit `65a2927`
+Stand: 31. Juli 2026
+Referenzstand des Spiels: Balancing-Umbau auf Zustandsschema 8
 
 Dieses Dokument beschreibt die relevanten Designentscheidungen, Systeme,
 Formeln und Balancing-Werte des gesamten Spiels. Es ist zugleich
@@ -93,11 +93,20 @@ aber ein vollständig erzählter einzelner Sternzyklus.
 
 ### Zielzeiten
 
-- erster Brauner-Zwerg-Zyklus: ungefähr 7–10 Minuten;
-- vollständige stellare Zyklen: ungefähr 20–30 Minuten;
-- Vermächtnis-Perks verkürzen spätere Wiederholungen;
-- der erste Protostern benötigt ohne Upgrades etwa 53 Klicks und liegt damit
-  innerhalb des Zielkorridors von 50–60 aktiven Akkretionsimpulsen.
+- erster Brauner-Zwerg-Zyklus: ungefähr 7–10 Minuten bei etwa drei Klicks pro
+  Sekunde;
+- der erste Protostern benötigt ohne Upgrades etwa 650 Klicks (der früher hier
+  genannte Wert von 53 war gemessen falsch);
+- Wolkenstufen 0 bis 7: 20 Sekunden bis knapp 4 Minuten je Zyklus — das ist
+  der aktive Teil des Spiels;
+- ab Wolkenstufe 8 (massereicher Pfad): 15 bis 55 Minuten je Zyklus, mit
+  wachsender Wolke steigend und nie wieder fallend;
+- eine Runde ab Stufe 8 läuft nach etwa einer Minute manuellem Anschub
+  vollständig unbeaufsichtigt durch.
+
+Die Kurve ist bewusst so geschnitten: Der erste Tag lebt vom aktiven Spiel mit
+kurzen Zyklen, das spätere Spiel von einem täglichen Anschub und einer Runde,
+die im Hintergrund abläuft.
 
 Diese Zeiten sind Balanceziele, keine harten Timer. Offline-Fortschritt,
 Investitionsreihenfolge und aktives Spiel dürfen sie verändern.
@@ -370,6 +379,21 @@ Der Effekt wirkt nicht rückwirkend; die Temperatur springt daher nicht.
 | Siliziumfusion | 2.700.000.000 K | 1.350.000 ME | 9 |
 | Schwarzes Loch | nach Eisenkern | 3.000.000 ME Endmasse | 20 |
 
+Zündtemperatur und Mindestmasse allein genügen jedoch nicht: Eine Fusion wird
+erst zündbar, wenn der Stern seine **aktuelle** Brennphase beendet hat, also
+wenn die Kernkontraktion tatsächlich auf sie zuläuft. Ohne diese Bedingung
+überschreitet bei großen Sternen schon die Fusionswärme der laufenden Phase die
+nächste Zündtemperatur — ein Stern mit 4.588 M☉ sprang dadurch nach 0,6
+Sekunden Hauptreihe direkt ins Heliumbrennen und beendete die Runde mit 27 %
+seiner Masse als nie verbranntem Wasserstoff.
+
+Ein Brennstoff gilt dabei als erschöpft, sobald Kern und Restwolke zusammen
+weniger als ein Promille der Sternmasse davon enthalten. Ein Vergleich auf
+exakt null versagte in beide Richtungen: Er schaltete das Stadium bei einem
+kurzen Nulldurchgang zu früh weiter, und er blockierte die Kette dauerhaft,
+sobald die Automationen früherer Stufen den vermeintlich erschöpften Brennstoff
+laufend nachlieferten.
+
 Weitere Progressionsschwellen:
 
 | Schwelle | Wert |
@@ -524,19 +548,45 @@ Der Ausbau verstärkt bewusst nur die manuelle Aktion. Automationen besitzen
 ihre eigene Kurve; beide Systeme bleiben als getrennte Investitionsstrategien
 verständlich.
 
-### Hauptreihe
+### Struktureller Grundumsatz jeder Brennphase
 
-Nach insgesamt 15.000 ME fusioniertem Wasserstoff wechselt der Stern von der
-frühen H-Fusionsphase in die Hauptreihe. Ab dann läuft zusätzlich zur manuellen
-und automatisierten Fusion ein struktureller Wasserstoffverbrauch:
+Jede Brennphase besitzt einen Grundumsatz, der unabhängig von gekauften
+Automationen und zusätzlich zur manuellen Fusion läuft. Er steht als
+`structuralBurn` direkt an der Reaktion:
 
 ```text
-H-Verbrauch pro Sekunde
-  = 300 × (aktuelle Sternmasse / 150.000)^1,46
+Umsatz pro Sekunde
+  = ratePerSecond × (aktuelle Sternmasse / 150.000)^massExponent
 ```
 
-Das Modell komprimiert reale Lebensdauern. Massereiche Sterne durchlaufen die
-Hauptreihe deutlich schneller, aber nicht um astronomisch unspielbare Faktoren.
+| Reaktion | Rate bei 1 M☉ | Exponent | Aktive Stadien |
+| --- | ---: | ---: | --- |
+| Wasserstoff | 300 | 1,46 | Hauptreihe |
+| Helium | 160 | 1,0 | Heliumfusion |
+| Kohlenstoff | 260 | 1,0 | Kohlenstofffusion |
+| Neon | 260 | 1,0 | Neonfusion |
+| Sauerstoff | 260 | 1,0 | Sauerstofffusion |
+| Silizium | 260 | 1,0 | Siliziumfusion |
+
+Der Alpha-Einfang besitzt bewusst keinen Grundumsatz: Er ist der optionale
+Nebenkanal der Heliumphase und soll eine Entscheidung des Spielers bleiben.
+
+Der Exponent steuert die Rundenkurve direkt, weil der Vorrat einer Phase
+selbst linear mit der Masse wächst: Die Phasendauer verhält sich wie
+`Masse^(1 − massExponent)`. Ein Exponent von 1 hält die Phase über alle
+Wolkengrößen hinweg gleich lang; ein Exponent über 1 lässt sie schrumpfen.
+Diese Ausnahme bleibt der Hauptreihe vorbehalten, deren komprimierte
+Lebensdauer eine bewusste Designentscheidung ist.
+
+Nach insgesamt 15.000 ME fusioniertem Wasserstoff wechselt der Stern von der
+frühen H-Fusionsphase in die Hauptreihe und beginnt damit seinen strukturellen
+Wasserstoffverbrauch.
+
+Vorher besaß nur der Wasserstoff einen solchen Grundumsatz. Das war der Grund,
+weshalb allein die Hauptreihe mit wachsender Wolke kürzer wurde, während sich
+jede andere Phase pro Wolkenstufe verdoppelte — die Heliumphase war ab
+0,56 M☉ in jeder Runde die längste und machte auf Stufe 9 über die Hälfte der
+Gesamtdauer aus.
 
 ## 9. Upgrades
 
@@ -564,6 +614,32 @@ Kostenfolge durch Rundung: 3, 8, 19, 47, 117 Energie.
 | Wirkung | ×1,35 auf weitere Kompressionswärme |
 | Sichtbarkeit | ab Protosternphase |
 
+### Konvektionszone
+
+| Eigenschaft | Wert |
+| --- | --- |
+| Erste Stufe | 400 Energie |
+| Kostenwachstum | ×1,55 |
+| Maximum | keines (technische Schutzgrenze 999) |
+| Wirkung | +25 % auf die Rate aller **automatischen** Fusionen je Stufe |
+| Voraussetzung | ab 10 Mio. K |
+| Sichtbarkeit | ab der Wasserstofffusion |
+
+Das Upgrade löst zwei zusammenhängende Probleme. Erstens hatte die Runde ab
+etwa 2,7 M☉ Wolkenmasse keinen Verwendungszweck mehr für Energie: Alles war
+nach wenigen Minuten am Maximum, während weiter Millionen MeV anfielen (am Ende
+einer Runde auf Wolkenstufe 9 blieben 13 Millionen ungenutzt). Zweitens war
+Dauerklicken dem vollen Automationsausbau um Faktor 4 (Wasserstoff) bis 17
+(Silizium) überlegen, was das Versprechen „aktiv beginnen, schrittweise
+automatisieren“ umkehrte.
+
+Die Konvektionszone wirkt deshalb ausschließlich auf automatische Fusion, hat
+keine Ausbaugrenze und wird exponentiell teurer. Sie bleibt dadurch bis zum
+Rundenende die relevante Kaufentscheidung.
+
+Upgrades ohne sinnvolle Ausbaugrenze zeigen in der Kachel die erreichte Stufe
+als Zahl statt als Pip-Reihe (`UNBOUNDED_UPGRADE_LEVELS`, aktuell ab 25).
+
 ### Architekturentscheidung
 
 Kaufwirkung, Statistikzähler und Logeintrag stehen in der Upgrade-Definition.
@@ -581,12 +657,25 @@ separater Typ oder Modus existiert nicht.
 ### Freischaltprinzip
 
 - Akkretionsautomation verlangt Sternmasse.
-- Reaktionsautomationen verlangen eigene, bereits manuell oder automatisch
-  erzeugte Reaktionsleistung.
+- Reaktionsautomationen verlangen **eine einzige selbst ausgelöste Fusion**
+  dieser Reaktion.
 - Eine Automation wird damit erst angeboten, nachdem der Spieler das
   zugrunde liegende System erlebt hat.
 - Sichtbarkeit, Meisterschaft, Kosten, Maximalstufe und verfügbare Quelle
   fließen in eine gemeinsame Kaufbarkeitsprüfung ein.
+
+Vorher galt hier eine absolute Mengenschwelle auf dem *Produkt* der Automation
+(900 ME Neon für die Kohlenstofffusion, 700 ME Sauerstoff für die Neonfusion
+und so weiter). Da dieses Produkt ohne die Automation ausschließlich durch
+Sternklicks entsteht, konnte die Kette dauerhaft blockieren: kein Klick → kein
+Produkt → keine Automation → nie wieder Fortschritt. Eine Runde blieb ohne
+anwesenden Spieler ab der Kohlenstoffphase eingefroren stehen, unabhängig
+davon, wie viel Energie bereitlag.
+
+Die Designabsicht bleibt vollständig erhalten — sie kostet jetzt eine einzige
+bewusste Handlung statt einer Menge, die nur durch Dauerklicken erreichbar war.
+Und weil `experiencedReactions` den Zyklus überdauert, gilt die Lektion ab dem
+zweiten Durchlauf als gelernt.
 
 ### Ratenformel
 
@@ -608,20 +697,20 @@ Rate(L) = (0 + 1 × L) × Akkretionsmultiplikatoren
 ### Werte
 
 | Automation | Basisrate | Basiskosten | Kostenwachstum | Freischaltung | Maximum |
-| --- | ---: | ---: | ---: | ---: | ---: |
+| --- | ---: | ---: | ---: | --- | ---: |
 | Akkretionsstrom | 1 ME/s | 25 | ×1,85 | 2.544 ME Sternmasse | 8 |
-| Wasserstofffusion | 64 H/s | 280 | ×1,9 | 5.000 ME He erzeugt | 8 |
-| Heliumfusion | 48 He/s | 520 | ×1,9 | 1.500 ME C erzeugt | 8 |
-| Alpha-Einfang | 24 O/s | 900 | ×1,9 | 400 ME O erzeugt | 8 |
-| Kohlenstofffusion | 18 C/s | 1.400 | ×1,9 | 900 ME Ne erzeugt | 8 |
-| Neonfusion | 14 Ne/s | 1.900 | ×1,9 | 700 ME O erzeugt | 8 |
-| Sauerstofffusion | 11 O/s | 2.500 | ×1,9 | 550 ME Si erzeugt | 8 |
-| Siliziumfusion | 8 Si/s | 3.200 | ×1,9 | 400 ME Fe erzeugt | 8 |
+| Wasserstofffusion | 64 H/s | 280 | ×1,9 | einmal selbst fusioniert | 8 |
+| Heliumfusion | 48 He/s | 520 | ×1,9 | einmal selbst fusioniert | 8 |
+| Alpha-Einfang | 24 O/s | 900 | ×1,9 | einmal selbst fusioniert | 8 |
+| Kohlenstofffusion | 18 C/s | 1.400 | ×1,9 | einmal selbst fusioniert | 8 |
+| Neonfusion | 14 Ne/s | 1.900 | ×1,9 | einmal selbst fusioniert | 8 |
+| Sauerstofffusion | 11 O/s | 2.500 | ×1,9 | einmal selbst fusioniert | 8 |
+| Siliziumfusion | 8 Si/s | 3.200 | ×1,9 | einmal selbst fusioniert | 8 |
 
 Die Spalte „Basisrate“ ist der Koeffizient der Formel. Auf Stufe 1 liegt die
 tatsächliche Reaktionsrate wegen des Wachstumsfaktors bereits bei 108 % dieses
-Werts. Alle Reaktionsraten werden zusätzlich mit dem Fusionsgedächtnis
-multipliziert.
+Werts. Alle Reaktionsraten werden zusätzlich mit dem Fusionsgedächtnis und der
+Konvektionszone multipliziert.
 
 Die Engine interpretiert den Koeffizienten als umgesetzte Reaktions- bzw.
 Primäreingabemenge. Beim Alpha-Einfang trägt die Oberfläche derzeit dennoch
@@ -706,6 +795,10 @@ Stadienwechsel bei Freischaltung.
 Bei einem abgeschlossenen Zyklus werden Windraten unabhängig von den
 Stadienwerten auf 0 gesetzt.
 
+`supernova` wird seit dem Balancing-Umbau tatsächlich als `state.stage`
+gesetzt und ist damit eine gespielte Phase (siehe Kernkollaps in Abschnitt 13).
+`carbonOxygen` bleibt ein reiner Definitionseintrag ohne eigenen Zustand.
+
 ## 13. Entwicklungsentscheidungen und Endzustände
 
 ### Entscheidungsregeln
@@ -715,9 +808,39 @@ Stadienwerten auf 0 gesetzt.
 - Heliumphase endet, ohne möglichen schweren Brennstoff → Weißer Zwerg.
 - Kohlenstoff wurde gezündet, aber die schwere Kette kann nicht fortgesetzt
   werden → O/Ne-Weißer-Zwerg.
-- Silizium ist verbraucht und ein Eisenkern vorhanden:
-  - Endmasse unter 3.000.000 ME → Neutronenstern.
-  - Endmasse ab 3.000.000 ME → Schwarzes Loch.
+- Silizium ist verbraucht und ein Eisenkern vorhanden → Kernkollaps
+  (Stadium `supernova`), danach:
+  - Masse bei Kollapsbeginn unter 3.000.000 ME → Neutronenstern.
+  - Masse bei Kollapsbeginn ab 3.000.000 ME → Schwarzes Loch.
+
+### Kernkollaps
+
+Der Eisenkern beendet die Runde nicht mehr unmittelbar. Das Stadium
+`supernova` war zwar seit jeher definiert, wurde aber nie betreten — der
+dramatischste Moment des Spiels existierte nur als nachträglicher Eintrag in
+der Chronik-Timeline.
+
+| Wert | Referenz |
+| --- | ---: |
+| Dauer der Kollapsphase | 24 s |
+| Abstoßung je Sternklick | 1,2 % der Masse bei Kollapsbeginn |
+| Maximal abstoßbarer Anteil | 60 % |
+| Sternenstaub-Bonus bei vollständiger Abstoßung | +50 % der Rundenbelohnung |
+
+Die Phase läuft vollständig von selbst ab und ist damit idle-sicher. Wer
+anwesend ist, stößt durch Klicks auf den Stern Hülle ab und wandelt sie über
+den r-Prozess in zusätzlichen Sternenstaub um.
+
+Welcher Sternrest entsteht, ist dabei bereits beim Eintritt in den Kollaps
+entschieden: Sowohl der Vergleich mit der Schwarzloch-Schwelle als auch der
+Massen-Multiplikator der Belohnung verwenden die Masse **vor** der Abstoßung.
+Anwesenheit ist dadurch ein Bonus, nie ein Risiko — andernfalls würde jeder
+Klick während der Supernova den eigenen Ertrag senken.
+
+Der Bonus ist bewusst relativ zur Rundenbelohnung und nicht als fester Betrag
+je abgestoßener Sonnenmasse formuliert: Ein linearer Satz wächst mit der Masse,
+die Basisbelohnung dagegen nur mit `Masse^0,45`. Bei 4.588 M☉ überstieg ein
+linearer Bonus die eigentliche Belohnung um das Neunfache.
 
 Vor einer möglichen nächsten Zündung kontrahiert der Kern nur, wenn die
 Mindestmasse bereits vorhanden ist. Reicht die Masse nicht, endet der Zyklus
@@ -725,7 +848,14 @@ als passender Weißer Zwerg.
 
 ### Belohnungen
 
-| Endzustand | Sternenstaub |
+Der Ertrag folgt der tatsächlich erreichten Endmasse, nicht mehr allein der
+Kategorie des Endzustands:
+
+```text
+Sternenstaub = Basis(Endzustand) × max(1; (Endmasse in M☉ / 0,5)^0,45)
+```
+
+| Endzustand | Basis |
 | --- | ---: |
 | Brauner Zwerg | 2 |
 | Helium-Weißer-Zwerg | 4 |
@@ -734,6 +864,17 @@ als passender Weißer Zwerg.
 | Neutronenstern | 8 |
 | Schwarzes Loch | 10 |
 | importierter Legacy-Hauptreihenstern | 0 |
+
+Der Multiplikator setzt bei einer halben Sonnenmasse an und bleibt darunter
+bei 1. Die kalibrierten frühen Belohnungen bleiben dadurch unverändert: Der
+erste Braune Zwerg zahlt weiterhin exakt 2 ✦ und finanziert damit exakt die
+erste Wolkenstufe.
+
+Vorher waren die Belohnungen feste kleine Ganzzahlen (Spannweite 5×), während
+die Rundendauer über die Wolkenstufen um Faktor 20 wuchs. Das Ergebnis war eine
+invertierte Ökonomie: Eine 4,8-Minuten-Runde auf Wolkenstufe 3 warf 62 ✦ pro
+Stunde ab, ein 1,6-Stunden-Schwarzes-Loch nur 6,3 ✦. Wer optimierte, musste
+dauerhaft klein bleiben — genau gegen die Erzählung des Spiels.
 
 ### Präsentation des Endes
 
@@ -748,21 +889,34 @@ nicht direkt von Verwaltungsoptionen überdeckt.
 
 | Perk | Wirkung pro Stufe | Kosten für Stufe `L` | Maximum |
 | --- | --- | --- | ---: |
-| Wolkenmasse | +100 %, also Verdopplung | `2 + 3L` | 24 |
-| Gravitatives Gedächtnis | Stufe 1 ×2,35; danach schwächer werdende Zuwächse bis ×8,228 auf Stufe 10 | `2 + 2L` | 10 |
-| Fusionsgedächtnis | +15 % manuelle und gekaufte automatische Fusion | `3 + 3L` | 5 |
+| Wolkenmasse | +100 %, also Verdopplung | `2 × 1,55^L + 3L` | 24 |
+| Gravitatives Gedächtnis | Stufe 1 ×2,35; danach schwächer werdende Zuwächse, Stufe 16 ≈ ×11,7 | `2 × 1,28^L + 2L` | 16 |
+| Fusionsgedächtnis | +15 % manuelle und automatische Fusion | `3 × 1,35^L + 3L` | 20 |
 
 Das Maximum 24 der Wolkenmasse ist eine technische Schutzgrenze, keine
 kommunizierte Zielstufe. Der Perk soll sich offen anfühlen.
 
-Die kumulierten Kosten für `N` Wolkenstufen sind:
+Alle drei Kostenkurven wachsen exponentiell. Solange die Belohnung fix war,
+passte für die Wolkenmasse eine lineare Kurve (2, 5, 8, …) — mit einem
+massenabhängigen Ertrag, der sich pro Stufe um Faktor `2^0,45 ≈ 1,37` erhöht,
+wäre sie sofort kollabiert: Ab Stufe 9 hätte eine einzige Runde mehrere Stufen
+auf einmal bezahlt. Der Wachstumsfaktor 1,55 liegt bewusst über dem
+Ertragswachstum, sodass jede weitere Stufe etwas mehr Runden verlangt als die
+vorige und die Leiter sanft steiler wird, statt zu beschleunigen.
 
-```text
-Gesamtkosten(N) = 1,5 × N² + 0,5 × N
-```
+Der lineare Anteil bleibt erhalten, damit die ersten Stufen ihre kalibrierten
+Preise behalten: Stufe 1 kostet weiterhin exakt 2 ✦ und damit genau die
+Belohnung des ersten Braunen Zwergs.
 
-Beispiele: Stufe 1 kostet kumuliert 2, Stufe 7 kostet 77 und Stufe 9 kostet
-126 Sternenstaub.
+Kostenfolge der Wolkenmasse durch Rundung: 2, 6, 11, 16, 24, 33, 46, 64, 91,
+130, 190, 281 Sternenstaub. Kumuliert bis Stufe 9 sind das 293 ✦.
+
+Die Maxima von Gravitativem Gedächtnis (vorher 10) und Fusionsgedächtnis
+(vorher 5) wurden angehoben, weil beide Perks nach rund 110 beziehungsweise
+45 ✦ erledigt waren und die permanente Progression danach faktisch nur noch aus
+der Wolkengröße bestand. Die Wertkurve des Gravitativen Gedächtnisses steigt
+über den gesamten erweiterten Bereich monoton weiter; der negative quadratische
+Anteil kehrt sie nicht um.
 
 ### Kauf- und Rücknahmemodell
 
@@ -787,6 +941,26 @@ Erhalten bleiben:
 - Gesamtspielzeit
 - Sternenlogbuch
 - Rundenhistorie
+- `ignitedReactions`: jede jemals freigeschaltete Fusion
+- `experiencedReactions`: jede jemals manuell ausgelöste Fusion
+
+### Die beiden Reaktionsgedächtnisse
+
+Sie sind der Grund, weshalb das Spiel ab dem zweiten Zyklus ohne anwesenden
+Spieler weiterläuft, ohne dass die erste Entdeckung entwertet wird.
+
+- Eine Fusion, die schon einmal gezündet wurde, zündet in späteren Zyklen von
+  selbst, sobald Temperatur, Mindestmasse und Brennreihenfolge stimmen. Die
+  bewusste, kostenlose Freischaltung bleibt damit genau einmal je Reaktion
+  erhalten. Ohne diese Ausnahme wäre jede Runde zwingend an einen anwesenden
+  Spieler gebunden: Ein Stern, der still auf einen Klick wartet, macht
+  Offline-Fortschritt unmöglich, egal wie gut alles andere automatisiert ist.
+- Eine Fusion, die schon einmal manuell ausgelöst wurde, darf ab sofort und in
+  jedem weiteren Zyklus automatisiert werden.
+
+Übrig bleibt als einzige Phase, die Anwesenheit verlangt, der manuelle Anschub
+zu Rundenbeginn bis zum Protostern — rund eine Minute. Genau er ist das
+Zeitbudget des späten Spiels.
 
 Zurückgesetzt werden:
 
@@ -877,6 +1051,7 @@ berechnet. 100 % fallen damit mit der Brennstofferschöpfung zusammen.
 - Spitzentemperatur
 - gekaufte Upgrades und Automationen
 - Offline-Zeit
+- im Kernkollaps abgestoßene Hülle
 - verdienter Sternenstaub
 
 ### Historie
@@ -1488,7 +1663,7 @@ benachbarte Elemente scheinen nicht durch.
 ### Speicherung
 
 - Local-Storage-Schlüssel: `cosmic-clicker-save-v1`
-- aktuelles Zustandsschema: Version 7
+- aktuelles Zustandsschema: Version 8
 - Speichern:
   - nach Spielaktionen;
   - alle 5 Sekunden;
@@ -1525,7 +1700,14 @@ benachbarte Elemente scheinen nicht durch.
 Die Migrationslogik unterstützt die älteren Prototypzustände und ergänzt unter
 anderem Reaktionsfreischaltungen, Reaktionssummen, Reaktionsausbau,
 Kontraktionswärme, schwere Elemente, zusätzliche Automationen und neue
-Endzustände. Alte Reaktionen starten ohne gespeicherte Ausbaustufe auf Stufe 0;
+Endzustände.
+
+Spielstände vor Version 8 kennen die beiden Reaktionsgedächtnisse nicht. Beide
+werden aus dem vorhandenen Fortschritt rekonstruiert: Was schon freigeschaltet
+ist, gilt als entdeckt; was messbar umgesetzt wurde, gilt als selbst erlebt.
+Der Unterschied zwischen manuell und automatisch lässt sich rückwirkend nicht
+mehr sicher trennen — die großzügige Auslegung ist hier die richtige, weil die
+Alternative ein blockierter Spielstand wäre. Alte Reaktionen starten ohne gespeicherte Ausbaustufe auf Stufe 0;
 Legacy-Hauptreihenabschlüsse bleiben als Historieneintrag erhalten.
 
 ## 24. Architekturentscheidungen für Erweiterbarkeit
@@ -1679,6 +1861,11 @@ Binärentwicklung und tatsächlicher Kernmasse ab.
 
 Nach dem vollständigen Einzelstern-Zyklus sind folgende Richtungen vorgesehen:
 
+- Metallizität als zyklusübergreifender Meta-Wert: Die schweren Elemente des
+  Sternrests reichern die nächste Urwolke an, schalten den CNO-Zyklus frei und
+  machen erstmals relevant, *wie* eine Runde endete statt nur *dass* sie endete;
+- zweite Prestige-Ebene aus Rekorden und Vielfalt statt aus Masse;
+- Herausforderungswolken als rein datengetriebene Modifikatoren je Runde;
 - zusätzliche Reaktionskanäle und Zwischenprodukte;
 - Jupitermassen zusätzlich zu ME und M☉;
 - Metallizität und alternative Wolkenzusammensetzungen;

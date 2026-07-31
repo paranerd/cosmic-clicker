@@ -5,7 +5,7 @@ import { loadGame, normalizeGameState, saveGame } from '../src/game/storage';
 
 const SAVE_KEY = 'cosmic-clicker-save-v1';
 
-describe('save storage and version 7 migration', () => {
+describe('save storage and version 8 migration', () => {
   let values: Map<string, string>;
 
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe('save storage and version 7 migration', () => {
 
     const migrated = normalizeGameState(legacy);
     expect(migrated).not.toBeNull();
-    expect(migrated).toMatchObject({ version: 7, energy: 321, run: 4, volume: .35 });
+    expect(migrated).toMatchObject({ version: 8, energy: 321, run: 4, volume: .35 });
     expect(migrated?.tutorial.completed).toBe(true);
     expect(migrated?.tutorial.introSeen).toBe(true);
     expect(migrated?.stats.manualClicks).toBe(0);
@@ -55,7 +55,7 @@ describe('save storage and version 7 migration', () => {
     const legacy = { ...current, version: 3, stage: 'stable', completed: true };
     delete (legacy as Partial<typeof legacy>).outcome;
     const migrated = normalizeGameState(legacy);
-    expect(migrated).toMatchObject({ version: 7, completed: true, stage: 'mainSequence', outcome: 'legacyMainSequence' });
+    expect(migrated).toMatchObject({ version: 8, completed: true, stage: 'mainSequence', outcome: 'legacyMainSequence' });
     expect(migrated?.discoveredOutcomes).toContain('legacyMainSequence');
   });
 
@@ -72,7 +72,7 @@ describe('save storage and version 7 migration', () => {
     saveGame(state);
 
     const loaded = loadGame().state;
-    expect(loaded.version).toBe(7);
+    expect(loaded.version).toBe(8);
     expect(loaded.volume).toBe(.71);
     expect(loaded.tutorial.completed).toBe(true);
     expect(loaded.stats.manualClicks).toBe(12);
@@ -154,7 +154,7 @@ describe('save storage and version 7 migration', () => {
   it('falls back safely when a save is malformed', () => {
     values.set(SAVE_KEY, '{not-json');
     const loaded = loadGame();
-    expect(loaded.state.version).toBe(7);
+    expect(loaded.state.version).toBe(8);
     expect(loaded.state.run).toBe(1);
     expect(loaded.state.cloudTier).toBe(0);
     expect(loaded.offlineSeconds).toBe(0);

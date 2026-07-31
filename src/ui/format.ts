@@ -1,3 +1,5 @@
+import { UNBOUNDED_UPGRADE_LEVELS } from '../content';
+
 export const icons = {
   spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></svg>',
   download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 19h16"/></svg>',
@@ -87,4 +89,13 @@ export function temperatureScale(value: number): { max: number; label: string; p
 
 export function levelPips(level: number, max: number): string {
   return Array.from({ length: max }, (_, index) => `<i class="level-pip ${index < level ? 'is-filled' : ''}"></i>`).join('');
+}
+
+// Stufenanzeige einer Karte. Eine feste Ausbaugrenze bleibt eine Pip-Reihe —
+// sie zeigt auf einen Blick, wie viel vom Weg geschafft ist. Ein Upgrade ohne
+// sinnvolle Grenze (z. B. die Konvektionszone) hätte dort hunderte Pips; es
+// zeigt stattdessen die erreichte Stufe als Zahl.
+export function levelDisplay(level: number, max: number): string {
+  if (max <= UNBOUNDED_UPGRADE_LEVELS) return levelPips(level, max);
+  return `<span class="level-count">Stufe ${formatNumber(level)}</span>`;
 }

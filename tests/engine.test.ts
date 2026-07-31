@@ -1,18 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { achievementTitleFor, CLOUD_GROWTH, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, OBJECTIVES, prestigePerkDescription, REACTIONS, REACTION_ORDER, STAGES, THRESHOLDS, TUTORIAL_STEPS, upgradeCost as calculateLevelValue } from '../src/content';
+import { achievementTitleFor, AUTOMATIONS, AUTOMATION_ORDER, CLOUD_GROWTH, CORE_COLLAPSE, PRESTIGE_PERKS, prestigePerkValue, UPGRADE_ORDER, cloudSolarMasses, EMPTY_MATTER, HYDROGEN_TO_HELIUM_RATIO, OBJECTIVES, prestigePerkDescription, REACTIONS, REACTION_ORDER, STAGES, THRESHOLDS, TUTORIAL_STEPS, upgradeCost as calculateLevelValue } from '../src/content';
 import type { Stage } from '../src/game/types';
 import {
   accretionPerClick,
   accretionPerSecond,
   automationCost,
   automationValueAtLevel,
+  canBuyAutomation,
+  canBuyUpgrade,
   calculateTemperature,
   cloudMass,
   createInitialState,
   gravityMultiplier,
   objectiveFor,
+  reactionAutomationPerSecond,
   reactionAvailable,
   reactionCapacity,
+  reactionManualAmount,
   reactionManualAmountAtLevel,
   reactionUnlockable,
   reactionUnlockProgress,
@@ -21,7 +25,7 @@ import {
   shellWindPerSecond,
   solarMasses,
   starMass,
-  structuralHydrogenBurnPerSecond,
+  structuralBurnPerSecond,
   tick,
   upgradeCost,
 } from '../src/game/engine';
@@ -183,7 +187,7 @@ describe('data-driven stellar engine v0.4', () => {
     expect(accretionPerSecond(state)).toBe(7);
   });
 
-  it('uses the universal configurable curve for all ten gravity prestige levels', () => {
+  it('uses the universal configurable curve across the extended gravity prestige ladder', () => {
     const state = createInitialState();
     state.upgrades.gravity = 2;
     state.automation.accretion = 1;
@@ -211,7 +215,15 @@ describe('data-driven stellar engine v0.4', () => {
     });
     expect(prestigePerkDescription('permanentGravity', 0)).toContain('+135% Akkretionsrate');
     expect(prestigePerkDescription('permanentGravity', 1)).toContain('+50% Akkretionsrate');
-    expect(prestigePerkDescription('permanentGravity', 10)).toBe('Maximum erreicht.');
+    // Die Leiter reicht seit dem Balancing-Umbau bis Stufe 16; erst dort meldet
+    // der Perk sein Maximum. Die Wertkurve muss über den gesamten erweiterten
+    // Bereich monoton steigen — der negative quadratische Anteil darf sie nicht
+    // irgendwann wieder absenken.
+    expect(PRESTIGE_PERKS.permanentGravity.maxLevel).toBe(16);
+    expect(prestigePerkDescription('permanentGravity', 16)).toBe('Maximum erreicht.');
+    for (let level = 1; level <= PRESTIGE_PERKS.permanentGravity.maxLevel; level += 1) {
+      expect(prestigePerkValue('permanentGravity', level)).toBeGreaterThan(prestigePerkValue('permanentGravity', level - 1));
+    }
 
     state.perks.permanentGravity = 1;
     state.completed = true;
@@ -387,10 +399,15 @@ describe('data-driven stellar engine v0.4', () => {
     expect(['redGiant', 'helium']).toContain(giant.stage);
     const contracted = tick(giant, 100);
     expect(contracted.temperature).toBeGreaterThanOrEqual(THRESHOLDS.heliumTemperature);
-    // Heliumbrennen und Alpha-Einfang werden gleichzeitig zündbar und werden
-    // beide einzeln freigeschaltet.
+    // Der Alpha-Einfang ist ein Nebenkanal der Heliumphase: Er teilt sich
+    // Zündtemperatur und Mindestmasse mit der Heliumfusion und wird
+    // zündbar, sobald diese gezündet hat. Vorher waren beide gleichzeitig
+    // freischaltbar; seit Zündungen der Brennreihenfolge folgen, geht die
+    // Heliumfusion voran.
     expect(reactionUnlockable(contracted, 'helium')).toBe(true);
-    expect(reactionUnlockable(contracted, 'alphaCapture')).toBe(true);
+    expect(reactionUnlockable(contracted, 'alphaCapture')).toBe(false);
+    const heliumOnly = unlockReactions(contracted, 'helium');
+    expect(reactionUnlockable(heliumOnly, 'alphaCapture')).toBe(true);
     const ignited = unlockReactions(contracted, 'helium', 'alphaCapture');
     expect(ignited.unlockedReactions).toContain('helium');
     expect(ignited.unlockedReactions).toContain('alphaCapture');
@@ -417,23 +434,73 @@ describe('data-driven stellar engine v0.4', () => {
   });
 
   it('uses final mass to choose the compact remnant after silicon burning', () => {
-    const finish = (mass: number) => {
+    // Der Eisenkern führt jetzt zuerst in den Kernkollaps; erst dessen Ablauf
+    // schließt die Runde ab (siehe CORE_COLLAPSE in content/progression.ts).
+    const collapse = (mass: number) => {
       const state = reactionState('silicon', 40);
       state.star.iron = mass - 40;
       return reduceGame(state, { type: 'RUN_REACTION', reaction: 'silicon' });
     };
+    const finish = (mass: number) => tick(collapse(mass), CORE_COLLAPSE.seconds);
+    expect(collapse(2_000_000).stage).toBe('supernova');
+    expect(collapse(2_000_000).completed).toBe(false);
     expect(finish(2_000_000).outcome).toBe('neutronStar');
     expect(finish(3_200_000).outcome).toBe('blackHole');
   });
 
-  it('unlocks reaction automation from the matching reaction output', () => {
-    let state = reactionState('hydrogen', 10_000);
-    state.energy = 10_000;
-    state.reactionTotals.hydrogen = 5_100;
+  it('lets the core collapse run to completion without any input, but rewards presence', () => {
+    const buildCollapse = () => {
+      const state = reactionState('silicon', 40);
+      state.star.iron = 3_200_000 - 40;
+      return reduceGame(state, { type: 'RUN_REACTION', reaction: 'silicon' });
+    };
+    // Idle: Die Phase läuft von selbst ab und liefert denselben Sternrest.
+    const idle = tick(buildCollapse(), CORE_COLLAPSE.seconds);
+    expect(idle.outcome).toBe('blackHole');
+    expect(idle.stats.envelopeEjected).toBe(0);
+
+    // Aktiv: Klicks stoßen Hülle ab und zahlen zusätzlichen Sternenstaub.
+    let active = buildCollapse();
+    for (let i = 0; i < 30; i += 1) active = reduceGame(active, { type: 'EJECT_ENVELOPE' });
+    expect(active.stats.envelopeEjected).toBeGreaterThan(0);
+    expect(starMass(active)).toBeLessThan(starMass(idle));
+    const finished = tick(active, CORE_COLLAPSE.seconds);
+    // Der Sternrest richtet sich nach der Masse VOR der Abstoßung — Anwesenheit
+    // ist ein Bonus, nie ein Risiko.
+    expect(finished.outcome).toBe('blackHole');
+    expect(finished.stats.stardustEarned).toBeGreaterThan(idle.stats.stardustEarned);
+  });
+
+  it('unlocks reaction automation from a single manual execution instead of a product threshold', () => {
+    const base = reactionState('hydrogen', 10_000);
+    base.energy = 10_000;
+
+    // Ohne eigene Erfahrung bleibt die Automation gesperrt — auch bei viel
+    // bereits (automatisch) umgesetztem Brennstoff und voller Kasse.
+    const untouched = { ...base, reactionTotals: { ...base.reactionTotals, hydrogen: 500_000 } };
+    expect(canBuyAutomation(untouched, 'fusion')).toBe(false);
+    expect(reduceGame(untouched, { type: 'BUY_REACTION_AUTOMATION', reaction: 'hydrogen' }).automation.fusion).toBe(0);
+
+    // Eine einzige selbst ausgelöste Fusion genügt.
+    let state = reduceGame(base, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    expect(state.experiencedReactions).toContain('hydrogen');
+    expect(canBuyAutomation(state, 'fusion')).toBe(true);
     state = reduceGame(state, { type: 'BUY_REACTION_AUTOMATION', reaction: 'hydrogen' });
     expect(state.automation.fusion).toBe(1);
     const automatic = tick(state, 1);
     expect(automatic.automaticReactionTotals.hydrogen).toBeGreaterThan(0);
+  });
+
+  it('carries both reaction memories across a prestige so later cycles run unattended', () => {
+    let state = reactionState('hydrogen', 10_000);
+    state = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
+    state.completed = true;
+    state.outcome = 'brownDwarf';
+    const next = reduceGame(state, { type: 'PRESTIGE' });
+    expect(next.experiencedReactions).toContain('hydrogen');
+    expect(next.ignitedReactions).toContain('hydrogen');
+    // Im neuen Zyklus ist noch nichts gezündet, aber die Lektion gilt.
+    expect(next.unlockedReactions).toEqual([]);
   });
 
   it('starts stellar wind at the protostar and removes 0.25 percent per minute', () => {
@@ -553,16 +620,25 @@ describe('data-driven stellar engine v0.4', () => {
     const halfway = reduceGame(state, { type: 'RUN_REACTION', reaction: 'hydrogen' });
     expect(objectiveFor(halfway).progress).toBeGreaterThan(before.progress);
     // Kurz vor der Erschöpfung nähert sich der Fortschritt 100 %; ist der
-    // Brennstoff ganz aufgebraucht, übernimmt korrekt das Kontraktionsziel.
-    const nearlyEmpty = structuredClone(state);
-    nearlyEmpty.star.hydrogen = .5;
-    nearlyEmpty.star.helium = 5_000;
+    // Brennstoff aufgebraucht, übernimmt korrekt das Kontraktionsziel.
+    //
+    // „Aufgebraucht“ heißt seit dem Balancing-Umbau: unter einem Promille der
+    // Sternmasse (siehe fuelDepleted in game/engine.ts). Ein exakter Test auf
+    // null ließ die Kette sowohl zu früh weiterschalten als auch dauerhaft
+    // hängen bleiben, sobald frühere Automationen den Brennstoff nachlieferten.
+    // Die Schwelle ist relativ zur Sternmasse, deshalb setzen diese drei
+    // Fälle den Kern explizit — der Eisenrest aus reactionState() würde die
+    // Rechnung sonst dominieren.
+    const withCore = (hydrogen: number): GameState => {
+      const next = structuredClone(state);
+      next.star = { ...EMPTY_MATTER, hydrogen, helium: 5_000 };
+      return next;
+    };
+    const nearlyEmpty = withCore(6);
     expect(objectiveFor(nearlyEmpty).id).toBe('burn-hydrogen');
-    expect(objectiveFor(nearlyEmpty).progress).toBeGreaterThan(99.9);
-    const empty = structuredClone(state);
-    empty.star.hydrogen = 0;
-    empty.star.helium = 5_000;
-    expect(objectiveFor(empty).id).toBe('ignite-helium');
+    expect(objectiveFor(nearlyEmpty).progress).toBeGreaterThan(99.5);
+    expect(objectiveFor(withCore(.5)).id).toBe('ignite-helium');
+    expect(objectiveFor(withCore(0)).id).toBe('ignite-helium');
   });
 
   it('lets the player expand a reaction so each manual click fuses more (Punkt 2)', () => {
@@ -657,7 +733,7 @@ describe('data-driven stellar engine v0.4', () => {
       expect(factor).toBeLessThanOrEqual(5);
       // per-second structural burn rate itself must scale super-linearly with mass
       // (α > 1) for the compressed 3–5× factor to emerge at all.
-      expect(structuralHydrogenBurnPerSecond(mainSequenceState(25))).toBeGreaterThan(structuralHydrogenBurnPerSecond(mainSequenceState(1)) * 3);
+      expect(structuralBurnPerSecond(mainSequenceState(25), 'hydrogen')).toBeGreaterThan(structuralBurnPerSecond(mainSequenceState(1), 'hydrogen') * 3);
     });
 
     it('keeps the shell wind inactive before the main sequence and only removes H/He afterward', () => {
@@ -712,11 +788,11 @@ describe('data-driven stellar engine v0.4', () => {
       };
       expect(starMass(buildState())).toBeCloseTo(3_050_000, 0);
 
-      const immediate = reduceGame(buildState(), { type: 'RUN_REACTION', reaction: 'silicon' });
+      const immediate = tick(reduceGame(buildState(), { type: 'RUN_REACTION', reaction: 'silicon' }), CORE_COLLAPSE.seconds);
       expect(immediate.outcome).toBe('blackHole');
 
       const afterLongWait = tick(buildState(), 3_000);
-      const settled = reduceGame(afterLongWait, { type: 'RUN_REACTION', reaction: 'silicon' });
+      const settled = tick(reduceGame(afterLongWait, { type: 'RUN_REACTION', reaction: 'silicon' }), CORE_COLLAPSE.seconds);
       expect(settled.outcome).toBe('neutronStar');
       expect(starMass(settled)).toBeLessThan(THRESHOLDS.blackHoleMass);
     });
@@ -732,6 +808,138 @@ describe('data-driven stellar engine v0.4', () => {
       contracting.star = { ...EMPTY_MATTER, helium: 150_000 };
       contracting.cloud = { ...EMPTY_MATTER };
       expect(objectiveFor(contracting).detail).toContain('M☉');
+    });
+  });
+  // Der Balancing-Umbau hat drei Zusagen, die einzeln leicht wieder brechen
+  // können. Sie werden deshalb hier als Verhalten festgehalten, nicht als
+  // Zahlen: eine Runde muss unbeaufsichtigt durchlaufen, eine größere Wolke
+  // darf nie schlechter bezahlen als eine kleinere, und Automation muss im
+  // späten Spiel gegen Dauerklicken bestehen können.
+  describe('Balancing-Umbau: Idle-Fähigkeit, Ertragskurve, Automation', () => {
+    const fullMemory = { ignitedReactions: [...REACTION_ORDER], experiencedReactions: [...REACTION_ORDER] };
+
+    // Spielt eine Runde: `activeSeconds` lang mit Klicks und Käufen, danach
+    // ausschließlich Zeit. Genau das Verhalten eines Spielers, der eine Runde
+    // anschiebt und das Gerät weglegt.
+    const playRun = (tier: number, activeSeconds: number, maxSeconds: number): GameState => {
+      let state = createInitialState(
+        { largerCloud: tier, permanentGravity: 16, fusionMemory: 20 },
+        0, 2, { cloudTier: tier, nextCloudTier: tier, ...fullMemory },
+      );
+      const buy = (input: GameState): GameState => {
+        let next = input;
+        let bought = true;
+        let guard = 0;
+        while (bought && guard < 200) {
+          guard += 1;
+          bought = false;
+          for (const kind of AUTOMATION_ORDER) {
+            if (!canBuyAutomation(next, kind)) continue;
+            const reaction = AUTOMATIONS[kind].reaction;
+            next = reduceGame(next, reaction ? { type: 'BUY_REACTION_AUTOMATION', reaction } : { type: 'BUY_ACCRETION' });
+            bought = true;
+          }
+          for (const id of UPGRADE_ORDER) {
+            if (!canBuyUpgrade(next, id)) continue;
+            next = reduceGame(next, { type: 'BUY_UPGRADE', upgrade: id });
+            bought = true;
+          }
+        }
+        return next;
+      };
+      let elapsed = 0;
+      while (!state.completed && elapsed < activeSeconds) {
+        state = buy(state);
+        state = reduceGame(state, { type: 'ACCRETE' });
+        state = tick(state, 1 / 6);
+        elapsed += 1 / 6;
+      }
+      while (!state.completed && elapsed < maxSeconds) {
+        state = buy(state);
+        state = tick(state, 1);
+        elapsed += 1;
+      }
+      return state;
+    };
+
+    it('finishes an unattended run after a short manual bootstrap, on every path', () => {
+      // Vor dem Umbau blieb eine Runde ab der Kohlenstoffphase dauerhaft
+      // stehen: Die Automation der nächsten Brennstufe verlangte ihr eigenes
+      // Produkt, das ohne Automation nur durch Klicks entstand. Zwölf Stunden
+      // simulierte Leerlaufzeit veränderten den Zustand nicht um ein einziges
+      // ME.
+      for (const tier of [4, 9]) {
+        const finished = playRun(tier, 90, 4 * 60 * 60);
+        expect(finished.completed, `Wolkenstufe ${tier} läuft nicht unbeaufsichtigt durch`).toBe(true);
+        expect(finished.outcome).not.toBeNull();
+      }
+    });
+
+    it('never pays a bigger cloud less per run than a smaller one', () => {
+      // Die Belohnung folgt der Endmasse. Eine größere Wolke darf dadurch
+      // nie schlechter dastehen — vorher sank der Ertrag pro Stunde von 62 ✦
+      // auf Wolkenstufe 3 auf 2,4 ✦ auf Stufe 11, was das Hochskalieren
+      // bestrafte.
+      const rewards = [4, 7, 9].map((tier) => playRun(tier, 90, 4 * 60 * 60).stats.stardustEarned);
+      rewards.forEach((reward, index) => {
+        if (index === 0) return;
+        expect(reward, `Wolkenstufe ${[4, 7, 9][index]} zahlt weniger als die kleinere davor`).toBeGreaterThan(rewards[index - 1]);
+      });
+    });
+
+    it('lets the convection zone absorb late energy and lift automation past manual clicking', () => {
+      const state = reactionState('silicon', 500_000);
+      state.energy = 5_000_000;
+      // Ohne Ausbaugrenze bleibt die Konvektionszone bis zum Rundenende
+      // kaufbar — sie ist der Abnehmer für Energie, die vorher ungenutzt
+      // liegen blieb (13 Mio. MeV am Ende einer Runde auf Wolkenstufe 9).
+      let convected = state;
+      for (let i = 0; i < 12; i += 1) convected = reduceGame(convected, { type: 'BUY_UPGRADE', upgrade: 'convection' });
+      expect(convected.upgrades.convection).toBe(12);
+      expect(convected.energy).toBeLessThan(state.energy);
+
+      // Sie wirkt ausschließlich auf automatische Fusion, schließt also den
+      // Abstand zum Klicken, statt ihn mitzuskalieren.
+      const withAutomation = { ...convected, automation: { ...convected.automation, siliconFusion: 8 } };
+      const withoutConvection = { ...withAutomation, upgrades: { ...withAutomation.upgrades, convection: 0 } };
+      expect(reactionAutomationPerSecond(withAutomation, 'silicon'))
+        .toBeGreaterThan(reactionAutomationPerSecond(withoutConvection, 'silicon') * 3);
+      expect(reactionManualAmount(withAutomation, 'silicon')).toBeCloseTo(reactionManualAmount(withoutConvection, 'silicon'), 5);
+    });
+
+    it('keeps a burn phase running until its own fuel is spent, even when the next one is already hot enough', () => {
+      // Bei großen Sternen überschreitet allein die Fusionswärme der
+      // laufenden Phase die nächste Zündtemperatur. Ohne Reihenfolgeprüfung
+      // sprang ein 4.588-M☉-Stern nach 0,6 Sekunden Hauptreihe direkt ins
+      // Heliumbrennen und endete mit 27 % nie verbranntem Wasserstoff.
+      const burning = reactionState('hydrogen', 0);
+      burning.star = { ...EMPTY_MATTER, hydrogen: 400_000, helium: 200_000 };
+      burning.cloud = { ...EMPTY_MATTER };
+      burning.temperature = THRESHOLDS.heliumTemperature * 2;
+      expect(reactionUnlockable(burning, 'helium')).toBe(false);
+
+      const spent = { ...burning, star: { ...EMPTY_MATTER, helium: 600_000 } };
+      expect(reactionUnlockable(spent, 'helium')).toBe(true);
+    });
+
+    it('re-ignites a known reaction without waiting for the free unlock click', () => {
+      // Der bewusste Freischaltklick bleibt beim ersten Mal erhalten, sonst
+      // wäre keine Runde ohne anwesenden Spieler möglich.
+      const fresh = reactionState('hydrogen', 0);
+      fresh.star = { ...EMPTY_MATTER, helium: 600_000 };
+      fresh.cloud = { ...EMPTY_MATTER };
+
+      // Genug Zeit, damit der erschöpfte Kern bis zur Heliumzündung
+      // kontrahiert. Ohne Vorwissen bleibt der Stern danach zündbereit
+      // stehen und wartet auf den Spieler.
+      const waiting = tick(fresh, 120);
+      expect(waiting.unlockedReactions).not.toContain('helium');
+      expect(reactionUnlockable(waiting, 'helium')).toBe(true);
+
+      // Mit Vorwissen aus einem früheren Zyklus zündet dieselbe Reaktion von
+      // selbst — sonst könnte keine Runde ohne Anwesenheit weiterlaufen.
+      const known = { ...structuredClone(fresh), ignitedReactions: ['helium' as const] };
+      expect(tick(known, 120).unlockedReactions).toContain('helium');
     });
   });
 });

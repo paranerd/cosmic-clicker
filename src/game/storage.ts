@@ -1,7 +1,7 @@
 import { cloudMassForLevel, EMPTY_MATTER, LIMITS, MATTER_KEYS, PRESTIGE_PERKS, REACTIONS, REACTION_ORDER, UPGRADES, UPGRADE_ORDER } from '../content';
 import { compressionHeat, createInitialState, createRunStatistics, tick } from './engine';
 import { getSaveAdapter } from './save-adapter';
-import type { CloudTier, GameState, LogEntry, Matter, PerkState, RoundRecord, Stage, StellarOutcome, TutorialState, UpgradeState } from './types';
+import type { CloudTier, GameState, LogEntry, Matter, PerkState, ReactionId, RoundRecord, Stage, StellarOutcome, TutorialState, UpgradeState } from './types';
 
 const SAVE_KEY = 'cosmic-clicker-save-v1';
 type SavedState = Partial<Omit<GameState, 'version' | 'stage' | 'cloud' | 'star' | 'perks' | 'pendingPerks' | 'upgrades' | 'history' | 'tutorial' | 'log'>> & {
@@ -57,7 +57,7 @@ const normalizeOutcome = (value: unknown, legacyCompleted: boolean): StellarOutc
 export const normalizeGameState = (value: unknown): GameState | null => {
   if (!value || typeof value !== 'object') return null;
   const parsed = value as SavedState;
-  if (![1, 2, 3, 4, 5, 6, 7].includes(parsed.version ?? 0) || !parsed.cloud || !parsed.star) return null;
+  if (![1, 2, 3, 4, 5, 6, 7, 8].includes(parsed.version ?? 0) || !parsed.cloud || !parsed.star) return null;
 
   const cloud = normalizeMatter(parsed.cloud);
   const star = normalizeMatter(parsed.star);
@@ -119,6 +119,22 @@ export const normalizeGameState = (value: unknown): GameState | null => {
   const activeReaction = parsed.activeReaction && parsed.activeReaction in REACTIONS && unlockedReactions.includes(parsed.activeReaction)
     ? parsed.activeReaction
     : null;
+  // Spielstände vor Version 8 kennen die beiden Reaktionsgedächtnisse nicht.
+  // Beide werden aus dem vorhandenen Fortschritt rekonstruiert, damit ein
+  // laufender Spielstand nicht plötzlich wieder bei null anfängt: Was schon
+  // freigeschaltet ist, gilt als entdeckt; was messbar umgesetzt wurde, gilt
+  // als selbst erlebt. Der Unterschied zwischen manuell und automatisch lässt
+  // sich rückwirkend nicht mehr sicher trennen — die großzügige Auslegung ist
+  // hier die richtige, weil die Alternative ein blockierter Spielstand wäre.
+  const reactionIds = (value: unknown): ReactionId[] => Array.isArray(value)
+    ? value.filter((id): id is ReactionId => typeof id === 'string' && id in REACTIONS)
+    : [];
+  const ignitedReactions = parsed.version === 8
+    ? reactionIds(parsed.ignitedReactions)
+    : [...unlockedReactions];
+  const experiencedReactions = parsed.version === 8
+    ? reactionIds(parsed.experiencedReactions)
+    : REACTION_ORDER.filter((id) => (parsed.reactionTotals?.[id] ?? 0) > 0);
   const reactionTotals = { ...fallback.reactionTotals, ...parsed.reactionTotals };
   reactionTotals.hydrogen = Math.max(reactionTotals.hydrogen, stats.hydrogenFused);
   reactionTotals.helium = Math.max(reactionTotals.helium, stats.heliumFused);
@@ -153,9 +169,12 @@ export const normalizeGameState = (value: unknown): GameState | null => {
   const normalized = {
     ...fallback,
     ...parsed,
-    version: 7,
+    version: 8,
     stage,
     totalElapsed,
+    collapseElapsed: typeof parsed.collapseElapsed === 'number' && Number.isFinite(parsed.collapseElapsed)
+      ? Math.max(0, parsed.collapseElapsed)
+      : 0,
     cloudTier,
     nextCloudTier,
     cloud,
@@ -171,6 +190,8 @@ export const normalizeGameState = (value: unknown): GameState | null => {
       ? parsed.deuteriumIgnitionCompression
       : null,
     unlockedReactions,
+    ignitedReactions,
+    experiencedReactions,
     reactionTotals,
     automaticReactionTotals: { ...fallback.automaticReactionTotals, ...parsed.automaticReactionTotals },
     reactionUpgrades: { ...fallback.reactionUpgrades, ...parsed.reactionUpgrades },

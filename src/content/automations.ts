@@ -14,15 +14,30 @@ export interface AutomationDefinition {
   value: LevelFormula;
   cost: LevelFormula;
   maxLevel: number;
+  // Freischaltbedingung. `starMass` misst weiterhin eine Materiemenge,
+  // `manualExperience` verlangt genau eine selbst ausgelöste Reaktion.
+  //
+  // Vorher galt hier eine absolute Mengenschwelle auf dem *Produkt* der
+  // Automation (z. B. 900 ME Neon für die Kohlenstofffusion). Da dieses
+  // Produkt ohne die Automation ausschließlich durch Sternklicks entsteht,
+  // konnte die Kette dauerhaft blockieren: kein Klick → kein Produkt → keine
+  // Automation → nie wieder Fortschritt. Eine Runde blieb ohne anwesenden
+  // Spieler ab der Kohlenstoffphase eingefroren stehen, unabhängig davon, wie
+  // viel Energie bereitlag.
+  //
+  // Die Designabsicht („erst erleben, dann automatisieren“) bleibt vollständig
+  // erhalten — sie kostet jetzt eine einzige bewusste Handlung statt einer
+  // Menge, die nur durch Dauerklicken erreichbar war. Und weil
+  // `experiencedReactions` den Zyklus überdauert, gilt die Lektion ab dem
+  // zweiten Durchlauf als gelernt.
   mastery: {
     kind: 'starMass';
     threshold: number;
     symbol: string;
   } | {
-    kind: 'reaction';
+    kind: 'manualExperience';
     reaction: ReactionId;
-    threshold: number;
-    symbol: string;
+    lockedLabel: string;
   };
   // Punkt 1: Automationen, deren Nachschubquelle versiegen kann, hinterlegen
   // hier die Quelle und den Buttontext für den gesperrten Zustand. Ist die
@@ -32,10 +47,6 @@ export interface AutomationDefinition {
     exhaustedLabel: string;
   };
 }
-
-export const FUSION_AUTOMATION_HELIUM = 5_000;
-export const FUSION_AUTOMATION_CARBON = 1_500;
-export const FUSION_AUTOMATION_OXYGEN = 400;
 
 export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
   accretion: {
@@ -72,7 +83,7 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     reaction: 'hydrogen',
     title: 'Stabile Wasserstofffusion',
     icon: 'H',
-    description: `Führt stabile wasserstofffusion automatisch aus. Wird nach ${FUSION_AUTOMATION_HELIUM.toLocaleString('de-DE')} ME eigener Reaktionsleistung verfügbar.`,
+    description: 'Führt die Wasserstofffusion automatisch aus. Wird verfügbar, sobald du sie einmal selbst ausgelöst hast.',
     unit: 'H/s',
     value: {
       baseCost: 0,
@@ -88,10 +99,9 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     },
     maxLevel: 8,
     mastery: {
-      kind: 'reaction',
+      kind: 'manualExperience',
       reaction: 'hydrogen',
-      threshold: FUSION_AUTOMATION_HELIUM,
-      symbol: 'He',
+      lockedLabel: 'Einmal selbst fusionieren',
     },
   },
   heliumFusion: {
@@ -99,7 +109,7 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     reaction: 'helium',
     title: 'Stabile Heliumfusion',
     icon: 'He',
-    description: `Führt stabile heliumfusion automatisch aus. Wird nach ${FUSION_AUTOMATION_CARBON.toLocaleString('de-DE')} ME eigener Reaktionsleistung verfügbar.`,
+    description: 'Führt die Heliumfusion automatisch aus. Wird verfügbar, sobald du sie einmal selbst ausgelöst hast.',
     unit: 'He/s',
     value: {
       baseCost: 0,
@@ -115,10 +125,9 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     },
     maxLevel: 8,
     mastery: {
-      kind: 'reaction',
+      kind: 'manualExperience',
       reaction: 'helium',
-      threshold: FUSION_AUTOMATION_CARBON,
-      symbol: 'C',
+      lockedLabel: 'Einmal selbst fusionieren',
     },
   },
   oxygenSynthesis: {
@@ -126,7 +135,7 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     reaction: 'alphaCapture',
     title: 'Stabiler Alpha-Einfang',
     icon: 'O',
-    description: `Führt stabiler alpha-einfang automatisch aus. Wird nach ${FUSION_AUTOMATION_OXYGEN.toLocaleString('de-DE')} ME eigener Reaktionsleistung verfügbar.`,
+    description: 'Führt den Alpha-Einfang automatisch aus. Wird verfügbar, sobald du ihn einmal selbst ausgelöst hast.',
     unit: 'O/s',
     value: {
       baseCost: 0,
@@ -142,10 +151,9 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     },
     maxLevel: 8,
     mastery: {
-      kind: 'reaction',
+      kind: 'manualExperience',
       reaction: 'alphaCapture',
-      threshold: FUSION_AUTOMATION_OXYGEN,
-      symbol: 'O',
+      lockedLabel: 'Einmal selbst fusionieren',
     },
   },
   carbonFusion: {
@@ -153,7 +161,7 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     reaction: 'carbon',
     title: 'Stabile Kohlenstofffusion',
     icon: 'C',
-    description: 'Führt stabile kohlenstofffusion automatisch aus. Wird nach 900 ME eigener Reaktionsleistung verfügbar.',
+    description: 'Führt die Kohlenstofffusion automatisch aus. Wird verfügbar, sobald du sie einmal selbst ausgelöst hast.',
     unit: 'C/s',
     value: {
       baseCost: 0,
@@ -169,10 +177,9 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     },
     maxLevel: 8,
     mastery: {
-      kind: 'reaction',
+      kind: 'manualExperience',
       reaction: 'carbon',
-      threshold: 900,
-      symbol: 'Ne',
+      lockedLabel: 'Einmal selbst fusionieren',
     },
   },
   neonFusion: {
@@ -180,7 +187,7 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     reaction: 'neon',
     title: 'Stabile Neonfusion',
     icon: 'Ne',
-    description: 'Führt stabile neonfusion automatisch aus. Wird nach 700 ME eigener Reaktionsleistung verfügbar.',
+    description: 'Führt die Neonfusion automatisch aus. Wird verfügbar, sobald du sie einmal selbst ausgelöst hast.',
     unit: 'Ne/s',
     value: {
       baseCost: 0,
@@ -196,10 +203,9 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     },
     maxLevel: 8,
     mastery: {
-      kind: 'reaction',
+      kind: 'manualExperience',
       reaction: 'neon',
-      threshold: 700,
-      symbol: 'O',
+      lockedLabel: 'Einmal selbst fusionieren',
     },
   },
   oxygenFusion: {
@@ -207,7 +213,7 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     reaction: 'oxygen',
     title: 'Stabile Sauerstofffusion',
     icon: 'O',
-    description: 'Führt stabile sauerstofffusion automatisch aus. Wird nach 550 ME eigener Reaktionsleistung verfügbar.',
+    description: 'Führt die Sauerstofffusion automatisch aus. Wird verfügbar, sobald du sie einmal selbst ausgelöst hast.',
     unit: 'O/s',
     value: {
       baseCost: 0,
@@ -223,10 +229,9 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     },
     maxLevel: 8,
     mastery: {
-      kind: 'reaction',
+      kind: 'manualExperience',
       reaction: 'oxygen',
-      threshold: 550,
-      symbol: 'Si',
+      lockedLabel: 'Einmal selbst fusionieren',
     },
   },
   siliconFusion: {
@@ -234,7 +239,7 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     reaction: 'silicon',
     title: 'Stabile Siliziumfusion',
     icon: 'Si',
-    description: 'Führt stabile siliziumfusion automatisch aus. Wird nach 400 ME eigener Reaktionsleistung verfügbar.',
+    description: 'Führt die Siliziumfusion automatisch aus. Wird verfügbar, sobald du sie einmal selbst ausgelöst hast.',
     unit: 'Si/s',
     value: {
       baseCost: 0,
@@ -250,10 +255,9 @@ export const AUTOMATIONS: Record<AutomationKind, AutomationDefinition> = {
     },
     maxLevel: 8,
     mastery: {
-      kind: 'reaction',
+      kind: 'manualExperience',
       reaction: 'silicon',
-      threshold: 400,
-      symbol: 'Fe',
+      lockedLabel: 'Einmal selbst fusionieren',
     },
   },
 };
